@@ -5,7 +5,14 @@ import { fileURLToPath } from "node:url";
 import { findBrowser } from "./find-browser.mjs";
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const BASE = "http://127.0.0.1:8143";
+const FRONTEND_PORT = Number(process.env.OSL_FRONTEND_PORT) || 8143;
+const BACKEND_PORTS = {
+    a: Number(process.env.OSL_BACKEND_A_PORT) || 18151,
+    b: Number(process.env.OSL_BACKEND_B_PORT) || 18152,
+    lobby: Number(process.env.OSL_BACKEND_LOBBY_PORT) || 18153,
+    airport: Number(process.env.OSL_BACKEND_AIRPORT_PORT) || 18154,
+};
+const BASE = `http://127.0.0.1:${FRONTEND_PORT}`;
 const sleep = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
 function run(script, args = []) {
     const result = spawnSync("bash", [join(ROOT, script), ...args], { cwd: ROOT, encoding: "utf8" });
@@ -35,9 +42,7 @@ async function openWorld(browser, route, expectedLocation, requestLog, errors) {
     });
     await page.goto(`${BASE}/${route}`, { waitUntil: "networkidle0", timeout: 30000 });
     await page.waitForFunction(() => document.body.dataset.assemblyReady === "1" && window.__assembly?.debugState, { timeout: 30000 });
-    const start = await page.$('[data-testid="start-exploring"]');
-    if (start)
-        await start.click();
+    await page.evaluate(() => document.querySelector('[data-testid="start-exploring"]')?.click());
     await page.waitForFunction(() => window.__assembly.equipmentReady?.() !== false, { timeout: 30000 });
     const state = await page.evaluate(() => window.__assembly.debugState());
     if (state.location_id !== expectedLocation)
@@ -142,12 +147,105 @@ async function assertBinaryAsset(url) {
         throw new Error(`invalid GLB/VRM asset: ${url}`);
     }
 }
+async function assertValidatedJson(url) {
+    const response = await fetch(url);
+    if (!response.ok)
+        throw new Error(`${url} returned HTTP ${response.status}`);
+    const validation = response.headers.get("X-OSL-WoW-Validation");
+    if (!validation?.startsWith("pass:"))
+        throw new Error(`${url} returned invalid contract header: ${validation || "missing"}`);
+    return response.json();
+}
+async function assertEnabledWowContracts() {
+    for (const world of ["a", "b", "lobby", "airport"]) {
+        const worldResource = await assertValidatedJson(`${BASE}/api/${world}/wow/world`);
+        await json(`${BASE}/api/${world}/wow/location`);
+        await assertValidatedJson(`${BASE}/api/${world}/wow/user/1`);
+        await assertValidatedJson(`${BASE}/api/${world}/wow/view/1`);
+        const portalCount = Number(worldResource.portals?.portal_count) || 0;
+        for (let id = 1; id <= portalCount; id += 1)
+            await assertValidatedJson(`${BASE}/api/${world}/wow/portal/${id}`);
+        const spatialId = worldResource.id;
+        const root = await assertValidatedJson(`${BASE}/api/${world}/wow/spatial/${encodeURIComponent(spatialId)}`);
+        for (const id of [root.id, ...(root.children || [])])
+            await assertValidatedJson(`${BASE}/api/${world}/wow/spatial/${encodeURIComponent(spatialId)}/node/${id}`);
+    }
+}
+async function assertToolbarTargets(page) {
+    for (const width of [1280, 1024, 768, 620, 390]) {
+        await page.setViewport({ width, height: 800 });
+        await page.waitForFunction((expected) => {
+            const value = Number.parseFloat(getComputedStyle(document.documentElement)
+                .getPropertyValue("--osl-viewport-width"));
+            return Math.abs(value - expected) < 2;
+        }, { timeout: 5000 }, width);
+        const geometry = await page.evaluate(() => {
+            const view = document.getElementById("btn-views-home");
+            const destinations = document.getElementById("btn-semantic-destinations");
+            const box = (element) => {
+                const rect = element.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                return {
+                    left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+                    width: rect.width, height: rect.height, x, y,
+                    hit: document.elementFromPoint(x, y)?.id || null,
+                };
+            };
+            return { view: box(view), destinations: box(destinations) };
+        });
+        if (geometry.view.right > geometry.destinations.left ||
+            geometry.view.hit !== "btn-views-home" ||
+            geometry.destinations.hit !== "btn-semantic-destinations") {
+            throw new Error(`toolbar geometry/hit failure at ${width}px: ${JSON.stringify(geometry)}`);
+        }
+        await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.click(), {
+            x: geometry.destinations.x, y: geometry.destinations.y,
+        });
+        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "true");
+        await page.keyboard.press("Escape");
+        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "false");
+        await page.focus("#btn-semantic-destinations");
+        await page.keyboard.press("Enter");
+        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "true");
+        await page.keyboard.press("Escape");
+        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "false");
+        await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.click(), {
+            x: geometry.view.x, y: geometry.view.y,
+        });
+        await page.waitForFunction(() => document.getElementById("btn-views-home")?.getAttribute("aria-expanded") === "true");
+        await page.keyboard.press("Escape");
+        await page.focus("#btn-views-home");
+        await page.keyboard.press("Enter");
+        await page.waitForFunction(() => document.getElementById("btn-views-home")?.getAttribute("aria-expanded") === "true");
+        await page.keyboard.press("Escape");
+    }
+    await page.setViewport({ width: 1280, height: 800 });
+}
+async function settledErrors(errors) {
+    const significant = [];
+    for (const value of errors) {
+        const aborted = /^request failed: (\S+) net::ERR_ABORTED$/i.exec(value);
+        if (!aborted) {
+            if (!/favicon\.ico|WebSocket is closed before the connection is established/i.test(value))
+                significant.push(value);
+            continue;
+        }
+        try {
+            await assertBinaryAsset(aborted[1]);
+        }
+        catch (error) {
+            significant.push(`${value}; settlement check failed: ${error.message}`);
+        }
+    }
+    return significant;
+}
 async function main() {
     run("stopOpenSpatialLab.sh", ["--quiet"]);
     const receipt = run("launchOpenSpatialLab.sh");
     if (!receipt.includes("Open Spatial Lab is ready."))
         throw new Error("startup receipt missing");
-    for (const [port, location] of [[18151, "location-a"], [18152, "location-b"], [18153, "location-lobby"], [18154, "location-airport"]]) {
+    for (const [port, location] of [[BACKEND_PORTS.a, "location-a"], [BACKEND_PORTS.b, "location-b"], [BACKEND_PORTS.lobby, "location-lobby"], [BACKEND_PORTS.airport, "location-airport"]]) {
         const health = await json(`http://127.0.0.1:${port}/healthz`);
         if (!health.ok || health.location_id !== location)
             throw new Error(`health check mismatch on ${port}`);
@@ -158,6 +256,7 @@ async function main() {
         if (!signature?.keyRef || !signature?.value)
             throw new Error(`signed user manifest missing for ${world}`);
     }
+    await assertEnabledWowContracts();
     for (const port of [19151, 19152, 19153, 19154]) {
         const result = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" });
         if (result.status === 0 && result.stdout.trim())
@@ -194,6 +293,7 @@ async function main() {
         await launcher.goto(`${BASE}/`, { waitUntil: "networkidle0", timeout: 30000 });
         await launcher.waitForSelector(".demo-launcher", { timeout: 15000 });
         const lobby = await openWorld(browser, "index.html?role=player&intro=bypass", "location-lobby", requests, errors);
+        await assertToolbarTargets(lobby);
         await lobby.evaluate(async () => {
             const selector = window.__assembly.avatarSelector;
             selector.open();
@@ -217,6 +317,9 @@ async function main() {
         await portalDrive(lobby, "lobby-portal-c", "world-airport-terminal", { browserDriven: true });
         await lobby.waitForFunction(() => (document.body.dataset.airportTerminalReady === "1" &&
             window.__assembly.adapter.world.portals.some((portal) => (portal.string_portal_id || portal.portal_id) === "reciprocal--lobby-portal-c--world-airport-terminal")), { timeout: 30000 });
+        const contractState = await lobby.evaluate(() => window.__assembly.debugState().wow_contract_validation);
+        if (contractState?.status === "failed" || contractState?.failed || contractState?.errors)
+            throw new Error(`visible WoW contract warning after Portal C: ${JSON.stringify(contractState)}`);
         await lobby.evaluate(() => window.__assembly.orbitCamera(Math.PI, 0, 0));
         await sleep(350);
         await portalDrive(lobby, "reciprocal--lobby-portal-c--world-airport-terminal", "location-lobby", { browserDriven: true });
@@ -236,7 +339,7 @@ async function main() {
         });
         if (external.length)
             throw new Error(`unexpected external runtime requests: ${[...new Set(external)].join(", ")}`);
-        const significant = errors.filter((value) => !/favicon\.ico|WebSocket is closed before the connection is established/i.test(value));
+        const significant = await settledErrors(errors);
         if (significant.length)
             throw new Error(significant.join("\n"));
     }
@@ -244,7 +347,7 @@ async function main() {
         await browser.close();
         run("stopOpenSpatialLab.sh", ["--quiet"]);
     }
-    for (const port of [8143, 18151, 18152, 18153, 18154, 19151, 19152, 19153, 19154]) {
+    for (const port of [FRONTEND_PORT, ...Object.values(BACKEND_PORTS), 19151, 19152, 19153, 19154]) {
         const result = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" });
         if (result.status === 0 && result.stdout.trim())
             throw new Error(`port ${port} remained occupied after shutdown`);

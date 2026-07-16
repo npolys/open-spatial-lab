@@ -1,7 +1,12 @@
 'use strict';
 const { createServer } = require('../runtime/world-server/src/server.js');
 const { makeConfig } = require('../runtime/world-server/src/config.js');
-const PORTS = Object.freeze({ a: 18151, b: 18152, lobby: 18153, airport: 18154 });
+const PORTS = Object.freeze({
+    a: Number(process.env.BACKEND_A_PORT) || 18151,
+    b: Number(process.env.BACKEND_B_PORT) || 18152,
+    lobby: Number(process.env.BACKEND_LOBBY_PORT) || 18153,
+    airport: Number(process.env.BACKEND_AIRPORT_PORT) || 18154,
+});
 function startWorld(role, portByLocation) {
     const base = makeConfig(role);
     const portals = base.portals.map((portal) => {

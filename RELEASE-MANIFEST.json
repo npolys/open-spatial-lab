@@ -3,7 +3,7 @@
   "project": "Open Spatial Lab",
   "release_slug": "grigb/open-spatial-lab",
   "release_scope": "complete-local-web-of-worlds-demo",
-  "complete_tree_sha256": "c3cfdb9589c9421365b6fd3e62229e85957027ef13ebebd3e71946f69d8b849c",
+  "complete_tree_sha256": "cf397d2d0a6607852be25b2cfe1d91b2b26d33c0161ca16c3ff719f1ade87393",
   "files": [
     {
       "path": ".gitignore",
@@ -16,8 +16,8 @@
     {
       "path": "launchOpenSpatialLab.sh",
       "mode": "100644",
-      "size": 2472,
-      "sha256": "1f5ea80eac429d84197b01c96e65612eae0ac4afe8842d500a5e4bda5c2f7748",
+      "size": 3064,
+      "sha256": "b0f561b1c9df6990c18b96b7d580c35b2d6fb9a307fcf9c2872d6fb1357ab246",
       "classification": "launcher",
       "license": "Apache-2.0"
     },
@@ -208,8 +208,8 @@
     {
       "path": "runtime/world-server/src/runtime-state.js",
       "mode": "100644",
-      "size": 110289,
-      "sha256": "7ab8217ed76339771143eb5f8db1f129e843e31b705d3e6fc58b3d2b9d78ab85",
+      "size": 110535,
+      "sha256": "6d337e86ed386e6b24c765c1be08b95d679e0d93f5bf6e0bad0f06cff18e0b14",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
@@ -240,8 +240,8 @@
     {
       "path": "runtime/world-server/src/wow-media-types.js",
       "mode": "100644",
-      "size": 8376,
-      "sha256": "6136b5c8164ee79ce7ee05e5773fc7e4b88e8ca350b22e461f46b35568d36848",
+      "size": 8275,
+      "sha256": "a150f1260fe7c140323af484669513eda516fd83b7ca01fe09ceca53708f3297",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
@@ -264,8 +264,8 @@
     {
       "path": "src/orchestrator.js",
       "mode": "100644",
-      "size": 2101,
-      "sha256": "e05447ea561bfaba5ee0da4feda6444630c70347fcf35992eff59e363d811500",
+      "size": 2280,
+      "sha256": "a96de682cfa66a9c8f62252b7dc0459f1dcd1818878bacce6532e5512bdd5d57",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
@@ -280,8 +280,8 @@
     {
       "path": "stopOpenSpatialLab.sh",
       "mode": "100644",
-      "size": 1461,
-      "sha256": "da4f92e49384d249225458c86becde0e25864929a1bbf22b3fc00655611a01e3",
+      "size": 1611,
+      "sha256": "3c983dc5c20eb021fa4e12fb51eb68bbdc9a1d59c1f2b21cf1bf7abf493e237b",
       "classification": "launcher",
       "license": "Apache-2.0"
     },
@@ -312,16 +312,16 @@
     {
       "path": "tools/verify-demo.mjs",
       "mode": "100644",
-      "size": 14017,
-      "sha256": "36a8749f6626d0eac3703c68e2b320d8f29443abe07430c99826a11160b7d177",
+      "size": 19802,
+      "sha256": "54842cbf08e997864ab49a7ea71a289ca9043b366710c3862d54198d5c1d8dc1",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
     {
       "path": "tools/verify-release.mjs",
       "mode": "100644",
-      "size": 5330,
-      "sha256": "4032adaf70cd3dc4ed88ab14d5fdb887329a094deb1ea8df617169cdc5df464c",
+      "size": 5722,
+      "sha256": "dece777f8b8c9b578e90719cbea9fbad07dd8f107ecc7f0e5c96371885e28e63",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -672,8 +672,8 @@
     {
       "path": "web/index.html",
       "mode": "100644",
-      "size": 89650,
-      "sha256": "af4b59f7a331f11bc592aee5a40b3de8c435ae14b5a793ad9faf0b1669ead5c5",
+      "size": 89841,
+      "sha256": "e7540a5085f322a76de8ff19de4d507ddbfab40b7bba700fd7b64b50df3f883c",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },

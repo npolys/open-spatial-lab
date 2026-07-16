@@ -7,7 +7,12 @@ BACKEND_PID="$RUN_DIR/world-servers.pid"
 FRONTEND_PID="$RUN_DIR/frontend.pid"
 BACKEND_LOG="$RUN_DIR/world-servers.log"
 FRONTEND_LOG="$RUN_DIR/frontend.log"
-PORTS=(18151 18152 18153 18154 8143)
+FRONTEND_PORT="${OSL_FRONTEND_PORT:-8143}"
+BACKEND_A_PORT="${OSL_BACKEND_A_PORT:-18151}"
+BACKEND_B_PORT="${OSL_BACKEND_B_PORT:-18152}"
+BACKEND_LOBBY_PORT="${OSL_BACKEND_LOBBY_PORT:-18153}"
+BACKEND_AIRPORT_PORT="${OSL_BACKEND_AIRPORT_PORT:-18154}"
+PORTS=("$BACKEND_A_PORT" "$BACKEND_B_PORT" "$BACKEND_LOBBY_PORT" "$BACKEND_AIRPORT_PORT" "$FRONTEND_PORT")
 
 for command in node npm curl lsof; do
   if ! command -v "$command" >/dev/null 2>&1; then
@@ -35,12 +40,14 @@ for port in "${PORTS[@]}"; do
 done
 
 node "$ROOT/tools/start-detached.mjs" "$BACKEND_PID" "$BACKEND_LOG" env \
-  OSL_WOW_VALIDATE=1 BACKEND_AIRPORT_PORT=18154 \
+  OSL_WOW_VALIDATE=1 BACKEND_A_PORT="$BACKEND_A_PORT" BACKEND_B_PORT="$BACKEND_B_PORT" \
+  BACKEND_LOBBY_PORT="$BACKEND_LOBBY_PORT" BACKEND_AIRPORT_PORT="$BACKEND_AIRPORT_PORT" \
   node src/orchestrator.js serve-backends
 
 node "$ROOT/tools/start-detached.mjs" "$FRONTEND_PID" "$FRONTEND_LOG" env \
-  BACKEND_A_PORT=18151 BACKEND_B_PORT=18152 BACKEND_LOBBY_PORT=18153 BACKEND_AIRPORT_PORT=18154 \
-  node src/serve.js 8143
+  BACKEND_A_PORT="$BACKEND_A_PORT" BACKEND_B_PORT="$BACKEND_B_PORT" \
+  BACKEND_LOBBY_PORT="$BACKEND_LOBBY_PORT" BACKEND_AIRPORT_PORT="$BACKEND_AIRPORT_PORT" \
+  node src/serve.js "$FRONTEND_PORT"
 
 cleanup_on_error() {
   bash "$ROOT/stopOpenSpatialLab.sh" --quiet || true
@@ -59,15 +66,15 @@ for port in "${PORTS[@]}"; do
   fi
 done
 
-if [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8143/)" != "200" ]; then
+if [ "$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$FRONTEND_PORT/")" != "200" ]; then
   printf 'ERROR: launcher did not return HTTP 200. See %s.\n' "$FRONTEND_LOG" >&2
   exit 1
 fi
 
 trap - ERR
 printf '\nOpen Spatial Lab is ready.\n'
-printf 'Launcher:            http://127.0.0.1:8143/\n'
-printf 'Lobby player:        http://127.0.0.1:8143/index.html?role=player&intro=bypass\n'
-printf 'Location A observer: http://127.0.0.1:8143/index.html?role=source&intro=bypass\n'
-printf 'Location B observer: http://127.0.0.1:8143/index.html?role=target&intro=bypass\n'
+printf 'Launcher:            http://127.0.0.1:%s/\n' "$FRONTEND_PORT"
+printf 'Lobby player:        http://127.0.0.1:%s/index.html?role=player&intro=bypass\n' "$FRONTEND_PORT"
+printf 'Location A observer: http://127.0.0.1:%s/index.html?role=source&intro=bypass\n' "$FRONTEND_PORT"
+printf 'Location B observer: http://127.0.0.1:%s/index.html?role=target&intro=bypass\n' "$FRONTEND_PORT"
 printf 'Stop:                npm stop\n'

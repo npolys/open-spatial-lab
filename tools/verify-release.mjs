@@ -42,6 +42,10 @@ const forbiddenText = [
     { label: "private workflow marker", pattern: new RegExp("MSF-" + "local|project-" + "notes|local demo-" + "DEMO", "i") },
 ];
 const privateProjectToken = Buffer.from("6f70656e2d7370617469616c2d6c61622d646576", "hex").toString("utf8");
+const privateWorkspaceTokens = [
+    "7370617469616c2d636f6d707574696e672d72657365617263682d70726f6a656374732d6d7366",
+    "78722d72756e74696d652d636f6d70617269736f6e",
+].map((hex) => Buffer.from(hex, "hex").toString("utf8"));
 function searchableText(path, bytes) {
     if (![".glb", ".vrm"].includes(extname(path).toLowerCase()))
         return bytes.toString("utf8");
@@ -76,6 +80,8 @@ for (let index = 0; index < actual.length; index += 1) {
     const text = searchableText(file.path, bytes);
     if (text.toLowerCase().includes(privateProjectToken))
         throw new Error(`unexpected repository reference: ${file.path}`);
+    if (privateWorkspaceTokens.some((token) => text.toLowerCase().includes(token)))
+        throw new Error(`unexpected private workspace reference: ${file.path}`);
     for (const rule of forbiddenText)
         if (rule.pattern.test(text))
             throw new Error(`${rule.label}: ${file.path}`);

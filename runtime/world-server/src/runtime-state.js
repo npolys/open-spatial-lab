@@ -608,8 +608,8 @@ function createRuntime(opts) {
     }
     function wowPortalExtension(portal, wowId) {
         const traversal = portalTraversalRule(portal);
-        const targetWorldId = portal.target_world_id || null;
-        return {
+        const targetWorldId = portal.target_world_id || portal.target_fixture?.spatial_id;
+        const extension = {
             portal_id: portal.portal_id,
             wow_id: wowId,
             wow_resource: '/wow/portal/' + wowId,
@@ -617,7 +617,7 @@ function createRuntime(opts) {
             source_location_id: portal.source_location_id,
             source_world_id: portal.source_world_id,
             portal_node_id: wowPortalNodeId(wowId),
-            target_spatial_graph_endpoint: targetWorldId ? '/wow/spatial/' + targetWorldId : null,
+            target_spatial_graph_endpoint: targetWorldId ? '/wow/spatial/' + targetWorldId : undefined,
             target_fixture: portal.target_fixture
                 ? clone(portal.target_fixture)
                 : undefined,
@@ -637,11 +637,12 @@ function createRuntime(opts) {
             },
             geopose_mapping: WOW_GEOPOSE_MAPPING,
             zones: portalZones(portal),
-            spatial_fabric_address: spatialFabricAddressForPortal(portal),
+            spatial_fabric_address: spatialFabricAddressForPortal(portal) || undefined,
             traversal_mode: traversal.mode,
             traversal: traversal,
             reciprocal: portalReciprocalRule(portal),
         };
+        return extension;
     }
     function portalTraversalRule(portal) {
         const raw = portal.traversal || {};
@@ -1646,7 +1647,8 @@ function createRuntime(opts) {
         state.portals.forEach((portal, index) => {
             const wowId = index + 1;
             const trigger = portal.trigger || {};
-            const targetWorldId = portal.target_world_id || null;
+            const targetWorldId = portal.target_world_id || portal.target_fixture?.spatial_id;
+            const targetLocationId = portal.target_location_id || portal.target_fixture?.spatial_id;
             children.push({
                 label: portal.label || ('Portal ' + portal.portal_id),
                 names: [portal.portal_id, 'portal', 'wow-portal-' + wowId],
@@ -1661,11 +1663,11 @@ function createRuntime(opts) {
                     role: 'portal',
                     portal_id: portal.portal_id,
                     portal_resource: '/wow/portal/' + wowId,
-                    target_spatial_id: targetWorldId,
-                    target_spatial_graph_endpoint: targetWorldId ? '/wow/spatial/' + targetWorldId : null,
-                    target_world_id: targetWorldId,
-                    target_location_id: portal.target_location_id || null,
-                    target_base_url: portal.target_base_url || null,
+                    target_spatial_id: targetWorldId || undefined,
+                    target_spatial_graph_endpoint: targetWorldId ? '/wow/spatial/' + targetWorldId : undefined,
+                    target_world_id: targetWorldId || undefined,
+                    target_location_id: targetLocationId || undefined,
+                    target_base_url: portal.target_base_url || undefined,
                     traversal_mode: portalTraversalRule(portal).mode,
                     reciprocal: portalReciprocalRule(portal),
                     note: 'LABELED x-osl-extension. Destination is a composition-graph '

@@ -1,6 +1,5 @@
 'use strict';
 const fs = require('fs');
-const nodePath = require('path');
 const SPEC_NEGOTIATED_MEDIA_TYPES = Object.freeze([
     { mediaType: 'model/3mf', iana: true, ext: '3mf', binary: true },
     { mediaType: 'model/e57', iana: true, ext: 'e57', binary: true },
@@ -48,9 +47,11 @@ function mediaTypeInfo(mediaType) {
     return BY_MEDIA_TYPE.get(String(mediaType || '').toLowerCase()) || null;
 }
 function assertSpecTranscriptionIsFaithful(specYamlPath) {
-    const p = specYamlPath || nodePath.join(nodePath.sep + nodePath.join('Users', 'grig', 'work'), 'spatial-computing-research-projects-msf', 'research', 'xr-runtime-comparison', 'web-of-worlds', 'repos', 'WoWAPI', 'specification', 'OpenSpatialAsset', 'API.yaml');
+    const p = typeof specYamlPath === 'string' && specYamlPath ? specYamlPath : null;
+    if (!p)
+        return { skipped: true, reason: 'explicit upstream WoWAPI schema path not provided' };
     if (!fs.existsSync(p))
-        return { skipped: true, reason: 'upstream WoWAPI clone not present at ' + p };
+        return { skipped: true, reason: 'explicit upstream WoWAPI schema path not found' };
     const text = fs.readFileSync(p, 'utf8');
     const getBlock = text.slice(text.indexOf('    get:'), text.indexOf('  /wow/asset:') === -1 ? text.length : text.indexOf('  /wow/asset:'));
     const found = [];

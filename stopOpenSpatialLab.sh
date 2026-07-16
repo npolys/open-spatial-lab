@@ -41,12 +41,12 @@ for file in "$RUN_DIR/world-servers.pid" "$RUN_DIR/frontend.pid"; do
   rm -f "$file"
 done
 
-for port in 8143 18151 18152 18153 18154; do
+for port in "${OSL_FRONTEND_PORT:-8143}" "${OSL_BACKEND_A_PORT:-18151}" "${OSL_BACKEND_B_PORT:-18152}" "${OSL_BACKEND_LOBBY_PORT:-18153}" "${OSL_BACKEND_AIRPORT_PORT:-18154}"; do
   if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
     printf 'WARNING: port %s remains occupied by a process not owned by this checkout.\n' "$port" >&2
   fi
 done
 
 if [ "$QUIET" != "--quiet" ]; then
-  printf 'Open Spatial Lab stopped. Ports 8143 and 18151-18154 are released.\n'
+  printf 'Open Spatial Lab stopped. Configured frontend and world-server ports are released.\n'
 fi
