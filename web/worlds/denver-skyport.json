@@ -1,0 +1,247 @@
+{
+  "_note": "runtime walkable airport-terminal composition graph. Phase 1 physical scene only: recognizable concourse, varied stores, static NPC travelers, and Gate A12. No spatial-fabric/UM AR overlay, AR handshaking, shopping, boarding logic, or NPC AI/pathfinding.",
+  "spatialID": "world-airport-terminal",
+  "title": "Denver Skyport — Concourse A",
+  "base_url": "http://127.0.0.1:8143",
+  "spatial_composition_graph_endpoint": "/worlds/denver-skyport.json",
+  "units": "metres; demo-local tangent frame; y-up; entrant faces local +z down the concourse",
+  "world": {
+    "content": {
+      "label": "Denver Skyport — Concourse A",
+      "age_restriction": 0,
+      "license": "OSL-authored terminal composition CC0-1.0; NPC avatar assets are existing local OSL catalog assets under their recorded per-asset licenses",
+      "cost": "free",
+      "version": 1,
+      "duration": 0
+    },
+    "geoPose": {
+      "position": { "lat": 0, "lan": 0, "h": 0 },
+      "angles": { "yaw": 0, "pitch": 0, "roll": 0 }
+    },
+    "presence": {
+      "avatar": "existing OSL AvatarEquipmentLayer",
+      "navigation": "existing walk-wasd and first/third-person camera controls",
+      "gravity": "existing y-down ground clamp"
+    },
+    "technology": {
+      "webXR-immersive": "not-proven",
+      "runtime": "wow-client-threejs-browser"
+    },
+    "users": { "active_user_count": 7, "total_user_count": 7 },
+    "views": { "view_count": 1 },
+    "portals": { "portal_count": 0 },
+    "id": "world-airport-terminal",
+    "proof_boundary": {
+      "application_level_handoff": false,
+      "native_teleportxr_teleport": false,
+      "first_party_teleportxr_browser_rendering": false,
+      "standards_conformance": false
+    },
+    "webofworlds_extension": {
+      "schema": "OpenSpatialWorld API World + labeled OSL airport-terminal content extension",
+      "spatial_id": "world-airport-terminal",
+      "stage_narrative": "Enter a bright airport concourse, walk through a commons past coffee, news, duty-free, and food storefronts and several travelers, then arrive at the clearly marked Gate A12 flight destination.",
+      "phase_boundary": "runtime physical scene only; runtime owns future spatial-fabric/UM AR overlays. AR handshaking remains owner-to-specify."
+    }
+  },
+  "root": 0,
+  "nodes": [
+    {
+      "id": 0,
+      "label": "__wow_internal_root",
+      "children": [1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+    },
+    {
+      "id": 1,
+      "label": "Denver Skyport — Concourse A",
+      "parent": 0,
+      "children": [2,3,4,5,6,7,8,9,10,11,12,13],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "airport_terminal": {
+          "title": "DENVER SKYPORT • CONCOURSE A",
+          "width_m": 24,
+          "length_m": 86,
+          "height_m": 6.4,
+          "walk_path": "spawn at concourse entry → pass four distinct commons storefronts and six NPC travelers → arrive at Gate A12",
+          "walkable_surfaces": [
+            {
+              "surface_id": "airport-concourse-floor",
+              "classification": "walkable",
+              "shape": "box",
+              "center_m": [0, 0.01, 38],
+              "size_m": [24, 0.12, 88],
+              "render_material": "floor",
+              "priority": 0
+            },
+            {
+              "surface_id": "airport-wayfinding-runner",
+              "classification": "walkable",
+              "shape": "box",
+              "center_m": [0, 0.09, 39],
+              "size_m": [6.4, 0.045, 83],
+              "render_material": "runner",
+              "priority": 1
+            }
+          ],
+          "walkable_surface_policy": {
+            "selection": "highest classified walkable box top containing current x/z; priority then surface_id break exact-height ties",
+            "outside_fallback": "fail_closed_retain_last_valid_xz",
+            "non_walkable_geometry": "walls, overheads, storefronts, counters, seating, portals, signs, NPCs, and markers are never ground candidates"
+          },
+          "entry_spawn": {
+            "position_m": [0, 0, -3],
+            "facing": "+z",
+            "rotation_y": 0,
+            "derivation": "x/z authored at the concourse entry; y is resolved at runtime from the classified walkable surface top"
+          },
+          "return_path": {
+            "mode": "existing_header_control",
+            "control_id": "btn-return-lobby",
+            "target_location_id": "location-lobby",
+            "target_world_id": "demo-lobby"
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "label": "Skyline Coffee",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,15,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "storefront",
+        "category": "coffee",
+        "sign": "SKYLINE COFFEE",
+        "sign_background": "#6d3828",
+        "accent": 12086082
+      }
+    },
+    {
+      "id": 3,
+      "label": "Frontier News & Travel",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,28,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "storefront",
+        "category": "news",
+        "sign": "FRONTIER NEWS",
+        "sign_background": "#176b97",
+        "accent": 1937097
+      }
+    },
+    {
+      "id": 4,
+      "label": "High Plains Duty Free",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,42,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "storefront",
+        "category": "duty-free",
+        "sign": "HIGH PLAINS DUTY FREE",
+        "sign_background": "#181818",
+        "accent": 13214247
+      }
+    },
+    {
+      "id": 5,
+      "label": "Mesa Kitchen",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,55,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "storefront",
+        "category": "food",
+        "sign": "MESA KITCHEN",
+        "sign_background": "#a52f25",
+        "accent": 13912882
+      }
+    },
+    {
+      "id": 6,
+      "label": "Gate A12 — Flight 482 to Seattle",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,76,1],
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "flight-gate",
+        "gate": "GATE A12",
+        "flight": "FLIGHT 482 • SEATTLE",
+        "destination": "walk-up endpoint only; no boarding logic"
+      }
+    },
+    {
+      "id": 7,
+      "label": "Concourse entry spawn marker",
+      "parent": 1,
+      "children": [],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1],
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "entry-marker" }
+    },
+    {
+      "id": 8,
+      "label": "NPC Traveler — Cute Moth",
+      "parent": 1,
+      "children": [],
+      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -2.9,0,11,1],
+      "spatialAssetURI": "/assets/avatars/vrm/CuteMoth_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    },
+    {
+      "id": 9,
+      "label": "NPC Traveler — Cool Waffle",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.2,0,20,1],
+      "spatialAssetURI": "/assets/avatars/vrm/CoolWaffle_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    },
+    {
+      "id": 10,
+      "label": "NPC Traveler — Cool Banana",
+      "parent": 1,
+      "children": [],
+      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -3.6,0,32,1],
+      "spatialAssetURI": "/assets/avatars/vrm/CoolBanana_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    },
+    {
+      "id": 11,
+      "label": "NPC Traveler — Froggy",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.8,0,43,1],
+      "spatialAssetURI": "/assets/avatars/vrm/Froggy_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    },
+    {
+      "id": 12,
+      "label": "NPC Traveler — Mushy",
+      "parent": 1,
+      "children": [],
+      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -3.1,0,55,1],
+      "spatialAssetURI": "/assets/avatars/vrm/Mushy_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    },
+    {
+      "id": 13,
+      "label": "NPC Traveler — Mr Bush",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.4,0,66,1],
+      "spatialAssetURI": "/assets/avatars/vrm/MrBush_VRM.vrm",
+      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+    }
+  ],
+  "portals": []
+}

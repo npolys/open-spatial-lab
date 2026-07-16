@@ -1,0 +1,1153 @@
+{
+  "schema_version": 2,
+  "project": "Open Spatial Lab",
+  "release_slug": "grigb/open-spatial-lab",
+  "release_scope": "complete-local-web-of-worlds-demo",
+  "complete_tree_sha256": "c3cfdb9589c9421365b6fd3e62229e85957027ef13ebebd3e71946f69d8b849c",
+  "files": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "size": 74,
+      "sha256": "81a7712d83873d3701ba0b0c8a08c426cb83e0c08c02efdd5e49f6188a96efa3",
+      "classification": "project-config",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "launchOpenSpatialLab.sh",
+      "mode": "100644",
+      "size": 2472,
+      "sha256": "1f5ea80eac429d84197b01c96e65612eae0ac4afe8842d500a5e4bda5c2f7748",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "size": 11326,
+      "sha256": "d6d1c91c42ab7d429989c4f5c2f43ff3b9d060a10b1209c35077f089ff108866",
+      "classification": "license",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "licenses/AntiqueCamera-README.md",
+      "mode": "100644",
+      "size": 1175,
+      "sha256": "e8828323bbf41a2cbba380de9c7b3f4aa74ee24e4c0d15b67b0b3ec711627bbb",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/Avocado-README.md",
+      "mode": "100644",
+      "size": 950,
+      "sha256": "b963ec47317b8edf378b73440457964a62f758e3ace77fb09f90c637535d19b1",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/BarramundiFish-README.md",
+      "mode": "100644",
+      "size": 939,
+      "sha256": "2ae303004c29c22320e0f9c22b2fed2cae476212adf8819b49fcf06eff1d56d5",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/BoomBox-README.md",
+      "mode": "100644",
+      "size": 980,
+      "sha256": "6631a186b8aa2a25133cfa31653477d3518119a67de3814021c6631e72593028",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/CC-BY-4.0.txt",
+      "mode": "100644",
+      "size": 18657,
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/CC0-1.0.txt",
+      "mode": "100644",
+      "size": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/Duck-README.md",
+      "mode": "100644",
+      "size": 866,
+      "sha256": "27213a68e7d85cc79cf2b76821361553fb90e9e1b53d0b8d7b4080ebecc8dcfa",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/Fox-README.md",
+      "mode": "100644",
+      "size": 1716,
+      "sha256": "5e1504ed6f726c432774e37a0a295f2a4d7e096b50bdc60e4ea8d51e8d16fef3",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/Lantern-README.md",
+      "mode": "100644",
+      "size": 1041,
+      "sha256": "d352ad8459b8feae1652a822cd02d4dc2224367cac364cccca25931228e033b7",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/MIT.txt",
+      "mode": "100644",
+      "size": 1078,
+      "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/SCEA-1.0.txt",
+      "mode": "100644",
+      "size": 6638,
+      "sha256": "0698b27d130fb6f3195e4c50361441398e88e8378a753a13840e1160f5a7e397",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/THREE-MIT.txt",
+      "mode": "100644",
+      "size": 1081,
+      "sha256": "852e0e8699169bf9f6fdc6bda3e682d078dcbc738b5d33e74df594721bff271d",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/THREE-VRM-MIT.txt",
+      "mode": "100644",
+      "size": 1072,
+      "sha256": "cf895df017efbb5a12179ef95c39c59299f12a34a4c7ddaba7b744b85b7a75bf",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "licenses/ToyCar-README.md",
+      "mode": "100644",
+      "size": 2036,
+      "sha256": "2a8a6b6c9dcea5a690e61d5e26689a14ae816c2969fcad1eafb5b3af7d57c6ae",
+      "classification": "third-party-license",
+      "license": "notice-only"
+    },
+    {
+      "path": "NOTICE",
+      "mode": "100644",
+      "size": 145,
+      "sha256": "5f3a2121b632943b03ffe14a8e1761ed39f7eae720758db012085dee3da3f348",
+      "classification": "notice",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "package-lock.json",
+      "mode": "100644",
+      "size": 47798,
+      "sha256": "69b7af551a16697de2d2c6791bf83789d99fd7044127721e5fd86f45f19dec0e",
+      "classification": "package-lock",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "size": 791,
+      "sha256": "57a273bf28589e829e365754c09f8d9902111e907bf656e8a7b78662c6b9fcec",
+      "classification": "package-config",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "size": 5194,
+      "sha256": "62ac32a99a016f5cff1e5909994022824f13e27fde611884f3376f9da0e1808b",
+      "classification": "documentation",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/scene-core/public/frontend-contract.js",
+      "mode": "100644",
+      "size": 1992,
+      "sha256": "e676bdee8aa8a0cde51acdfaae37c34b5931aa530e81057ec656ad8630f55d36",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/scene-core/public/scene.js",
+      "mode": "100644",
+      "size": 13073,
+      "sha256": "97159fae5e2fca8df2bf16ede588a3d840842de4a484f3ce2b430a110210b725",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/scene-core/public/vendor/three/three.module.js",
+      "mode": "100644",
+      "size": 1340632,
+      "sha256": "3c31cd0dad413a35facb12bd9186cb661795d5f322c1ac9af419c9bff5fff8ac",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/config.js",
+      "mode": "100644",
+      "size": 6550,
+      "sha256": "8610e7177d06d287f15371667ef78758af8ab21c4ed909db686952c4d70dbd16",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/runtime-state.js",
+      "mode": "100644",
+      "size": 110289,
+      "sha256": "7ab8217ed76339771143eb5f8db1f129e843e31b705d3e6fc58b3d2b9d78ab85",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/server.js",
+      "mode": "100644",
+      "size": 29667,
+      "sha256": "2650e6ed04d09d9cecc4166cf172c860f83750c55c2952eaa348e075b619b439",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/spatial-graph.js",
+      "mode": "100644",
+      "size": 18836,
+      "sha256": "05f45752a28fffdf08a83b2a84bf47d8933f908196301b7e3d7b13a4f65960c7",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/wow-asset.js",
+      "mode": "100644",
+      "size": 8641,
+      "sha256": "ed9ee61eedd61b2ea7b7f9af6dd2ff8131dea8ff651eb6d680b8ac4ae72bd6eb",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/wow-media-types.js",
+      "mode": "100644",
+      "size": 8376,
+      "sha256": "6136b5c8164ee79ce7ee05e5773fc7e4b88e8ca350b22e461f46b35568d36848",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "runtime/world-server/src/wow-model-writers.js",
+      "mode": "100644",
+      "size": 8933,
+      "sha256": "0e2c109bf792f504c9491bf4da2e7e337188dd35805b47583a0e9b01f2c77981",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "SECURITY.md",
+      "mode": "100644",
+      "size": 303,
+      "sha256": "efb8246799f1dec6304c1abc8116ab8c06b29e26c6f611208349e36839f7dbf6",
+      "classification": "documentation",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "src/orchestrator.js",
+      "mode": "100644",
+      "size": 2101,
+      "sha256": "e05447ea561bfaba5ee0da4feda6444630c70347fcf35992eff59e363d811500",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "src/serve.js",
+      "mode": "100644",
+      "size": 9641,
+      "sha256": "208401fa91948984e3b344184dd7f44f54d6ff0bbfe0a6911874d00b69dea3e2",
+      "classification": "server-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "stopOpenSpatialLab.sh",
+      "mode": "100644",
+      "size": 1461,
+      "sha256": "da4f92e49384d249225458c86becde0e25864929a1bbf22b3fc00655611a01e3",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "mode": "100644",
+      "size": 2021,
+      "sha256": "7b6da08fff76a8d4af76d1ec4dba8e4ab59300c9a76aabffdfac451d6dec8a9d",
+      "classification": "notice",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/find-browser.mjs",
+      "mode": "100644",
+      "size": 1723,
+      "sha256": "5ec0c5acaceed8a7d18b2c416a7225502a5d0e1b019c6b9c53fd98c38f5ecaef",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/start-detached.mjs",
+      "mode": "100644",
+      "size": 632,
+      "sha256": "81c2545db26a5cafcde618a431ed30503c841a24131c92e3c6a0e10b3662031e",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/verify-demo.mjs",
+      "mode": "100644",
+      "size": 14017,
+      "sha256": "36a8749f6626d0eac3703c68e2b320d8f29443abe07430c99826a11160b7d177",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/verify-release.mjs",
+      "mode": "100644",
+      "size": 5330,
+      "sha256": "4032adaf70cd3dc4ed88ab14d5fdb887329a094deb1ea8df617169cdc5df464c",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/airport-lobby-transition.mjs",
+      "mode": "100644",
+      "size": 20127,
+      "sha256": "0b3298703eb17859a58d7d758386b7f2c8d6d998c6df8e7b521047689390d1a0",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/airport-terminal-scene.mjs",
+      "mode": "100644",
+      "size": 14683,
+      "sha256": "108c096d9afef08dce53e92f13a085e4e05978cbd1e3de767e76a7a955d98cbc",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/airport-walkable-surface.mjs",
+      "mode": "100644",
+      "size": 6770,
+      "sha256": "1ae7776f6317f74a68368c86b46e9cf36a34f1ef953f29610b887bb2803690fe",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/app.js",
+      "mode": "100644",
+      "size": 186524,
+      "sha256": "16bb96f3e23676388bb3e3549c70f15d9bdb792b503fbe767c9f1836c6d10b88",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/assets/avatar-catalog.json",
+      "mode": "100644",
+      "size": 3076,
+      "sha256": "06a8ee887bbb7610d2bd8cc4198f508e6b470f10a557e80e7065aac4554ee126",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatar-dwarf.vrm",
+      "mode": "100644",
+      "size": 39672,
+      "sha256": "7c094cd4d120d3316fd84ed2bced274e46f1df8b3360d78f64ec80611cc05ce4",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/AbissalDude_VRM.vrm",
+      "mode": "100644",
+      "size": 8529544,
+      "sha256": "60298ad0fa5de1818fd092cfa922353c0de59b5172767df8b791c1348d1b5076",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/BadBot_VRM.vrm",
+      "mode": "100644",
+      "size": 2845340,
+      "sha256": "36a4ed9e3f899f87ab4585c506770c7033a7d22de02fa946c4181ee27146aed3",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/CoolBanana_Voxel_VRM.vrm",
+      "mode": "100644",
+      "size": 2336876,
+      "sha256": "0a91d264c025f90191af79ca0d33972c0b621944aecdb4addebc5b6598e2e924",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/CoolBanana_VRM.vrm",
+      "mode": "100644",
+      "size": 1488572,
+      "sha256": "fca1c907f58a01eae8cc4f786b35561aaf9613236e41501c625b135c1b847260",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/CoolWaffle_VRM.vrm",
+      "mode": "100644",
+      "size": 2365844,
+      "sha256": "f901cae41cb6f6f45f598c6a82ef0a072a42b45ff152fefc60adaa6eafc906bc",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/CuteMoth_VRM.vrm",
+      "mode": "100644",
+      "size": 1799200,
+      "sha256": "4c6740cd52d90f2b02effa5150fc94fc9fde4a7a082366341f49c0ed3ac24059",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/Froggy_Voxel_VRM.vrm",
+      "mode": "100644",
+      "size": 2722424,
+      "sha256": "ecbc020f7a4a8414d4ba43159d79d8546f820f46562d3eb807e2b34bf2f63881",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/Froggy_VRM.vrm",
+      "mode": "100644",
+      "size": 1826156,
+      "sha256": "b459fda36b0b551eb1d7a6c0575fe79f722a36bdd1da4d52c4c09a6cc882064f",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/MrBush_VRM.vrm",
+      "mode": "100644",
+      "size": 5903688,
+      "sha256": "27df719a14a81ba576d2f0b141d457a834e495224c72e3d1c31e2d10b0855aaa",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/Mushy_Voxel_VRM.vrm",
+      "mode": "100644",
+      "size": 9963824,
+      "sha256": "39bb9caa163b94dad3557cf5ed34dbdabce945951fdf9438070bfa30e95d26cf",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/avatars/vrm/Mushy_VRM.vrm",
+      "mode": "100644",
+      "size": 1316968,
+      "sha256": "dd8cc4a8320f64b93a83f343ac9ef12e18018ce44b41cd7a308addf64cf84c77",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-catalog.json",
+      "mode": "100644",
+      "size": 3677,
+      "sha256": "b1c3b1dafd4b0ab9bf1f78f55328137eda8e16368a5da37618264fc6f7df01d8",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-crown.glb",
+      "mode": "100644",
+      "size": 11560,
+      "sha256": "5a406e5e51efc1f0f46e045e7982c9582886ccc9ad20784d32f982e4b20b29c1",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-hammer.glb",
+      "mode": "100644",
+      "size": 4492,
+      "sha256": "5389974f4990a2995b00fb29d4156c15449ad3d09f4e549e52e61b9717f4d7af",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-hat.glb",
+      "mode": "100644",
+      "size": 5316,
+      "sha256": "850c6894ad2ef01a77e318b560c73c879c01855700cd57ee320aa882b7255c44",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-helmet.glb",
+      "mode": "100644",
+      "size": 5324,
+      "sha256": "2cb7f2bf12579af3af46290c460493eefe447325aa6c7de9d67cbab8aad550c2",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-mug.glb",
+      "mode": "100644",
+      "size": 5612,
+      "sha256": "d4fbaf4895ee84691aa499bacfbc609bfde4b46029cd3ec2acdf3267e6393cfb",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-shield.glb",
+      "mode": "100644",
+      "size": 7988,
+      "sha256": "3831b2eeacc3f1b8657c87be8aa856bb0c28588d4edb4a3eb89b033c388d4eeb",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/equip-torch.glb",
+      "mode": "100644",
+      "size": 5628,
+      "sha256": "240a10ba9ace4296cef98952efc6da3b900a870efdb2e64c3df52f8b28cb8eac",
+      "classification": "project-asset",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "web/assets/worlds/AntiqueCamera.glb",
+      "mode": "100644",
+      "size": 17540348,
+      "sha256": "ae89695479ad997f09ebea8060a5ad01312ad8fe7ffb92f73b4e895109feecd2",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/Avocado.glb",
+      "mode": "100644",
+      "size": 8110040,
+      "sha256": "ccc9c3ce56423720b09399c2351537207cd5a65f859f9e6e2f30922762f3abd4",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/BarramundiFish.glb",
+      "mode": "100644",
+      "size": 12488144,
+      "sha256": "ecc3bafb6b00f2c8b810863c388e3768a7b7ea0d0335e8cb8c574c266e571f4a",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/BoomBox.glb",
+      "mode": "100644",
+      "size": 10614184,
+      "sha256": "f8b918445ebdd006768232205a62f5182d2208ca57f84c6ccc084943c0bc8f15",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/Duck.glb",
+      "mode": "100644",
+      "size": 120484,
+      "sha256": "65bf938f54d6073e619e76e007820bbf980cdc3dc0daec0d94830ffc4ae54ab5",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/Fox.glb",
+      "mode": "100644",
+      "size": 162852,
+      "sha256": "d97044e701822bac5a62696459b27d7b375aada5de8574ed4362edbba94771f7",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/Lantern.glb",
+      "mode": "100644",
+      "size": 9564264,
+      "sha256": "a79458c4b02d695187a952f23a63b8bf278e7bc3d316a3c2a314f2d6974181f1",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/assets/worlds/ToyCar.glb",
+      "mode": "100644",
+      "size": 5422412,
+      "sha256": "01a60862de55cd4b9f3acfab0b0def86451800f9c42467fcd61052c16cb9838c",
+      "classification": "third-party-scene-asset",
+      "license": "see-THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "web/avatar-equipment-layer.js",
+      "mode": "100644",
+      "size": 56867,
+      "sha256": "14f5fba31d0d94980dc6b598c10b96a9b8a5886bb7b4ec221b068f30b45c98b0",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/avatar-selector-controller.mjs",
+      "mode": "100644",
+      "size": 27467,
+      "sha256": "1d6755791f99b409e1ca8bd73da3df530aefb2a2c9f3399fd946eba10791bf73",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/avatar/parametric-avatar.mjs",
+      "mode": "100644",
+      "size": 28460,
+      "sha256": "d761a4c16e402ab0cd0b37e7c0043d2deca879f1b289f804bca8a63bc856c725",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/conformance/um-conformance.mjs",
+      "mode": "100644",
+      "size": 980,
+      "sha256": "8ee64f7714b8d6f1e93a0004b81a9a27f8bfc6dbd34735956ab83149939e6a8b",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/demo-launcher-catalog.mjs",
+      "mode": "100644",
+      "size": 9470,
+      "sha256": "ba804585cbcb2e9d3de12040ccbd2e1a5d104e01b3520dc3f5320adb04187a98",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/demo-launcher.css",
+      "mode": "100644",
+      "size": 15596,
+      "sha256": "986f3bead2e4103923b56e20c44d617643664f0f1d9aef29eb255b17d1dad950",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/demo-launcher.mjs",
+      "mode": "100644",
+      "size": 18414,
+      "sha256": "e3927be12ccb77e38d0aa8bbd7307204d034ade8a9968405bab0cc677a61af35",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/demo-shell-bootstrap.mjs",
+      "mode": "100644",
+      "size": 1667,
+      "sha256": "1605f7cc6f073734354512aa55aaf5a33eac671a3a88e01933234481544cdfee",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/equipment-view.js",
+      "mode": "100644",
+      "size": 4873,
+      "sha256": "7dbcf2b118d0c3403a7ff31456a2fbe25ffd65c79d4b3eaafe3686f105ae25b9",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/geopose-basic-sdu.mjs",
+      "mode": "100644",
+      "size": 4918,
+      "sha256": "d13ea7c223a46f6a001b0c7700a9a7420b89a50821a77d860cc12b6effa4af55",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/index.html",
+      "mode": "100644",
+      "size": 89650,
+      "sha256": "af4b59f7a331f11bc592aee5a40b3de8c435ae14b5a793ad9faf0b1669ead5c5",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/iwps-query-teleport.mjs",
+      "mode": "100644",
+      "size": 9221,
+      "sha256": "bcc6f785a8910c5bc1986c1002cb55bf22a7b0c20b3af6149dd816aed72b4d93",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-client-scene-controller.mjs",
+      "mode": "100644",
+      "size": 6993,
+      "sha256": "9620d2784c1b4b13323c44291f1c82f7544447ba415fa8e63080403d037b77f9",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-fabric-prefetch-controller.mjs",
+      "mode": "100644",
+      "size": 74351,
+      "sha256": "f6255b06a7d89690630f6024933df6a80b353f1329c51bd998bb50f1fb338c18",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-peer-presence-reducer.mjs",
+      "mode": "100644",
+      "size": 21452,
+      "sha256": "2fb1d4e9c6c82a8cd7cc89e4e38c18c9854dff896448c651990bd798180e4bc0",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-portal-geometry.mjs",
+      "mode": "100644",
+      "size": 20877,
+      "sha256": "f3c6a6b18e39011eb3a7b52ae0ff923ecbd22106dbc723bb3bff80bf9334fd12",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-portal-traversal-controller.mjs",
+      "mode": "100644",
+      "size": 70930,
+      "sha256": "3ad47bef2fe6ad068ed5d2d431fc2afd2a5ae675a0625433169648935b6c07fe",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-presence-controller.mjs",
+      "mode": "100644",
+      "size": 9762,
+      "sha256": "ee1cd0dd07f4fce05a67b14d6cc1e00ac3a14efb7d4323e1ad4e850af680a45f",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-runtime-stream-controller.mjs",
+      "mode": "100644",
+      "size": 9829,
+      "sha256": "e17d4b6962b73e5feb34488740dbf79afb81b8f3baade7ac46e09096f8eecdba",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-transport.mjs",
+      "mode": "100644",
+      "size": 6668,
+      "sha256": "e3fe294b5effb8c5232ff8c1b21274c4683d0a2a9e4158a2684732cf9303ae62",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter-world-projection.mjs",
+      "mode": "100644",
+      "size": 9892,
+      "sha256": "6dd0f76ef7fff5768d7e9bbabd2fdc56ddef6bbca4b7609e01dffaba40e1e8c9",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/live-adapter.js",
+      "mode": "100644",
+      "size": 215539,
+      "sha256": "82fb0bc04735b59be1d7e1f3d6295eda9b1251db460f354dc89464b9f1886142",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/bilateral-chain.mjs",
+      "mode": "100644",
+      "size": 33968,
+      "sha256": "bda0d67c26aa43449300d827a58afd53714d90660d0bb7e386448a5aa7b87513",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/cbor-ld.mjs",
+      "mode": "100644",
+      "size": 35311,
+      "sha256": "4f5b560792025fe2e3b1dcf0a45cdf686996f46f5063ee4bfc75f2f7679bb7ca",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/consent-gating.mjs",
+      "mode": "100644",
+      "size": 17862,
+      "sha256": "a42b6162498b7bf9228cb33f3257dae0773797ab2cc96419f468fa8308842951",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/delegation-registry.mjs",
+      "mode": "100644",
+      "size": 16448,
+      "sha256": "44a4803fcae288a0630b653fd6b6216f017517c653466495579f39840377b1de",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/entity-personhood.mjs",
+      "mode": "100644",
+      "size": 35646,
+      "sha256": "93718a077b1b37cd6ba40c7bbf68b6ae7bc5a4690708c604c181322c2c2efb5f",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/holder-binding.mjs",
+      "mode": "100644",
+      "size": 37869,
+      "sha256": "aca47393d77ae937e0e5e43b386cde213301c1e53c40454f0cf44c9169bec7e5",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/interfaces.mjs",
+      "mode": "100644",
+      "size": 6153,
+      "sha256": "ef1f1b648010c4db7962e55346be3d0d6d0534062fffd1bd9d8ba890a685b7d4",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/jwe-sealed-facets.mjs",
+      "mode": "100644",
+      "size": 27259,
+      "sha256": "5dca3f229bb81d57d3ae41aa896b7d2afae44b409f2efc55ed22745e0bca1c58",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/liveness-assurance.mjs",
+      "mode": "100644",
+      "size": 29654,
+      "sha256": "4195ddb4216d2d0fe9a1dae5736ede1b4344a184f556c5b81de7bbbf38ed9a41",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/pinned-context-v04.mjs",
+      "mode": "100644",
+      "size": 14586,
+      "sha256": "3160cac28b84fc9b3d264a69a829e8603e6a487794b0b49eebb25942b3ae9d47",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/private-data.mjs",
+      "mode": "100644",
+      "size": 27726,
+      "sha256": "5201d5967867d2487534327f18c2a9c52b9a730bf32c3f2eedfd6b9470456c85",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/projection.mjs",
+      "mode": "100644",
+      "size": 22178,
+      "sha256": "68c741cf99d689fae3d2e1f5701d8a86cd8a227b6fca8f05406ea69c8e1d87fa",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/receipt-hub.mjs",
+      "mode": "100644",
+      "size": 40451,
+      "sha256": "5799e995e1cea6cc974cf9c00001fb5acea82e6ab3302453785fa9ed75b6e8fc",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/rp1-model.mjs",
+      "mode": "100644",
+      "size": 14765,
+      "sha256": "7e34dd912bbd7ee9e7e59340d9a1d364a51f5719dd03539428eb423b843e846a",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/som-branch-auth.mjs",
+      "mode": "100644",
+      "size": 33681,
+      "sha256": "4efc1f39ecd29638dad1a3de383658750e008f5d175e7332f567000d890489eb",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/statusref-resolution.mjs",
+      "mode": "100644",
+      "size": 14117,
+      "sha256": "6b4510effca32298c948c2e38cbf82f0047d77245d6ef8dcb137ae149bfae3e1",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/trust-tier.mjs",
+      "mode": "100644",
+      "size": 14727,
+      "sha256": "02fa68d4f4a9c3819a39a7bb2795b971a02bb0199554efb4d801af7ec88b7e43",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/um-manifest-emitter.mjs",
+      "mode": "100644",
+      "size": 13983,
+      "sha256": "b1543447d61c5e5041733220bd98a873c1375e066a68cdb569dd3cb90b7db081",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/manifest/zkp-ceremony.mjs",
+      "mode": "100644",
+      "size": 31866,
+      "sha256": "1cc5388e60ed69ab271c9af78fc7085bc17306661ba58c95b78c411a2fc41533",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/motion-preference.mjs",
+      "mode": "100644",
+      "size": 1264,
+      "sha256": "ba3b491dd4563699a7534bfbab951e8e5a8b708dba21463fe395f555ca0dacb0",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/movement-camera-controller.mjs",
+      "mode": "100644",
+      "size": 66765,
+      "sha256": "f5c5c3b47b49f4fb6fb26aaa2cb2c394cb4df665c19b3251a9da60dc631d1c79",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/no-equipment-choice.mjs",
+      "mode": "100644",
+      "size": 1159,
+      "sha256": "7001074b68d30a989b54522747c1322f15dfa914234a2b8249902b6da63bd689",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/notification-toast-controller.mjs",
+      "mode": "100644",
+      "size": 14520,
+      "sha256": "41aaf17063d908962c1b8bc479f9957a9ae1450aff4e6cfa7181ff61a631a0d1",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/panel-truth-chrome-controller.mjs",
+      "mode": "100644",
+      "size": 67590,
+      "sha256": "0811dcaabaebef6108e3344129c8557e069596619664df4ee9689d7f227cb7e0",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/player-session-controller.mjs",
+      "mode": "100644",
+      "size": 3103,
+      "sha256": "729f995c420880167cf3100291b2ff648f25ea9d1112317e97800c59de0d6a78",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/player-session-record.mjs",
+      "mode": "100644",
+      "size": 1143,
+      "sha256": "458263362c596c36865fe7b8bea5c202472a06985429845c540dca8195a1ca3e",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/portal-loading.mjs",
+      "mode": "100644",
+      "size": 21436,
+      "sha256": "527c264b14fda01f0562c9a94d3aee6a08072948b3ab2525a2a45a8c12daffd2",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/portal-render-controller.mjs",
+      "mode": "100644",
+      "size": 38237,
+      "sha256": "9dbb44c861bf284d7e3e2c63646dd4c712d33931cf4a33239d0e4cd248bb9a5f",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/portal-spatial-preview.mjs",
+      "mode": "100644",
+      "size": 54513,
+      "sha256": "c90cec4b33ee2fdfdf422012fae452064b33057ce1c92a95ccee93289371a334",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/procedural-animation.js",
+      "mode": "100644",
+      "size": 1501,
+      "sha256": "59e2df6bbdd5dfe0225c5ed26d932fc733985e66ad8099f42b747b2184f13c28",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/reconcile-keyed-html.mjs",
+      "mode": "100644",
+      "size": 2603,
+      "sha256": "be45afc55164d1fefc1e2d87bfc7b623d38ef9434bb8a439121c989b42619174",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/rp1-fail-closed.mjs",
+      "mode": "100644",
+      "size": 20635,
+      "sha256": "937b12ff6e25808f6659ea9a6fac3d2fd7d8c38b336bd20de09db156e7d72692",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/scene-runtime-controller.mjs",
+      "mode": "100644",
+      "size": 34870,
+      "sha256": "a2e013e7b569e6dbc8a274c70b22f847f92f8fd8af9b825c966ec47dfd635774",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/semantic-destinations-controller.mjs",
+      "mode": "100644",
+      "size": 13631,
+      "sha256": "3fc982a228dc02a94a5ec50f39f3d5aebb952839876238b441fc068287a9968b",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/codecs.mjs",
+      "mode": "100644",
+      "size": 3641,
+      "sha256": "e17849efa993c5fe9af24be538eaa583a0ad71f0ee79c8c5d0e4150b0556c8d3",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/did.mjs",
+      "mode": "100644",
+      "size": 9274,
+      "sha256": "7390164f6d1b1c9cce3d8f5548650407e8bcce0e082b1ce2d67d8fe0ecfda3b4",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/ed25519.mjs",
+      "mode": "100644",
+      "size": 5947,
+      "sha256": "547b65d119c997fceab61e2628b0c73b6db94588baf60b18c69c87ce0034b067",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/ijson.mjs",
+      "mode": "100644",
+      "size": 6218,
+      "sha256": "dc524cb3ed12b747c16f5b4333b1823c4aac28602cb1ffdb711a994b960e2113",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/index.mjs",
+      "mode": "100644",
+      "size": 1187,
+      "sha256": "b91e9fe125dafca55226b17577290acb143d49c3fdd3e7559b3ff523f615ccc9",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/jcs-rfc8785.mjs",
+      "mode": "100644",
+      "size": 3373,
+      "sha256": "48f14c412bb466387b066a354bfb386e9253625a992786c52eb3fea86ddd2978",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/signing/um-signature-profile-a.mjs",
+      "mode": "100644",
+      "size": 8656,
+      "sha256": "60eadaa4bf2853e2ab0bceedc44564de2ffbe4a8f1504398a43fe1bf389d5f79",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/worlds/denver-skyport.json",
+      "mode": "100644",
+      "size": 9359,
+      "sha256": "6c28344ba01a113827fb8f58c72047263e837b5ff5f73180fc972088b195c318",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/worlds/location-a.json",
+      "mode": "100644",
+      "size": 10646,
+      "sha256": "bd9e73b1fbba5b6e8258d941cc0e13c9fbb1a31717548cccad15bb249973391a",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/worlds/location-b.json",
+      "mode": "100644",
+      "size": 10903,
+      "sha256": "4f37067d200767db4f8861d1fef2deaeaa11335ce3ae81dd5f2c8b407eae9bbc",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/wow-scene.mjs",
+      "mode": "100644",
+      "size": 31434,
+      "sha256": "02620223c84297e95e8bab71e397334d72f0d72c60131fd499c56ed406e61c49",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/wow-url.mjs",
+      "mode": "100644",
+      "size": 17654,
+      "sha256": "710a2b399601216724a2abd76cfcef7613a0677ddf6d727b260875186c90d967",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "wow-spec/generated/schema.json",
+      "mode": "100644",
+      "size": 39652,
+      "sha256": "f057393ef0dd618b0f558877d55fa60f0770de5c3fde2406ab2c4f030f721e01",
+      "classification": "schema-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "wow-spec/validate.js",
+      "mode": "100644",
+      "size": 3743,
+      "sha256": "435f4e703a22b8eae03d638e5f711fc9d59c0c3aedb0460737597a1c9200c3a8",
+      "classification": "schema-runtime",
+      "license": "Apache-2.0"
+    }
+  ]
+}
