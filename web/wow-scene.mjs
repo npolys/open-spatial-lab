@@ -464,10 +464,14 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
     const baseUrl = opts.baseUrl;
     const cache = opts.cache instanceof Map ? opts.cache : new Map();
     const onAsset = typeof opts.onAsset === "function" ? opts.onAsset : null;
+    const shouldMount = typeof opts.shouldMount === "function" ? opts.shouldMount : null;
+    const beforeMount = typeof opts.beforeMount === "function" ? opts.beforeMount : null;
+    let mountQueue = Promise.resolve();
     const summary = {
         requested: nodes.length,
         loaded: 0,
         failed: 0,
+        cancelled: 0,
         network_loads: 0,
         cache_hits: 0,
         unique_uris: new Set(nodes.map((r) => resolveAssetUri(r.uri, baseUrl))).size,
@@ -493,6 +497,7 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
             from_cache: false,
             error: null,
         };
+        let mountedModel = null;
         try {
             if (!loadGltf)
                 throw new Error("no glTF loader injected");
@@ -506,12 +511,30 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
             const template = await templatePromise;
             if (!template)
                 throw new Error("loader returned no scene");
+            if (shouldMount && !shouldMount(rec)) {
+                entry.status = "cancelled";
+                summary.cancelled += 1;
+                summary.per_asset.push(entry);
+                return entry;
+            }
+            if (beforeMount) {
+                const turn = mountQueue.then(() => beforeMount(rec));
+                mountQueue = turn.catch(() => { });
+                await turn;
+                if (shouldMount && !shouldMount(rec)) {
+                    entry.status = "cancelled";
+                    summary.cancelled += 1;
+                    summary.per_asset.push(entry);
+                    return entry;
+                }
+            }
             if (fromCache)
                 summary.cache_hits += 1;
             else
                 summary.network_loads += 1;
             entry.from_cache = fromCache;
             const model = cloneScene(template);
+            mountedModel = model;
             model.name = `wow-asset:${rec.label}`;
             entry.mesh_count = countObject3DMeshes(model);
             rec.group.add(model);
@@ -542,7 +565,7 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
         summary.per_asset.push(entry);
         if (onAsset) {
             try {
-                onAsset(entry);
+                onAsset(entry, mountedModel, rec);
             }
             catch { }
         }

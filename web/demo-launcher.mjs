@@ -1,4 +1,4 @@
-import { createDemoLauncherCatalog, PRIMARY_MISSION_IDS, validateDemoLauncherCatalog, } from "./demo-launcher-catalog.mjs";
+import { createDemoLauncherCatalog, DEMO_TECHNOLOGIES, PRIMARY_MISSION_IDS, validateDemoLauncherCatalog, validateTechnologyShowcase, } from "./demo-launcher-catalog.mjs";
 import { createMotionPreference } from "./motion-preference.mjs";
 const LAST_MISSION_KEY = "osl-demo-launcher-last-mission-v1";
 const PRIMARY_RECON_KEY = "osl-demo-launcher-primary-recon-v1";
@@ -81,6 +81,8 @@ export function mountDemoLauncher(root, options = {}) {
         airportAvailable: options.airportAvailable === true,
     });
     validateDemoLauncherCatalog(catalog);
+    const technologies = options.technologies || DEMO_TECHNOLOGIES;
+    validateTechnologyShowcase(technologies);
     const doc = root.ownerDocument;
     const view = doc.defaultView;
     const storage = options.storage || (view ? view.sessionStorage : null);
@@ -101,72 +103,136 @@ export function mountDemoLauncher(root, options = {}) {
     header.className = "demo-launcher-header";
     const eyebrow = doc.createElement("p");
     eyebrow.className = "demo-launcher-eyebrow";
-    eyebrow.textContent = options.previewLabel || "LOCAL SPATIAL MISSION CONTROL";
+    eyebrow.textContent = "Welcome to the";
     const title = doc.createElement("h1");
     title.id = "demo-launcher-title";
-    title.textContent = "ENTER THE OPEN SPATIAL LAB";
+    title.textContent = "Open Spatial Lab";
     const intro = doc.createElement("p");
     intro.className = "demo-launcher-intro";
-    intro.textContent = "Pick a perspective. The worlds are local, the handoff is application-level, and the curiosity is entirely real.";
-    header.append(eyebrow, title, intro);
+    intro.textContent = "See how portable identity, linked worlds, portal handoffs, spatial content, and browser rendering meet in one interoperability lab.";
+    const headerGithubLink = doc.createElement("a");
+    headerGithubLink.className = "demo-launcher-github-link";
+    headerGithubLink.href = "https://github.com/grigb/open-spatial-lab";
+    headerGithubLink.target = "_blank";
+    headerGithubLink.rel = "noopener noreferrer";
+    headerGithubLink.setAttribute("aria-label", "Open the Open Spatial Lab GitHub repository");
+    const headerGithubLogo = doc.createElement("img");
+    headerGithubLogo.className = "demo-launcher-github-logo";
+    headerGithubLogo.src = "./assets/icons8-github-250.svg";
+    headerGithubLogo.alt = "";
+    headerGithubLogo.setAttribute("aria-hidden", "true");
+    headerGithubLink.append(headerGithubLogo);
+    header.append(eyebrow, title, intro, headerGithubLink);
     if (options.previewMode) {
         const previewNotice = doc.createElement("p");
         previewNotice.className = "demo-launcher-preview-notice";
         previewNotice.textContent = options.simulatedAvailability
             ? "STANDALONE PREVIEW - availability shown here is simulated preview data"
-            : "STANDALONE PHASE A PREVIEW - not integrated into the live demo shell";
+            : "STANDALONE PREVIEW - launcher actions are simulated here";
         header.append(previewNotice);
     }
-    const topology = doc.createElement("section");
-    topology.className = "demo-launcher-topology";
-    topology.setAttribute("aria-label", "How the local worlds connect");
-    const topologyRail = doc.createElement("div");
-    topologyRail.className = "demo-launcher-topology-rail";
-    for (const [label, accent] of [
-        ["Player / Lobby", "lobby"],
-        ["Server A", "server-a"],
-        ["Server B", "server-b"],
-    ]) {
-        const node = doc.createElement("span");
-        node.className = `demo-launcher-topology-node accent-${accent}`;
-        node.textContent = label;
-        topologyRail.append(node);
+    const technologySection = doc.createElement("section");
+    technologySection.className = "demo-launcher-technologies";
+    technologySection.setAttribute("aria-labelledby", "demo-launcher-technologies-title");
+    const technologyHeading = doc.createElement("div");
+    technologyHeading.className = "demo-launcher-section-heading";
+    const technologyTitle = doc.createElement("h2");
+    technologyTitle.id = "demo-launcher-technologies-title";
+    technologyTitle.textContent = "Technologies in and around the demo";
+    technologyHeading.append(technologyTitle);
+    const technologyGrid = doc.createElement("div");
+    technologyGrid.className = "demo-launcher-technology-grid";
+    for (const technology of technologies) {
+        const article = doc.createElement("article");
+        article.className = "demo-launcher-technology-card";
+        article.dataset.status = technology.statusKey;
+        const mark = doc.createElement("span");
+        mark.className = "demo-launcher-technology-mark";
+        mark.setAttribute("aria-hidden", "true");
+        mark.textContent = technology.mark;
+        const name = doc.createElement("h3");
+        const link = doc.createElement("a");
+        link.href = technology.officialUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = technology.name;
+        const arrow = doc.createElement("span");
+        arrow.className = "demo-launcher-outbound-mark";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = " ↗";
+        const suffix = doc.createElement("span");
+        suffix.className = "demo-launcher-sr-only";
+        suffix.textContent = " (opens official site in a new tab)";
+        link.append(arrow, suffix);
+        name.append(link);
+        const status = doc.createElement("span");
+        status.className = "demo-launcher-technology-status";
+        status.textContent = technology.statusLabel;
+        const role = doc.createElement("p");
+        role.className = "demo-launcher-technology-role";
+        role.textContent = technology.role;
+        const claim = doc.createElement("p");
+        claim.className = "demo-launcher-technology-claim";
+        claim.textContent = technology.claim;
+        article.append(mark, name, status, role, claim);
+        technologyGrid.append(article);
     }
-    const airportBranch = doc.createElement("p");
-    airportBranch.className = "demo-launcher-airport-branch";
-    airportBranch.textContent = "Lobby -> Portal C -> Denver Skyport (client scene destination, not a server)";
-    const topologyDetails = doc.createElement("details");
-    topologyDetails.className = "demo-launcher-topology-details";
-    const topologySummary = doc.createElement("summary");
-    topologySummary.textContent = "How the worlds connect";
-    const topologyCopy = doc.createElement("p");
-    topologyCopy.textContent = "The browser uses one visual origin. Server A, Server B, and the lobby are local service nodes behind same-origin routes. Player crossings are application-level handoffs; Denver Skyport is a separate client-side scene-load destination.";
-    topologyDetails.append(topologySummary, topologyCopy);
-    topology.append(topologyRail, airportBranch, topologyDetails);
+    const independence = doc.createElement("p");
+    independence.className = "demo-launcher-independence-note";
+    independence.textContent = "Open Spatial Lab is an independent interoperability prototype. Technology names and marks belong to their respective owners. A listing describes this project's evidenced use, test work, or exploration; it does not imply sponsorship, certification, partnership, conformance, or endorsement.";
+    const sourceGithubLink = doc.createElement("a");
+    sourceGithubLink.className = "demo-launcher-source-link";
+    sourceGithubLink.href = "https://github.com/grigb/open-spatial-lab";
+    sourceGithubLink.target = "_blank";
+    sourceGithubLink.rel = "noopener noreferrer";
+    sourceGithubLink.textContent = "github.com/grigb/open-spatial-lab";
+    technologySection.append(technologyHeading, technologyGrid, independence, sourceGithubLink);
     const missionSection = doc.createElement("section");
+    missionSection.id = "demo-launcher-actions";
     missionSection.className = "demo-launcher-missions";
     missionSection.setAttribute("aria-labelledby", "demo-launcher-missions-title");
     const missionHeading = doc.createElement("div");
     missionHeading.className = "demo-launcher-section-heading";
     const missionTitle = doc.createElement("h2");
     missionTitle.id = "demo-launcher-missions-title";
-    missionTitle.textContent = "Choose your mission";
-    const controlsHint = doc.createElement("p");
-    controlsHint.textContent = "Arrow keys / D-pad move - Enter, Space, or gamepad A selects";
-    missionHeading.append(missionTitle, controlsHint);
-    const cardGrid = doc.createElement("div");
-    cardGrid.className = "demo-launcher-card-grid";
-    cardGrid.setAttribute("role", "group");
-    cardGrid.setAttribute("aria-label", "Available demo views");
+    missionTitle.textContent = "Ready to explore?";
+    missionHeading.append(missionTitle);
     const cardButtons = [];
+    const groupSections = new Map();
+    for (const [group, titleText, instruction] of [
+        ["player", null, null],
+        ["servers", "Servers", "Open a read-only observer view."],
+        ["destinations", "Destinations", "Open a client destination or a supported direct-start view."],
+    ]) {
+        const groupSection = doc.createElement("section");
+        groupSection.className = `demo-launcher-group demo-launcher-group-${group}`;
+        groupSection.dataset.launcherGroup = group;
+        const row = doc.createElement("div");
+        row.className = "demo-launcher-group-row";
+        if (titleText) {
+            const heading = doc.createElement("h3");
+            heading.className = "demo-launcher-group-title";
+            heading.textContent = titleText;
+            groupSection.append(heading);
+        }
+        if (instruction) {
+            const copy = doc.createElement("p");
+            copy.className = "demo-launcher-group-copy";
+            copy.textContent = instruction;
+            groupSection.append(copy);
+        }
+        groupSection.append(row);
+        groupSections.set(group, row);
+        missionSection.append(groupSection);
+    }
     for (const mission of catalog) {
         const button = doc.createElement("button");
         button.type = "button";
-        button.className = `demo-launcher-card accent-${mission.accent}`;
+        button.className = `demo-launcher-card accent-${mission.accent}${mission.launcherGroup === "player" ? " demo-launcher-card-primary" : ""}`;
         button.dataset.missionId = mission.id;
         button.dataset.viewKind = mission.viewKind;
+        button.dataset.launcherGroup = mission.launcherGroup;
         button.disabled = mission.availability !== "available";
-        button.setAttribute("aria-describedby", `mission-description-${mission.id}`);
         const cardTop = doc.createElement("span");
         cardTop.className = "demo-launcher-card-top";
         const emblem = doc.createElement("span");
@@ -180,81 +246,70 @@ export function mountDemoLauncher(root, options = {}) {
         const label = doc.createElement("span");
         label.className = "demo-launcher-card-label";
         label.textContent = mission.label;
-        const description = doc.createElement("span");
-        description.className = "demo-launcher-card-description";
-        description.id = `mission-description-${mission.id}`;
-        description.textContent = mission.description;
-        const facts = doc.createElement("span");
-        facts.className = "demo-launcher-card-facts";
-        for (const [factLabel, factValue] of [
-            ["WHO", mission.who],
-            ["WHERE", mission.where],
-            ["VIEW", mission.reality],
-        ]) {
-            const fact = doc.createElement("span");
-            const strong = doc.createElement("strong");
-            strong.textContent = factLabel;
-            fact.append(strong, doc.createTextNode(factValue));
-            facts.append(fact);
+        button.append(cardTop, label);
+        if (mission.description) {
+            const description = doc.createElement("span");
+            description.className = "demo-launcher-card-description";
+            description.id = `mission-description-${mission.id}`;
+            description.textContent = mission.description;
+            button.setAttribute("aria-describedby", description.id);
+            button.append(description);
         }
-        button.append(cardTop, label, description, facts);
+        if (mission.launcherGroup === "player") {
+            const facts = doc.createElement("span");
+            facts.className = "demo-launcher-card-facts";
+            for (const [factLabel, factValue] of [
+                ["WHO", mission.who],
+                ["WHERE", mission.where],
+                ["VIEW", mission.reality],
+            ]) {
+                const fact = doc.createElement("span");
+                const strong = doc.createElement("strong");
+                strong.textContent = factLabel;
+                fact.append(strong, doc.createTextNode(factValue));
+                facts.append(fact);
+            }
+            button.append(facts);
+        }
         if (mission.availability !== "available") {
             const reason = doc.createElement("span");
             reason.className = "demo-launcher-unavailable-reason";
+            reason.id = `mission-unavailable-${mission.id}`;
             reason.textContent = mission.availabilityReason;
+            button.setAttribute("aria-describedby", mission.description
+                ? `mission-description-${mission.id} mission-unavailable-${mission.id}`
+                : `mission-unavailable-${mission.id}`);
             button.append(reason);
         }
-        cardGrid.append(button);
+        groupSections.get(mission.launcherGroup).append(button);
         cardButtons.push(button);
     }
-    missionSection.append(missionHeading, cardGrid);
-    const utilityBar = doc.createElement("section");
-    utilityBar.className = "demo-launcher-utility-bar";
-    utilityBar.setAttribute("aria-label", "Launcher shortcuts");
-    const continueButton = doc.createElement("button");
-    continueButton.type = "button";
-    continueButton.className = "demo-launcher-utility-button";
-    continueButton.textContent = "Continue Last Mission";
-    const surpriseButton = doc.createElement("button");
-    surpriseButton.type = "button";
-    surpriseButton.className = "demo-launcher-utility-button utility-surprise";
-    surpriseButton.textContent = "Surprise Me";
-    const resetButton = doc.createElement("button");
-    resetButton.type = "button";
-    resetButton.className = "demo-launcher-utility-button utility-reset";
-    resetButton.textContent = "Reset Session Extras";
-    utilityBar.append(continueButton, surpriseButton, resetButton);
-    const footer = doc.createElement("footer");
-    footer.className = "demo-launcher-footer";
-    const truth = doc.createElement("p");
-    truth.textContent = "Runs entirely on this computer with a player lobby and connected local destinations";
-    const prompt = doc.createElement("p");
-    prompt.className = "demo-launcher-prompt";
-    prompt.textContent = "Mission prompt: observe both worlds, then enter as the player who connects them.";
-    footer.append(truth, prompt);
+    missionSection.prepend(missionHeading);
     const liveRegion = doc.createElement("p");
     liveRegion.className = "demo-launcher-live-region";
     liveRegion.setAttribute("role", "status");
     liveRegion.setAttribute("aria-live", "polite");
     liveRegion.setAttribute("aria-atomic", "true");
-    shell.append(header, topology, missionSection, utilityBar, footer, liveRegion);
-    root.append(shell);
+    const dock = doc.createElement("div");
+    dock.className = "demo-launcher-dock";
+    const hostedLink = doc.createElement("a");
+    hostedLink.className = "demo-launcher-dock-link demo-launcher-dock-hosted";
+    hostedLink.href = "https://labs.peers.social/open-spatial-lab/";
+    hostedLink.target = "_blank";
+    hostedLink.rel = "noopener noreferrer";
+    hostedLink.textContent = "labs.peers.social/open-spatial-lab";
+    dock.append(hostedLink);
+    shell.append(header, missionSection, technologySection, liveRegion);
+    root.append(shell, dock);
     const enabledButtons = cardButtons.filter((button) => !button.disabled);
     let gamepadFrame = null;
     let previousGamepadButtons = new Set();
+    let navigationCommitted = false;
     function setLiveText(message) {
         liveRegion.textContent = "";
         view.setTimeout(() => {
             liveRegion.textContent = message;
         }, 0);
-    }
-    function getStoredMissionId() {
-        try {
-            return storage ? storage.getItem(LAST_MISSION_KEY) : null;
-        }
-        catch {
-            return null;
-        }
     }
     function setStoredMissionId(missionId) {
         try {
@@ -282,13 +337,9 @@ export function mountDemoLauncher(root, options = {}) {
         catch {
         }
     }
-    function refreshContinueControls() {
-        const result = resolveMissionLaunch(catalog, getStoredMissionId() || "");
-        continueButton.disabled = !result.ok;
-        continueButton.setAttribute("aria-label", result.ok ? `Continue last mission: ${result.mission.label}` : "Continue last mission; none saved");
-        resetButton.disabled = !getStoredMissionId();
-    }
     function activateMission(missionId) {
+        if (navigationCommitted)
+            return;
         const result = resolveMissionLaunch(catalog, missionId);
         if (!result.ok) {
             setLiveText(result.reason);
@@ -299,47 +350,24 @@ export function mountDemoLauncher(root, options = {}) {
                 setLiveText("Denver Skyport needs the Phase B Portal C integration hook before it can launch.");
                 return;
             }
+            navigationCommitted = true;
             setStoredMissionId(missionId);
             options.launchPortalC(result.mission);
-            refreshContinueControls();
             return;
         }
+        navigationCommitted = true;
         setStoredMissionId(missionId);
         recordPrimaryRecon(missionId);
-        refreshContinueControls();
         navigate(result.target, result.mission);
     }
     for (const button of cardButtons) {
         button.addEventListener("click", () => activateMission(button.dataset.missionId));
     }
-    continueButton.addEventListener("click", () => {
-        const missionId = getStoredMissionId();
-        if (missionId)
-            activateMission(missionId);
-    });
-    surpriseButton.addEventListener("click", () => {
-        const mission = chooseSurpriseMission(catalog, options.random || Math.random);
-        const button = cardButtons.find((entry) => entry.dataset.missionId === mission.id);
-        if (button)
-            button.focus();
-        setLiveText(`Surprise mission selected: ${mission.label}. Press Enter to launch.`);
-    });
-    resetButton.addEventListener("click", () => {
-        try {
-            if (storage) {
-                storage.removeItem(LAST_MISSION_KEY);
-                storage.removeItem(PRIMARY_RECON_KEY);
-            }
-        }
-        catch {
-        }
-        refreshContinueControls();
-        setLiveText("Session-only mission history and challenge progress reset.");
-    });
     function handleLauncherKey(event) {
-        const currentIndex = Math.max(0, enabledButtons.indexOf(doc.activeElement));
+        event.stopPropagation();
+        const currentIndex = enabledButtons.indexOf(doc.activeElement);
         const action = launcherKeyAction(event.key, currentIndex, enabledButtons.length);
-        if (action.kind === "focus" && action.index >= 0) {
+        if (action.kind === "focus" && action.index >= 0 && currentIndex >= 0) {
             event.preventDefault();
             enabledButtons[action.index].focus();
         }
@@ -365,13 +393,15 @@ export function mountDemoLauncher(root, options = {}) {
                 if (pad.buttons[index] && pad.buttons[index].pressed)
                     pressed.add(index);
             }
-            const currentIndex = Math.max(0, enabledButtons.indexOf(doc.activeElement));
+            const currentIndex = enabledButtons.indexOf(doc.activeElement);
             const newlyPressed = (index) => pressed.has(index) && !previousGamepadButtons.has(index);
             if (newlyPressed(12) || newlyPressed(14)) {
-                enabledButtons[moveMissionFocus(currentIndex, -1, enabledButtons.length)]?.focus();
+                const start = currentIndex >= 0 ? currentIndex : 0;
+                enabledButtons[moveMissionFocus(start, -1, enabledButtons.length)]?.focus();
             }
             else if (newlyPressed(13) || newlyPressed(15)) {
-                enabledButtons[moveMissionFocus(currentIndex, 1, enabledButtons.length)]?.focus();
+                const start = currentIndex >= 0 ? currentIndex : -1;
+                enabledButtons[moveMissionFocus(start, 1, enabledButtons.length)]?.focus();
             }
             else if (newlyPressed(0) && enabledButtons.includes(doc.activeElement)) {
                 doc.activeElement.click();
@@ -380,8 +410,7 @@ export function mountDemoLauncher(root, options = {}) {
         previousGamepadButtons = pressed;
         gamepadFrame = view.requestAnimationFrame(gamepadTick);
     };
-    refreshContinueControls();
-    if (enabledButtons.length > 0 && options.initialFocus !== false) {
+    if (enabledButtons.length > 0 && options.initialFocus === true) {
         enabledButtons[0].focus({ preventScroll: true });
     }
     if (view && view.navigator && view.requestAnimationFrame) {

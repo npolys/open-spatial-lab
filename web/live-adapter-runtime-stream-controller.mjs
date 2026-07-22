@@ -1,6 +1,7 @@
-export function sameOriginWebSocketUrl(endpointKey, wsPath, locationLike = globalThis.location) {
+import { applyBase, BASE_PATH } from "./base-path.mjs";
+export function sameOriginWebSocketUrl(endpointKey, wsPath, locationLike = globalThis.location, base = BASE_PATH) {
     const protocol = locationLike.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${locationLike.host}/api/${endpointKey}${wsPath}`;
+    return `${protocol}//${locationLike.host}${applyBase(base, `/api/${endpointKey}${wsPath}`)}`;
 }
 export function createRuntimeStreamController({ getActiveEndpointKey, getDesiredEventEndpointKeys, isEndpointKey, createWebSocket = (url) => new WebSocket(url), locationLike = typeof window !== "undefined" ? window.location : null, pagehideTarget = typeof window !== "undefined" ? window : null, setTimeoutFn = (...args) => setTimeout(...args), clearTimeoutFn = (handle) => clearTimeout(handle), nowMs = () => Date.now(), onRuntimeState = () => { }, onPresenceDeparture = () => null, onPresenceDepartureApplied = () => { }, onLog = () => { }, fallbackPollMs = () => null, fallbackPeerStaleMs = 4000, fallbackServerTtlMs = 10000, } = {}) {
     let runtimeSocket = null;

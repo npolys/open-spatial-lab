@@ -2,7 +2,7 @@ import { LiveAdapter, API_EVENTS } from "./live-adapter.js?v=runtime";
 import { AvatarEquipmentLayer, AVATAR_VARIANTS, cloneGltfSceneAsset, loadGltfSceneAsset, } from "./avatar-equipment-layer.js";
 import { buildWowScene, mountWowSceneAssets } from "./wow-scene.mjs";
 import { mountAirportTerminalContent } from "./airport-terminal-scene.mjs";
-import { airportSceneContract, clientSceneLoadTarget, resolveClientSceneLoadTraversal, } from "./airport-lobby-transition.mjs";
+import { airportSceneContract, resolveClientSceneLoadTraversal, } from "./airport-lobby-transition.mjs";
 import { IWPS_CONFORMANCE } from "./iwps-query-teleport.mjs";
 import { UM_CONFORMANCE } from "./conformance/um-conformance.mjs";
 import { buildAndSignManifest as umBuildAndSignManifest, verifyManifestSignature as umVerifyManifestSignature, } from "./manifest/um-manifest-emitter.mjs";
@@ -10,21 +10,33 @@ import { makeAvatarDefinition as umMakeAvatarDefinition, makeLoadingPointer as u
 import { initPortalLoadingOverlay as featureInitPortalLoadingOverlay, notePortalLoadingState as featureNotePortalLoadingState, buildLoadingPointersForManifest as featureBuildLoadingPointersForManifest, extractPortalLoadingContent as featureExtractPortalLoadingContent, portalLoadingDriverApi as featurePortalLoadingDriverApi, } from "./portal-loading.mjs";
 import { inventorySlots, equipmentCatalog, validateEquippedItems, resolveEquipmentItems, } from "./equipment-view.js";
 import { Scene } from "./vendor/scene-core/scene.js";
+import { mountCanonicalWorldContent } from "./vendor/scene-core/canonical-world-content.js";
 import { FRONTEND_CONTRACT, HANDOFF_PHASES, PROVENANCE, } from "./vendor/scene-core/frontend-contract.js";
 import * as THREE from "three";
 import { parseWorldUrl } from "./wow-url.mjs";
+import { apiBase } from "./base-path.mjs";
 import { reconcileKeyedHtml } from "./reconcile-keyed-html.mjs";
 import { NO_EQUIPMENT_CHOICE, applyNoEquipmentChoice } from "./no-equipment-choice.mjs";
 import { createPlayerSessionController } from "./player-session-controller.mjs";
 import { createNotificationToastController } from "./notification-toast-controller.mjs";
 import { createPortalRenderController } from "./portal-render-controller.mjs";
 import { createAvatarSelectorController } from "./avatar-selector-controller.mjs";
+import { createAirportStorefrontInteractionController } from "./airport-storefront-interaction-controller.mjs";
+import { createAirportBoardingJourneyController } from "./airport-boarding-journey-controller.mjs";
 import { assertPanelTruthChromeControllerContract, createPanelTruthChromeController, } from "./panel-truth-chrome-controller.mjs";
 import { createSceneRuntimeController } from "./scene-runtime-controller.mjs";
-import { createMovementCameraController } from "./movement-camera-controller.mjs";
+import { expectedPortalEdgeId, imageLayerFlipForViewerSide, portalPerimeterLiveGate, portalSharedEdgeIdentity, portalViewerSide, } from "./portal-spatial-preview.mjs?v=meeting-critical-destination";
+import { portalLocalCoordinates } from "./live-adapter-portal-geometry.mjs";
+import { createMovementCameraController, reframeCrossingCameraMapping, } from "./movement-camera-controller.mjs";
 import { createMotionPreference } from "./motion-preference.mjs";
 import { createSemanticDestinationsController } from "./semantic-destinations-controller.mjs";
+import { mountDemoTrajectoryTool } from "./demo-trajectory/trajectory-panel.mjs?v=runtime";
+import { createRunTweakRegistry, createRuntimeTweakController, } from "./runtime-tweak-controller.mjs";
 const params = new URLSearchParams(location.search);
+const portalAtomicityOracleParam = ["127.0.0.1", "localhost"].includes(location.hostname) &&
+    ["microtask", "task", "raf", "all"].includes(params.get("portal_atomicity_oracle"))
+    ? params.get("portal_atomicity_oracle")
+    : null;
 const cameraWallFaultArms = new Set(["disabled", "avatar_xray", "non_restoration", "wrong_wall"]);
 let cameraWallFault = cameraWallFaultArms.has(params.get("camera_wall_fault"))
     ? params.get("camera_wall_fault")
@@ -292,12 +304,7 @@ function buildChildFabricGroup(manifest, opts = {}) {
             group.add(portal);
         }
         else if (ref.startsWith("action:")) {
-            const max = node.Bound && Array.isArray(node.Bound.Max) ? node.Bound.Max : [0.9, 1.4, 0.9];
-            const size = [Math.abs(max[0]) * 2 || 1.8, Math.abs(max[1]) * 2 || 2.8, Math.abs(max[2]) * 2 || 1.8];
-            const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size[0], size[1], size[2])), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28 }));
-            wire.position.set(px, size[1] / 2, pz);
-            wire.name = `child-fabric-node-${(node.Head && node.Head.Self) || "trigger"}`;
-            group.add(wire);
+            continue;
         }
         else if (node.Transform) {
             const pad = new THREE.Group();
@@ -323,22 +330,23 @@ function buildChildFabricGroup(manifest, opts = {}) {
     return group;
 }
 function buildRootFabricNodeVisuals(impl, navigatorDebug) {
-    if (!impl || !impl.scene || impl.rootFabricNodesGroup || !navigatorDebug)
+    if (!impl || !impl.scene || !navigatorDebug)
         return null;
-    const group = new THREE.Group();
-    group.name = "fabric-root-node-visuals";
-    const triggerNode = navigatorDebug.trigger_node;
-    if (triggerNode && Array.isArray(triggerNode.position)) {
-        const max = Array.isArray(triggerNode.bound_max) ? triggerNode.bound_max : [0.9, 1.4, 0.9];
-        const size = [Math.abs(max[0]) * 2 || 1.8, Math.abs(max[1]) * 2 || 2.8, Math.abs(max[2]) * 2 || 1.8];
-        const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size[0], size[1], size[2])), new THREE.LineBasicMaterial({ color: 0x66e0ff, transparent: true, opacity: 0.3 }));
-        wire.position.set(triggerNode.position[0], size[1] / 2, triggerNode.position[2]);
-        wire.name = "fabric-root-portal-trigger-node";
-        group.add(wire);
+    const stale = [];
+    impl.scene.traverse((node) => {
+        if (node?.name === "fabric-root-portal-trigger-node")
+            stale.push(node);
+    });
+    for (const node of stale) {
+        node.parent?.remove(node);
+        node.geometry?.dispose?.();
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material) => material?.dispose?.());
     }
-    impl.rootFabricNodesGroup = group;
-    impl.scene.add(group);
-    return group;
+    if (impl.rootFabricNodesGroup?.parent)
+        impl.rootFabricNodesGroup.parent.remove(impl.rootFabricNodesGroup);
+    impl.rootFabricNodesGroup = null;
+    return null;
 }
 function recordPanelActivity(input) {
     if (panelTruthChromeController == null)
@@ -1079,8 +1087,8 @@ function drawLabeledPortalPreview(canvas, preview) {
     ctx.fill();
     ctx.restore();
 }
-let airportApertureMachine = null;
 let serverBApertureMachine = null;
+let primaryEdgeMismatchLogged = false;
 async function loadBackendApertureMachine(proxyBase, anchorPortalId) {
     try {
         const response = await fetch(`${proxyBase}/fabric/region?anchor_portal_id=${encodeURIComponent(anchorPortalId)}&radius_m=5`, { cache: "no-store" });
@@ -1110,45 +1118,19 @@ async function loadBackendApertureMachine(proxyBase, anchorPortalId) {
         return null;
     }
 }
-async function loadAirportApertureMachine() {
-    try {
-        const response = await fetch("./worlds/denver-skyport.json", { cache: "no-store" });
-        if (!response.ok)
-            return null;
-        const graph = await response.json();
-        const entities = (Array.isArray(graph.nodes) ? graph.nodes : [])
-            .filter((node) => node && node.id !== graph.root && node.webofworlds_extension?.role)
-            .map((node) => {
-            const transform = Array.isArray(node.localTransform) ? node.localTransform : [];
-            const extension = node.webofworlds_extension || {};
-            const accent = Number(extension.accent);
-            return {
-                object_id: `airport-node-${node.id}`,
-                position: [Number(transform[12]) || 0, Math.max(0.45, Number(transform[13]) || 0.45), Number(transform[14]) || 0],
-                size_m: extension.role === "flight-gate" ? 1.4 : extension.role === "storefront" ? 1.1 : 0.7,
-                shape: extension.role === "npc-traveler" ? "sphere" : "box",
-                color: Number.isFinite(accent) ? `#${accent.toString(16).padStart(6, "0")}` : "#66d8ff",
-                label: node.label || `Airport node ${node.id}`,
-            };
-        });
-        if (!entities.length)
-            return null;
-        return {
-            supported: true,
-            status: "warm",
-            target_location_id: graph.spatialID,
-            region: {
-                entities,
-                avatars: { avatars: [] },
-                region: { center: [0, 0, 32], radius_m: 44 },
-                source: "local-data-backed WoW composition graph",
-            },
-        };
-    }
-    catch (error) {
-        console.warn("airport aperture content unavailable", error);
+function previewCameraWorldPosition(impl) {
+    if (!impl || !impl.camera || typeof impl.camera.getWorldPosition !== "function")
         return null;
+    const v = impl.camera.getWorldPosition(new THREE.Vector3());
+    return [v.x, v.y, v.z];
+}
+function applyPortalImageLayerFlip(texture, viewerSide) {
+    const flip = imageLayerFlipForViewerSide(viewerSide);
+    if (texture && texture.repeat && texture.offset) {
+        texture.repeat.x = flip.repeat_x;
+        texture.offset.x = flip.offset_x;
     }
+    return flip;
 }
 function worldPortalEntryForKey(key) {
     if (!adapter || !adapter.world || !key)
@@ -1195,6 +1177,7 @@ function updateAdditionalPortalPreviewSurfaces(debug) {
         ? debug.fabric_prefetch.keyed.machines
         : {};
     const portalPreviews = debug.portal_previews || {};
+    const cameraPosition = previewCameraWorldPosition(impl);
     const results = [];
     for (const key of Object.keys(impl.additionalPortalGroups)) {
         const rec = impl.additionalPortalGroups[key];
@@ -1216,12 +1199,10 @@ function updateAdditionalPortalPreviewSurfaces(debug) {
                 side: THREE.DoubleSide,
             });
         }
-        const liveMachine = keyedMachines[key] || null;
-        const machine = key === "lobby-portal-c" && airportApertureMachine
-            ? airportApertureMachine
-            : key === "lobby-portal-b" && !sceneRuntimeController.portalMachineRenderable(liveMachine)
-                ? serverBApertureMachine
-                : liveMachine;
+        const machine = keyedMachines[key] || null;
+        const entry = worldPortalEntryForKey(key);
+        const liveGate = portalPerimeterLiveGate(machine);
+        const viewerSide = cameraPosition && entry ? portalViewerSide(cameraPosition, entry) : null;
         const spatialSurface = trySpatialApertureSurface(key, machine, rec.aperture);
         if (spatialSurface) {
             results.push({
@@ -1230,6 +1211,8 @@ function updateAdditionalPortalPreviewSurfaces(debug) {
                 source_type: "prefetched_region_spatial_render",
                 region_backed: true,
                 target_location_id: rec.targetLocationId || null,
+                live_gate: liveGate,
+                viewer_side: viewerSide,
                 spatial_render: spatialSurface.debug,
             });
             continue;
@@ -1245,16 +1228,29 @@ function updateAdditionalPortalPreviewSurfaces(debug) {
                 (machine.status === "loading" && machine.region && machine.region.streaming)) &&
             machine.region &&
             Array.isArray(machine.region.entities));
-        if (regionBacked) {
-            drawPrefetchedRegionPreview(rec.previewCanvas, preview, machine);
-            ackFabricChunksRendered(key, machine);
+        const imageSignature = [
+            regionBacked ? "region" : "label",
+            preview.source_type || "",
+            preview.location_id || "",
+            machine?.status || "",
+            machine?.region?.loaded_at_ms || "",
+            machine?.region?.chunks?.length || 0,
+            machine?.region?.entities?.length || 0,
+        ].join("|");
+        if (imageSignature !== rec.previewImageSignature) {
+            rec.previewImageSignature = imageSignature;
+            if (regionBacked) {
+                drawPrefetchedRegionPreview(rec.previewCanvas, preview, machine);
+                ackFabricChunksRendered(key, machine);
+            }
+            else {
+                drawLabeledPortalPreview(rec.previewCanvas, preview);
+            }
+            rec.previewTexture.needsUpdate = true;
         }
-        else {
-            drawLabeledPortalPreview(rec.previewCanvas, preview);
-        }
-        rec.previewTexture.needsUpdate = true;
         rec.aperture.material = rec.previewMaterial;
         rec.aperture.position.z = 0.012;
+        const imageFlip = applyPortalImageLayerFlip(rec.previewTexture, viewerSide);
         results.push({
             portal_key: key,
             surface: "standing_oval_aperture_mesh",
@@ -1263,6 +1259,9 @@ function updateAdditionalPortalPreviewSurfaces(debug) {
                 : preview.source_type || "target_static_placeholder_labeled",
             region_backed: regionBacked,
             target_location_id: rec.targetLocationId || preview.location_id || null,
+            live_gate: liveGate,
+            viewer_side: viewerSide,
+            image_layer: imageFlip,
         });
     }
     return results;
@@ -1293,10 +1292,33 @@ function updatePrimaryPortalPreviewSurface(debug) {
     const primaryMachine = keyedForPrimary && primaryEntryKey && keyedForPrimary[primaryEntryKey]
         ? keyedForPrimary[primaryEntryKey]
         : debug.fabric_prefetch || null;
+    const primaryEdge = portalSharedEdgeIdentity(primaryMachine, adapter && adapter.world ? adapter.world.portal : null);
+    document.body.setAttribute("data-portal-edge-id", (primaryEdge && primaryEdge.edge_id) || "");
+    document.body.setAttribute("data-portal-edge-verified", primaryEdge && primaryEdge.available ? String(primaryEdge.verified === true) : "");
+    document.body.setAttribute("data-portal-edge-reason", primaryEdge && !primaryEdge.available
+        ? primaryEdge.reason || ""
+        : primaryEdge && primaryEdge.verified !== true
+            ? (primaryEdge.failures || []).join(",")
+            : "");
+    if (primaryEdge && primaryEdge.available && primaryEdge.verified !== true && !primaryEdgeMismatchLogged) {
+        primaryEdgeMismatchLogged = true;
+        logLine(`portal identity: WARNING — adopted pose does not belong to this portal's edge ` +
+            `(${(primaryEdge.failures || []).join(", ")}; expected ${primaryEdge.expected_edge_id})`);
+    }
+    const primaryLiveGate = portalPerimeterLiveGate(primaryMachine);
+    const primaryViewerSide = portalViewerSide(previewCameraWorldPosition(impl), adapter && adapter.world ? adapter.world.portal : null);
+    document.body.setAttribute("data-portal-perimeter-live", String(primaryLiveGate.live === true));
+    document.body.setAttribute("data-portal-perimeter-reason", primaryLiveGate.reason || "");
+    document.body.setAttribute("data-portal-perimeter-inside", primaryLiveGate.inside == null ? "" : String(primaryLiveGate.inside));
+    document.body.setAttribute("data-portal-perimeter-distance-m", primaryLiveGate.distance_m == null ? "" : String(primaryLiveGate.distance_m));
+    document.body.setAttribute("data-portal-perimeter-radius-m", primaryLiveGate.radius_m == null ? "" : String(primaryLiveGate.radius_m));
+    document.body.setAttribute("data-portal-perimeter-exit-radius-m", primaryLiveGate.exit_radius_m == null ? "" : String(primaryLiveGate.exit_radius_m));
+    document.body.setAttribute("data-portal-viewer-side", primaryViewerSide && primaryViewerSide.side ? primaryViewerSide.side : "");
     const spatialSurface = trySpatialApertureSurface(primaryEntryKey, primaryMachine, bundle.aperture);
     if (spatialSurface) {
         if (bundle.labelSprite)
             bundle.labelSprite.visible = false;
+        document.body.setAttribute("data-portal-image-layer-active", "false");
         document.body.setAttribute("data-portal-preview-surface-active", "true");
         document.body.setAttribute("data-portal-preview-surface", "standing_oval_aperture_mesh");
         document.body.setAttribute("data-portal-preview-source-type", "prefetched_region_spatial_render");
@@ -1314,6 +1336,8 @@ function updatePrimaryPortalPreviewSurface(debug) {
                 null,
             target_portal_id: debug.preview.target_portal_id || null,
             fed_by_fabric_prefetch: true,
+            live_gate: primaryLiveGate,
+            viewer_side: primaryViewerSide,
             spatial_render: spatialSurface.debug,
         };
     }
@@ -1322,6 +1346,7 @@ function updatePrimaryPortalPreviewSurface(debug) {
         bundle.aperture.position.z = 0.012;
         if (bundle.labelSprite)
             bundle.labelSprite.visible = false;
+        document.body.setAttribute("data-portal-image-layer-active", "false");
         document.body.setAttribute("data-portal-preview-surface-active", "true");
         document.body.setAttribute("data-portal-preview-surface", "standing_oval_aperture_mesh");
         document.body.setAttribute("data-portal-preview-source-type", debug.preview.source_type || "");
@@ -1340,6 +1365,8 @@ function updatePrimaryPortalPreviewSurface(debug) {
                 debug.fabric_prefetch.status === "warm" &&
                 debug.fabric_prefetch.region &&
                 debug.fabric_prefetch.region.totals),
+            live_gate: primaryLiveGate,
+            viewer_side: primaryViewerSide,
         };
     }
     const fabricPrefetch = debug.fabric_prefetch || null;
@@ -1351,18 +1378,34 @@ function updatePrimaryPortalPreviewSurface(debug) {
                 fabricPrefetch.region.streaming)) &&
         fabricPrefetch.region &&
         Array.isArray(fabricPrefetch.region.entities));
-    if (regionBacked) {
-        drawPrefetchedRegionPreview(bundle.canvas, debug.preview, fabricPrefetch);
-        ackFabricChunksRendered(fabricPrefetch.portal_key, fabricPrefetch);
+    const imageSignature = [
+        regionBacked ? "region" : "label",
+        debug.preview.source_type || "",
+        debug.preview.location_id || "",
+        fabricPrefetch?.status || "",
+        fabricPrefetch?.region?.loaded_at_ms || "",
+        fabricPrefetch?.region?.chunks?.length || 0,
+        fabricPrefetch?.region?.entities?.length || 0,
+    ].join("|");
+    if (imageSignature !== impl.portalPreviewImageSignature) {
+        impl.portalPreviewImageSignature = imageSignature;
+        if (regionBacked) {
+            drawPrefetchedRegionPreview(bundle.canvas, debug.preview, fabricPrefetch);
+            ackFabricChunksRendered(fabricPrefetch.portal_key, fabricPrefetch);
+        }
+        else {
+            drawLabeledPortalPreview(bundle.canvas, debug.preview);
+        }
+        bundle.texture.needsUpdate = true;
     }
-    else {
-        drawLabeledPortalPreview(bundle.canvas, debug.preview);
-    }
-    bundle.texture.needsUpdate = true;
     bundle.aperture.material = bundle.material;
     bundle.aperture.position.z = 0.012;
     if (bundle.labelSprite)
         bundle.labelSprite.visible = false;
+    const primaryImageFlip = applyPortalImageLayerFlip(bundle.texture, primaryViewerSide);
+    document.body.setAttribute("data-portal-image-layer-active", "true");
+    document.body.setAttribute("data-portal-image-flip", String(primaryImageFlip.mirrored === true));
+    document.body.setAttribute("data-portal-image-legible", String(primaryImageFlip.legible_on_viewed_face === true));
     const effectiveSourceType = regionBacked
         ? "prefetched_region_snapshot_labeled"
         : debug.preview.source_type;
@@ -1379,6 +1422,9 @@ function updatePrimaryPortalPreviewSurface(debug) {
         readonly: debug.preview.readonly === true,
         target_location_id: debug.preview.location_id || null,
         target_portal_id: debug.preview.target_portal_id || null,
+        live_gate: primaryLiveGate,
+        viewer_side: primaryViewerSide,
+        image_layer: primaryImageFlip,
     };
 }
 function setupWorldNavigatorRender() {
@@ -1941,7 +1987,7 @@ function handleOffline() {
 }
 listenAtRoot(API_EVENTS, "wow-api-request", handleConnectionApiRequest);
 listenAtRoot(window, "offline", handleOffline);
-let adapter, scene, equipmentLayer, portalVisualAlignment, portalRenderController, avatarSelectorController, sceneRuntimeController, movementCameraController, semanticDestinationsController;
+let adapter, scene, equipmentLayer, portalVisualAlignment, portalRenderController, avatarSelectorController, sceneRuntimeController, movementCameraController, semanticDestinationsController, storefrontShoppingController, boardingJourneyController, runtimeTweakController, demoTrajectoryTool;
 const liveViewportState = {
     width: 0,
     height: 0,
@@ -2207,6 +2253,7 @@ sceneRuntimeController = createSceneRuntimeController({
     buildWowScene,
     mountAirportTerminalContent,
     mountWowSceneAssets,
+    mountCanonicalWorldContent,
     loadGltf: loadGltfSceneAsset,
     cloneScene: cloneGltfSceneAsset,
     airportSceneContract,
@@ -2230,11 +2277,14 @@ sceneRuntimeController = createSceneRuntimeController({
             avatar: () => visual.state.avatar,
             debugState: () => adapterVisualDebugState(),
             rawDebugState: () => adapter.debugState(),
+            isHandoffInFlight: () => adapter._portalTraversalController?.inFlight?.() === true,
             controlledPlayerId: () => adapter.controlledIdentity().player_id,
             childFabricManifest: () => adapter.childFabricManifest(),
             setChildFabricRenderState: (state) => adapter.setChildFabricRenderState(state),
             markChildFabricPreviewFrame: () => adapter.markChildFabricPreviewFrame(),
+            wowResolved: () => adapter.wowResolved(),
             resolveClientSceneLoad: (target) => adapter.resolveClientSceneLoad(target),
+            resolvePortalDestinationContent: (entry) => adapter.resolvePortalDestinationContent(entry),
             enterClientSceneLoad: (payload) => adapter.enterClientSceneLoad(payload),
             returnFromClientSceneLoad: (options) => adapter.returnFromClientSceneLoad(options),
             beginVisualTransition: (metadata) => adapter.beginVisualTransition(metadata),
@@ -2292,7 +2342,8 @@ movementCameraController = createMovementCameraController({
     persistPlayerSession: (force) => persistPlayerLocationState(force),
     refreshViewMatch: (nowMs) => refreshWowViewMatch(nowMs),
     renderOrientation: () => {
-        if (!playerOrientationDismissed) {
+        const orientation = $("state-overlay")?.querySelector('[data-testid="player-first-frame"][data-connection-state="live"]');
+        if (!playerOrientationDismissed && orientation) {
             playerOrientationDismissed = true;
             renderOverlay(adapterVisualRuntimeSnapshot()?.state?.phase || HANDOFF_PHASES.IDLE, adapterVisualRuntimeSnapshot()?.world ? canonicalDebugState(adapterVisualDebugState()) : null);
         }
@@ -2325,6 +2376,29 @@ semanticDestinationsController = createSemanticDestinationsController({
     activateFocusedPortal: () => adapter.activatePortal(),
     isTypingTarget,
     logger: logLine,
+});
+storefrontShoppingController = createAirportStorefrontInteractionController({
+    isPlayer,
+    documentTarget: document,
+    lookup: $,
+    createElement: (tagName) => document.createElement(tagName),
+    releaseMovement: () => movementCameraController.releaseControls(),
+    focusFallback: () => $("scene-mount"),
+    showToast,
+    logger: logLine,
+    isTypingTarget,
+});
+boardingJourneyController = createAirportBoardingJourneyController({
+    isPlayer,
+    documentTarget: document,
+    lookup: $,
+    releaseMovement: () => movementCameraController.releaseControls(),
+    focusFallback: () => $("scene-mount"),
+    showToast,
+    publishNotification: publishNotificationRecord,
+    logger: logLine,
+    isTypingTarget,
+    nowIso: () => new Date().toISOString(),
 });
 function avatarLayerHost() {
     return sceneRuntimeController.avatarHost();
@@ -2425,6 +2499,14 @@ function disposeApplication() {
         return;
     applicationDisposed = true;
     window.removeEventListener("pagehide", disposeApplication);
+    try {
+        adapter?.stopPresenceHeartbeat?.();
+    }
+    catch { }
+    try {
+        adapter?.departPresence?.({ beacon: true, reason: "pagehide" });
+    }
+    catch { }
     if (liveViewportFrame)
         cancelViewportFrame(liveViewportFrame);
     liveViewportFrame = 0;
@@ -2440,8 +2522,12 @@ function disposeApplication() {
     for (const controller of [
         movementCameraController,
         avatarSelectorController,
+        storefrontShoppingController,
+        boardingJourneyController,
         portalRenderController,
         semanticDestinationsController,
+        runtimeTweakController,
+        demoTrajectoryTool,
         panelTruthChromeController,
         notificationToastController,
     ]) {
@@ -2451,6 +2537,10 @@ function disposeApplication() {
         catch { }
     }
     panelTruthChromeController = null;
+    storefrontShoppingController = null;
+    boardingJourneyController = null;
+    runtimeTweakController = null;
+    demoTrajectoryTool = null;
     for (const layer of peerAvatarLayers.values()) {
         try {
             layer.dispose();
@@ -2867,7 +2957,7 @@ async function mainWowRead() {
         if (!resolved || !resolved.graph)
             throw new Error(loadErr || "no graph resolved");
         built = buildWowScene(resolved.graph, THREE, { width, height, source: resolved.source });
-        const airportTerminal = mountAirportTerminalContent(resolved.graph, built, THREE, { document });
+        const airportTerminal = mountAirportTerminalContent(resolved.graph, built, THREE, { document, motionPreference });
         if (airportTerminal) {
             document.body.setAttribute("data-airport-terminal-ready", "1");
             logLine(`runtime airport: mounted ${airportTerminal.storefront_count} storefronts, ` +
@@ -2885,8 +2975,12 @@ async function mainWowRead() {
             mountWowSceneAssets(assetNodes, THREE, {
                 loadGltf: loadGltfSceneAsset,
                 cloneScene: cloneGltfSceneAsset,
+                cache: sceneRuntimeController.destinationAssetCache(),
                 baseUrl: assetBaseUrl,
-                onAsset: (a) => logLine(`M2 wow asset ${a.status}: ${a.label}${a.from_cache ? " (cache)" : ""}${a.error ? " — " + a.error : ""}`),
+                onAsset: (a, model, assetRecord) => {
+                    void built.airport_entity_runtime?.attachAsset(a, model, assetRecord);
+                    logLine(`M2 wow asset ${a.status}: ${a.label}${a.from_cache ? " (cache)" : ""}${a.error ? " — " + a.error : ""}`);
+                },
             })
                 .then((sum) => {
                 Object.assign(renderState.asset_load, sum, { status: "settled" });
@@ -3016,17 +3110,167 @@ async function mainWowRead() {
 function handleAdapterState(event) {
     onState(event.detail);
 }
+const observedPhaseLog = [];
+let lastObservedPhase = null;
+let lastExitPoseParity = null;
+function applyExitPoseParity(detail) {
+    if (!adapter || !detail || detail.kind !== "world_navigator_composition_crossing")
+        return null;
+    const dbg = adapter.debugState();
+    const profile = dbg ? dbg.player_handoff_profile : null;
+    const portalInfo = profile ? profile.portal : null;
+    const targetFrame = portalInfo ? portalInfo.target_portal_frame : null;
+    const avatar = dbg ? dbg.avatar : null;
+    const exitPose = detail.exit_pose || null;
+    const arrivalFallbackUsed = !!(exitPose &&
+        exitPose.source === "portal_frame_mapping_fallback" &&
+        !(profile && profile.player_pose_at_crossing && profile.player_pose_at_crossing.mapped_exit_transform));
+    const fromLocation = detail.from ? detail.from.location_id : null;
+    const toLocation = detail.to ? detail.to.location_id : null;
+    const record = {
+        at: new Date().toISOString(),
+        kind: detail.kind,
+        handoff_id: detail.handoff_id || null,
+        applied: false,
+        reason: null,
+        source_portal_id: portalInfo ? portalInfo.source_portal_id : null,
+        target_portal_id: portalInfo ? portalInfo.target_portal_id : null,
+        edge_id: expectedPortalEdgeId(fromLocation, toLocation),
+        exit_pose_source: exitPose ? exitPose.source || null : null,
+        arrival_fallback_used: arrivalFallbackUsed,
+        parity: null,
+        camera_mapping_translated: false,
+    };
+    if (!avatar || !Array.isArray(avatar.position) || !exitPose || !Array.isArray(exitPose.position)) {
+        record.reason = "avatar_or_exit_pose_unavailable";
+    }
+    else {
+        const policy = exitPose.landing_policy || null;
+        const local = targetFrame ? portalLocalCoordinates(targetFrame, avatar.position) : null;
+        const correctionM = Math.hypot(Number(avatar.position[0]) - Number(exitPose.position[0]), Number(avatar.position[1]) - Number(exitPose.position[1]), Number(avatar.position[2]) - Number(exitPose.position[2]));
+        const standoffM = local ? Number(local.signed_plane_distance_m) : NaN;
+        const triggerDepthM = Number(policy && policy.trigger_depth_m);
+        const actorClearanceM = Number(policy && policy.actor_clearance_m);
+        const safeMinimumM = triggerDepthM + actorClearanceM;
+        record.parity = {
+            supported: !!policy && Number.isFinite(standoffM) && Number.isFinite(safeMinimumM),
+            entry_standoff_m: policy ? policy.entry_plane_sample_m : null,
+            applied_standoff_m: Number.isFinite(standoffM) ? Number(standoffM.toFixed(4)) : null,
+            parity_standoff_m: policy ? policy.standoff_m : null,
+            delta_m: Number(correctionM.toFixed(4)),
+            adjusted_position: avatar.position.slice(0, 3),
+            inside_trigger_volume_after: Number.isFinite(standoffM) && Number.isFinite(triggerDepthM)
+                ? standoffM <= triggerDepthM
+                : null,
+            landing_policy: policy,
+        };
+        if (!record.parity.supported) {
+            throw new Error("portal landing guard: canonical traversed-edge policy unavailable");
+        }
+        if (correctionM > 0.05) {
+            throw new Error(`portal landing guard: dispatch drift ${correctionM.toFixed(4)} m exceeds 0.05 m`);
+        }
+        if (standoffM + 1e-6 < safeMinimumM) {
+            throw new Error(`portal landing guard: ${standoffM.toFixed(4)} m is inside the ` +
+                `${safeMinimumM.toFixed(4)} m trigger-plus-clearance boundary`);
+        }
+        record.reason = "canonical_exit_pose_verified";
+    }
+    lastExitPoseParity = record;
+    const body = document.body;
+    body.setAttribute("data-exit-parity-applied", String(record.applied));
+    body.setAttribute("data-exit-parity-entry-m", record.parity && Number.isFinite(record.parity.entry_standoff_m) ? String(record.parity.entry_standoff_m) : "");
+    body.setAttribute("data-exit-parity-exit-m", record.parity && Number.isFinite(record.parity.parity_standoff_m)
+        ? String(record.applied ? record.parity.parity_standoff_m : record.parity.applied_standoff_m)
+        : "");
+    body.setAttribute("data-exit-parity-delta-m", record.parity && Number.isFinite(record.parity.delta_m) ? String(record.parity.delta_m) : "");
+    body.setAttribute("data-exit-pose-source", record.exit_pose_source || "");
+    body.setAttribute("data-exit-arrival-fallback-used", String(arrivalFallbackUsed));
+    body.setAttribute("data-crossing-edge-id", record.edge_id || "");
+    if (arrivalFallbackUsed) {
+        logLine("exit parity: WARNING — crossing landed on the per-world arrival fallback (retired path)");
+    }
+    return record;
+}
+let lastCrossingHeadingContinuity = null;
+function reframeAdapterCrossingHeading(detail) {
+    if (!adapter || !detail || detail.kind !== "world_navigator_composition_crossing")
+        return null;
+    const dbg = adapter.debugState();
+    const profile = dbg ? dbg.player_handoff_profile : null;
+    const profileMatches = profile && (!detail.handoff_id || !profile.handoff_id || profile.handoff_id === detail.handoff_id);
+    const portalInfo = profileMatches ? profile.portal : null;
+    const frameMapping = portalInfo && portalInfo.source_portal_frame && portalInfo.target_portal_frame
+        ? {
+            source_portal_frame: portalInfo.source_portal_frame,
+            target_portal_frame: portalInfo.target_portal_frame,
+        }
+        : null;
+    const pose = profileMatches ? profile.player_pose_at_crossing : null;
+    const sourceMapping = detail.camera_mapping || null;
+    const record = reframeCrossingCameraMapping({
+        detail,
+        frameMapping,
+        entryTransform: (sourceMapping && sourceMapping.source_avatar_entry_transform) ||
+            (pose ? pose.portal_entry_transform : null),
+        cameraTransform: (sourceMapping && sourceMapping.source_camera_transform) ||
+            (profileMatches && profile.camera ? profile.camera.camera_transform : null),
+    });
+    lastCrossingHeadingContinuity = {
+        at: new Date().toISOString(),
+        handoff_id: detail.handoff_id || null,
+        profile_matched: profileMatches === true,
+        reframe: record,
+        heading_continuity: detail.heading_continuity || null,
+        applied_remap: null,
+        basis_yaw_after: null,
+        camera_yaw_after: null,
+    };
+    if (!record || !record.validated || record.changed) {
+        throw new Error(`crossing heading guard: ${record ? record.reason : "validation unavailable"} ` +
+            `for ${record && record.source_portal_id ? record.source_portal_id : "?"} -> ` +
+            `${record && record.target_portal_id ? record.target_portal_id : "?"}`);
+    }
+    return lastCrossingHeadingContinuity;
+}
 function handleAdapterCrossing(event) {
     const detail = event.detail || {};
     logLine(detail.kind === "reset_demotion"
         ? "world-navigator: reset — boot fabric restored as root (same context)"
         : `world-navigator: child fabric PROMOTED to root (handoff ${detail.handoff_id || "?"}); ` +
             `exit-intent/arrival were server-side notifications only`);
+    const headingReframe = reframeAdapterCrossingHeading(detail);
+    const exitParity = applyExitPoseParity(detail);
+    if (exitParity && exitParity.applied) {
+        logLine(`exit parity: stepped out ${exitParity.parity.parity_standoff_m} m from the portal ` +
+            `(entry ${exitParity.parity.entry_standoff_m} m; adapter floor was ${exitParity.parity.applied_standoff_m} m)`);
+    }
     if (detail.kind !== "reset_demotion" && detail.kind !== "return_to_lobby") {
         const remapped = movementCameraController.handleCrossing(detail);
-        logLine(remapped
-            ? "camera: orbit pose remapped through the portal frames (relative view preserved)"
-            : "camera: no crossing camera mapping in this record; orbit pose kept as-is");
+        logLine(remapped === "heading_delta"
+            ? "camera: orbit heading rotated by the traversed edge's yaw delta (no camera mapping; movement basis stayed continuous)"
+            : remapped
+                ? "camera: orbit pose remapped through the portal frames (relative view preserved)"
+                : "camera: no crossing camera mapping in this record; orbit pose kept as-is");
+        if (isPlayer && detail.kind === "world_navigator_composition_crossing") {
+            const basisYaw = movementCameraController.movementBasisYaw();
+            const cameraDebug = movementCameraController.updatePlayerCamera(adapter.debugState());
+            const cameraYaw = cameraDebug && Number.isFinite(Number(cameraDebug.rotation_y))
+                ? Number(cameraDebug.rotation_y)
+                : null;
+            if (headingReframe) {
+                headingReframe.applied_remap = remapped === true ? "camera_mapping" : remapped || "none";
+                headingReframe.basis_yaw_after = Number.isFinite(basisYaw) ? Number(basisYaw.toFixed(6)) : null;
+                headingReframe.camera_yaw_after = cameraYaw === null ? null : Number(cameraYaw.toFixed(6));
+            }
+            const body = document.body;
+            body.setAttribute("data-crossing-camera-remap", remapped === true ? "camera_mapping" : String(remapped || "none"));
+            body.setAttribute("data-crossing-heading-delta-rad", detail.heading_continuity && Number.isFinite(Number(detail.heading_continuity.crossing_yaw_delta_rad))
+                ? String(detail.heading_continuity.crossing_yaw_delta_rad)
+                : "");
+            body.setAttribute("data-crossing-basis-yaw-rad", Number.isFinite(basisYaw) ? basisYaw.toFixed(6) : "");
+            body.setAttribute("data-crossing-camera-yaw-rad", cameraYaw === null ? "" : cameraYaw.toFixed(6));
+        }
     }
     else if (detail.kind === "return_to_lobby") {
         movementCameraController.handleCrossing(detail);
@@ -3043,19 +3287,21 @@ async function main() {
         await mainWowRead();
         return;
     }
-    appEl.className = `role-${role}${isPlayer ? " rail-collapsed" : ""}`;
+    appEl.className = `role-${role} rail-collapsed`;
     $("role-chip").textContent = ROLE_DISPLAY_LABEL[role] || role.toUpperCase();
     const initialRailToggle = $("btn-rail-toggle");
-    if (initialRailToggle && isPlayer)
+    if (initialRailToggle)
         initialRailToggle.setAttribute("aria-expanded", "false");
-    adapter = new LiveAdapter(role, { active: resolveBootActive(), wowIntent: wowUrlIntent, noDefaultEquipment: noEquipParam, motionPreference });
+    adapter = new LiveAdapter(role, {
+        active: resolveBootActive(),
+        wowIntent: wowUrlIntent,
+        noDefaultEquipment: noEquipParam,
+        motionPreference,
+        portalAtomicityOracle: portalAtomicityOracleParam,
+    });
     await adapter.init();
     if (isPlayer && adapter.debugState().location_id === "location-lobby") {
-        [airportApertureMachine, serverBApertureMachine] = await Promise.all([
-            loadAirportApertureMachine(),
-            loadBackendApertureMachine("/api/b", "location-b-portal"),
-        ]);
-        document.body.setAttribute("data-airport-aperture-entities", String(airportApertureMachine?.region?.entities?.length || 0));
+        serverBApertureMachine = await loadBackendApertureMachine(apiBase("b"), "location-b-portal");
         document.body.setAttribute("data-server-b-aperture-entities", String(serverBApertureMachine?.region?.entities?.length || 0));
     }
     adapter.listenForCrossWindow();
@@ -3106,6 +3352,36 @@ async function main() {
         motionPreference,
     });
     await equipmentLayer.ready;
+    if (isPlayer) {
+        const sourceRunCalibration = equipmentLayer.characterizeRunCalibration(adapter.runCalibrationSnapshot().source_translation_speed_mps);
+        adapter.setRunCalibration({
+            run_cycle_speed: sourceRunCalibration.run_cycle_speed,
+            run_cycle_distance: sourceRunCalibration.run_cycle_distance,
+        });
+        const runtimeTweakRegistry = createRunTweakRegistry({
+            sourceDefaults: sourceRunCalibration,
+            readCalibration: () => adapter.runCalibrationSnapshot(),
+            applyCalibration: (values) => adapter.setRunCalibration(values),
+        });
+        runtimeTweakController = createRuntimeTweakController({
+            view: window,
+            document,
+            toggle: $("btn-runtime-tweaks"),
+            palette: $("runtime-tweak-palette"),
+            rows: $("runtime-tweak-rows"),
+            closeButton: $("btn-runtime-tweak-close"),
+            copyAllButton: $("btn-runtime-tweak-copy-all"),
+            resetAllButton: $("btn-runtime-tweak-reset-all"),
+            status: $("runtime-tweak-status"),
+            fallback: $("runtime-tweak-copy-fallback"),
+            resizeHandle: $("runtime-tweak-resizer"),
+            registry: runtimeTweakRegistry,
+        });
+        runtimeTweakController.mount();
+        logLine(`runtime tweaks: source run=${sourceRunCalibration.run_cycle_speed.toFixed(4)} cycles/s × ` +
+            `${sourceRunCalibration.run_cycle_distance.toFixed(3)} m/cycle = ` +
+            `${sourceRunCalibration.effective_run_translation_speed_mps.toFixed(3)} m/s (session-local)`);
+    }
     logLine(`renderer: ${scene.rendererKind} (application renderer; not first-party TeleportXR)`);
     logLine(`portal visual alignment: ${portalVisualAlignment.reason || "unknown"} center=${vec3Label(portalVisualAlignment.visual_center || portalVisualAlignment.trigger_center)}`);
     logLine(`LIVE backend bound: ${adapter.base}`);
@@ -3121,6 +3397,8 @@ async function main() {
     wireNotificationCenter();
     wireReturnLobbyButton();
     semanticDestinationsController.mount();
+    storefrontShoppingController.mount();
+    boardingJourneyController.mount();
     listenAtRoot(adapter, "state", handleAdapterState);
     listenAtRoot(adapter, "crossing", handleAdapterCrossing);
     onState(adapter.debugState());
@@ -3129,7 +3407,17 @@ async function main() {
         standards: true,
         debug: adapter.debugState(),
     });
+    panelTruthChromeController.chromeDriver().close();
     movementCameraController.start();
+    const cameraToggleBtn = $("btn-camera-toggle");
+    if (cameraToggleBtn && isPlayer) {
+        cameraToggleBtn.hidden = false;
+        cameraToggleBtn.setAttribute("aria-pressed", String(movementCameraController.playerCameraMode() === "first_person"));
+        cameraToggleBtn.addEventListener("click", () => {
+            const next = movementCameraController.togglePlayerCameraMode();
+            cameraToggleBtn.setAttribute("aria-pressed", String(next === "first_person"));
+        });
+    }
     avatarSelectorController.mount();
     portalRenderController.mount();
     featureInitPortalLoadingOverlay({
@@ -3191,6 +3479,10 @@ async function main() {
             return debug;
         },
         cameraSpaceOfPoint: (p) => sceneRuntimeController.cameraSpaceOfPoint(p),
+        exitPoseParity: () => lastExitPoseParity,
+        crossingHeadingContinuity: () => lastCrossingHeadingContinuity,
+        phaseLog: () => observedPhaseLog.map((entry) => ({ ...entry })),
+        liveAuthoredScene: () => sceneRuntimeController.liveAuthoredScene(),
         samplePortalApertureTexels: (portalKey, worldPoints) => sceneRuntimeController.samplePortalApertureTexels(portalKey, worldPoints),
         equipmentReady: () => !equipmentLayer || equipmentLayer.isSettled(),
         peerAvatars: () => Array.from(peerAvatarLayers.entries()).map(([clientId, layer]) => ({
@@ -3228,6 +3520,8 @@ async function main() {
             removeAllEquipment: avatarSelectorRemoveAllEquipment,
         },
         inventory: avatarSelectorController.inventoryDriver(),
+        storefrontShopping: storefrontShoppingController.driver(),
+        airportBoarding: boardingJourneyController.driver(),
         equipmentSceneScan: () => {
             if (!equipmentLayer || !equipmentLayer.avatarRig)
                 return null;
@@ -3277,6 +3571,21 @@ async function main() {
                 attached_items: equipmentLayer.status.attachedItems,
                 locomotion_clips: equipmentLayer.status.locomotion_clips,
                 current_animation_state: equipmentLayer.status.current_animation_state,
+                run_calibration: { ...equipmentLayer.status.run_calibration },
+            }
+            : null,
+        runtimeTweaks: runtimeTweakController
+            ? {
+                open: () => runtimeTweakController.open(),
+                close: () => runtimeTweakController.close(),
+                set: (key, value) => runtimeTweakController.setValue(key, value),
+                reset: (key) => runtimeTweakController.resetValue(key),
+                resetAll: () => runtimeTweakController.resetAll(),
+                copyRow: (key) => runtimeTweakController.copyRow(key),
+                copyAll: () => runtimeTweakController.copyAll(),
+                resizeTo: (width, height) => runtimeTweakController.resizeTo(width, height),
+                snapshot: () => runtimeTweakController.snapshot(),
+                setClipboardWriterForTest: (writer) => runtimeTweakController.setClipboardWriterForTest(writer),
             }
             : null,
         cameraMode: () => movementCameraController.playerCameraMode(),
@@ -3299,6 +3608,7 @@ async function main() {
         refreshPreviewReadOnlyState: () => adapter.refreshPreviewReadOnlyState(),
         reset: async () => {
             movementCameraController.reset();
+            boardingJourneyController.reset("new_session");
             return adapter.reset();
         },
         returnToLobby: () => adapter.returnToLobby(),
@@ -3323,6 +3633,14 @@ async function main() {
         dispose: disposeApplication,
         ready: true,
     };
+    demoTrajectoryTool = mountDemoTrajectoryTool({
+        view: window,
+        document,
+        role,
+        snapshot: () => canonicalDebugState(adapterVisualDebugState()),
+    });
+    if (demoTrajectoryTool)
+        window.__assembly.demoTrajectory = demoTrajectoryTool;
     applyLiveViewport(true);
     window.__assembly.portalRender = portalRenderController.driver();
     window.__assembly.featurePortalLoading = featurePortalLoadingDriverApi();
@@ -3335,11 +3653,7 @@ async function main() {
         isOpen: () => notificationToastController.isOpen(),
     };
     if (isPlayer && launcherMissionParam === "denver-skyport") {
-        const airportPortal = adapter.world?.portals?.find((portal) => (portal?.string_portal_id || portal?.portal_id) === "lobby-portal-c");
-        const target = clientSceneLoadTarget(airportPortal);
-        if (!target)
-            throw new Error("Denver Skyport mission requires the evidenced Portal C client-scene target");
-        await mountClientSceneLoad(target);
+        document.body.setAttribute("data-denver-skyport-mission", "portal-c-server-backed");
     }
     document.body.setAttribute("data-assembly-ready", "1");
     mirrorDataset(window.__assembly.debugState());
@@ -3399,11 +3713,24 @@ function syncPeerAvatars(dbg) {
             });
             layer.__isPeer = true;
             layer.__latestPeerAvatar = peerAvatar;
-            layer.avatar = peerAvatar;
-            layer.ready.then(() => {
-                if (peerAvatarLayers.get(peer.client_id) === layer && layer.__latestPeerAvatar) {
-                    layer.setAvatar(layer.__latestPeerAvatar);
+            layer.__variantPrimed = false;
+            layer.ready.then(async () => {
+                if (peerAvatarLayers.get(peer.client_id) !== layer)
+                    return;
+                const latest = layer.__latestPeerAvatar || peerAvatar;
+                const wantVariant = latest && latest.avatar_variant;
+                if (wantVariant &&
+                    AVATAR_VARIANTS[wantVariant] &&
+                    wantVariant !== layer.status.avatar_variant) {
+                    try {
+                        await layer.switchAvatarVariant(wantVariant);
+                    }
+                    catch { }
                 }
+                if (peerAvatarLayers.get(peer.client_id) !== layer)
+                    return;
+                layer.__variantPrimed = true;
+                layer.setAvatar(layer.__latestPeerAvatar || peerAvatar);
             });
             peerAvatarLayers.set(peer.client_id, layer);
             logLine(`co-presence: peer ${peer.client_id.slice(0, 18)}… co-present in ${peer.location_id} — rendering peer avatar`);
@@ -3411,7 +3738,7 @@ function syncPeerAvatars(dbg) {
         layer.__latestPeerAvatar = peerAvatar;
         layer.__peerPlayerId = peer.player_id || peer.client_id;
         layer.__peerVisualSeparation = peerAvatar.visual_separation || null;
-        if (layer.isSettled && layer.isSettled())
+        if (layer.__variantPrimed && layer.isSettled && layer.isSettled())
             layer.setAvatar(peerAvatar);
     }
 }
@@ -3606,13 +3933,16 @@ function updateFabricPrefetchPortalList(keyed) {
 }
 function onState(dbg) {
     const phase = dbg.phase;
+    if (phase !== lastObservedPhase) {
+        observedPhaseLog.push({ phase, at_ms: Date.now() });
+        if (observedPhaseLog.length > 64)
+            observedPhaseLog.shift();
+        lastObservedPhase = phase;
+    }
     scene.setPhase(phase);
     scene.setAvatar(null);
-    const observerTrackedPlayers = !isPlayer && Array.isArray(dbg.peer_players)
-        ? dbg.peer_players.filter((p) => p && p.co_present && p.client_id).length
-        : 0;
     if (equipmentLayer)
-        equipmentLayer.setAvatar(!isPlayer && observerTrackedPlayers > 0 ? null : dbg.avatar);
+        equipmentLayer.setAvatar(isPlayer ? dbg.avatar : null);
     syncPeerAvatars(dbg);
     sceneRuntimeController.syncPortalPeers(dbg.peer_players);
     if (!isPlayer && dbg.live_player_pose && dbg.live_player_pose.applied_count === 1) {
@@ -3629,6 +3959,16 @@ function onState(dbg) {
     updateClientDebugCard(canonical);
     mirrorDataset(canonical);
     syncReturnLobbyButton(canonical);
+    storefrontShoppingController.observe({
+        locationId: canonical.location_id || dbg.location_id,
+        avatarPosition: dbg.avatar?.position || null,
+        airportTerminal: sceneRuntimeController.liveAuthoredScene()?.airport_terminal || null,
+    });
+    boardingJourneyController.observe({
+        locationId: canonical.location_id || dbg.location_id,
+        avatarPosition: dbg.avatar?.position || null,
+        airportTerminal: sceneRuntimeController.liveAuthoredScene()?.airport_terminal || null,
+    });
     movementCameraController.observeState(phase);
     const previewSurface = updatePortalPreviewSurface(canonical);
     if (previewSurface) {

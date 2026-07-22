@@ -1,4 +1,4 @@
-import { clonePosition, fabricPortalKey, mapCameraAcrossCrossing, mapTransformBetweenPortalFrames, normalizePortalTraversal, portalCrossingDirection, portalEntrySideAllowed, portalLocalCoordinates, roundNumber, roundVec3, } from "./live-adapter-portal-geometry.mjs";
+import { clonePosition, crossingYawDeltaRad, fabricPortalKey, mapCameraAcrossCrossing, mapTransformBetweenPortalFrames, normalizePortalTraversal, portalCrossingDirection, portalEntrySideAllowed, portalLocalCoordinates, roundNumber, roundVec3, yawFromVector, } from "./live-adapter-portal-geometry.mjs";
 import { geoPoseShapedFromTransform, GEOPOSE_CONFORMANCE, } from "./geopose-basic-sdu.mjs";
 import { IWPS_CONFORMANCE, iwpsQueryTeleportFromHandoff, } from "./iwps-query-teleport.mjs";
 import { UM_CONFORMANCE } from "./conformance/um-conformance.mjs";
@@ -90,7 +90,7 @@ function portalControlReset(controls, startsEmbodied, reason) {
     };
 }
 export function createPortalTraversalHandoffController(options) {
-    const { handoffPhases: HANDOFF_PHASES, provenance: PROVENANCE, transport, nowMs = () => Date.now(), nowIso = () => new Date().toISOString(), readHostSnapshot, applyTraversalPatch, resolveEndpointForLocation, oppositeEndpointKey, endpointDebug, promoteActiveEndpoint, deriveFabricExitPose, recordMarkerComparison, previewDebug, navigatorDebug, broadcastPlayerPose, emitState, dispatchCrossing, visualTransition, log, presence, peers, prefetch, policy, crypto, assets, validation, movement, motionPreference = null, } = options || {};
+    const { handoffPhases: HANDOFF_PHASES, provenance: PROVENANCE, transport, nowMs = () => Date.now(), nowIso = () => new Date().toISOString(), readHostSnapshot, applyTraversalPatch, resolveEndpointForLocation, oppositeEndpointKey, endpointDebug, promoteActiveEndpoint, deriveFabricExitPose, recordMarkerComparison, previewDebug, navigatorDebug, broadcastPlayerPose, emitState, dispatchCrossing, visualTransition, log, presence, peers, prefetch, policy, crypto, assets, validation, movement, motionPreference = null, portalAtomicityOracle = null, } = options || {};
     if (!HANDOFF_PHASES || !PROVENANCE) {
         throw new Error("portal traversal controller requires handoffPhases/provenance contracts");
     }
@@ -121,6 +121,18 @@ export function createPortalTraversalHandoffController(options) {
     let umSignOnExit = null;
     let umVerifyOnArrival = null;
     let playerHandoffProfile = null;
+    const portalAtomicityMode = ["microtask", "task", "raf", "all"].includes(portalAtomicityOracle)
+        ? portalAtomicityOracle
+        : null;
+    const visualAtomicity = portalAtomicityMode
+        ? {
+            mode: portalAtomicityMode,
+            armed_count: 0,
+            completed_count: 0,
+            violation_count: 0,
+            last: null,
+        }
+        : null;
     function patchHost(patch) {
         applyTraversalPatch(patch);
     }
@@ -136,6 +148,58 @@ export function createPortalTraversalHandoffController(options) {
             if (history[history.length - 1] !== name)
                 history.push(name);
         }
+    }
+    function armVisualAtomicityTripwire() {
+        if (!visualAtomicity)
+            return null;
+        const token = {
+            id: visualAtomicity.armed_count + 1,
+            open: true,
+            observed: [],
+            task_id: null,
+            raf_id: null,
+        };
+        const observe = (boundary) => {
+            if (!token.open)
+                return;
+            token.observed.push(boundary);
+            visualAtomicity.violation_count += 1;
+            visualAtomicity.last = {
+                token_id: token.id,
+                status: "violation",
+                observed_boundaries: token.observed.slice(),
+            };
+        };
+        visualAtomicity.armed_count += 1;
+        visualAtomicity.last = { token_id: token.id, status: "armed", observed_boundaries: [] };
+        if (portalAtomicityMode === "microtask" || portalAtomicityMode === "all") {
+            globalThis.queueMicrotask(() => observe("microtask"));
+        }
+        if (portalAtomicityMode === "task" || portalAtomicityMode === "all") {
+            token.task_id = globalThis.setTimeout(() => observe("task"), 0);
+        }
+        if (portalAtomicityMode === "raf" || portalAtomicityMode === "all") {
+            if (typeof globalThis.requestAnimationFrame !== "function") {
+                throw new Error("portal visual atomicity tripwire requires requestAnimationFrame");
+            }
+            token.raf_id = globalThis.requestAnimationFrame(() => observe("raf"));
+        }
+        return token;
+    }
+    function completeVisualAtomicityTripwire(token) {
+        if (!token)
+            return;
+        token.open = false;
+        if (token.task_id !== null)
+            globalThis.clearTimeout(token.task_id);
+        if (token.raf_id !== null && typeof globalThis.cancelAnimationFrame === "function") {
+            globalThis.cancelAnimationFrame(token.raf_id);
+        }
+        if (token.observed.length > 0) {
+            throw new Error(`portal visual atomicity tripwire observed ${token.observed.join(",")} boundary before crossing dispatch completed`);
+        }
+        visualAtomicity.completed_count += 1;
+        visualAtomicity.last = { token_id: token.id, status: "complete", observed_boundaries: [] };
     }
     function updatePortalStatus(input = {}) {
         const host = mutableHost(readHostSnapshot);
@@ -741,6 +805,7 @@ export function createPortalTraversalHandoffController(options) {
         host.controls.portal_transition_elapsed_s = 0;
         patchHost({
             phase: HANDOFF_PHASES.DEPARTED,
+            ...(host.clientMode === "player" ? {} : { avatar: null, equipmentStatus: null }),
             handoffId: packet.handoff_id,
             lastHandoffDirection: handoffDirection,
             lastHandoffPayload: packet,
@@ -753,6 +818,9 @@ export function createPortalTraversalHandoffController(options) {
             void _completePlayerCrossing(packet);
             return;
         }
+        if (visualTransition && typeof visualTransition.commit === "function") {
+            visualTransition.commit();
+        }
         handoffInFlight = false;
         updatePortalStatus();
         emitState();
@@ -762,12 +830,13 @@ export function createPortalTraversalHandoffController(options) {
         const initial = mutableHost(readHostSnapshot);
         const fromEndpoint = initial.endpoint;
         const fromWorld = initial.world;
-        const crossingPortal = fromWorld.portal || null;
+        const frameMapping = packet.avatar_context && packet.avatar_context.portal_frame_transform;
+        const traversedSourceFrame = frameMapping ? frameMapping.source_portal_frame : null;
+        const traversedTargetFrame = frameMapping ? frameMapping.target_portal_frame : null;
         const targetKey = resolveEndpointForLocation(packet && packet.target ? packet.target.location_id : null) ||
-            resolveEndpointForLocation(crossingPortal ? crossingPortal.target_location_id : null) ||
+            resolveEndpointForLocation(traversedTargetFrame ? traversedTargetFrame.location_id : null) ||
             oppositeEndpointKey(initial.activeEndpointKey);
         const targetEndpoint = initial.resolveEndpoint(targetKey);
-        const frameMapping = packet.avatar_context && packet.avatar_context.portal_frame_transform;
         const commitStartMs = nowMs();
         const timings = crossingTimings || (crossingTimings = {});
         crossing = {
@@ -850,16 +919,62 @@ export function createPortalTraversalHandoffController(options) {
             pushCrossingPhase("fabric_promoted_to_root");
             const exitPose = deriveFabricExitPose(frameMapping);
             crossing.exit_pose = exitPose;
-            crossing.camera_mapping = pendingCameraContinuity && crossingPortal
+            const mappedCamera = pendingCameraContinuity && traversedSourceFrame && traversedTargetFrame
                 ? mapCameraAcrossCrossing({
-                    sourceFrame: crossingPortal.frame,
-                    targetFrame: crossingPortal.target_frame,
+                    sourceFrame: traversedSourceFrame,
+                    targetFrame: traversedTargetFrame,
                     cameraTransform: pendingCameraContinuity.cameraTransform,
                     avatarEntryPosition: pendingCameraContinuity.entry_position,
                     avatarEntryYaw: pendingCameraContinuity.entry_yaw,
                     avatarExitPosition: clonePosition(exitPose.position, [0, 0, 0]),
                     avatarExitYaw: Number(exitPose.rotation_y) || 0,
                 })
+                : null;
+            const crossingYawDelta = crossingYawDeltaRad(traversedSourceFrame, traversedTargetFrame);
+            crossing.traversed_edge = {
+                source: "packet.avatar_context.portal_frame_transform",
+                source_portal_id: traversedSourceFrame ? traversedSourceFrame.portal_id : null,
+                target_portal_id: traversedTargetFrame ? traversedTargetFrame.portal_id : null,
+                source_location_id: traversedSourceFrame ? traversedSourceFrame.location_id : null,
+                target_location_id: traversedTargetFrame ? traversedTargetFrame.location_id : null,
+            };
+            crossing.heading_continuity = traversedSourceFrame && traversedTargetFrame && crossingYawDelta !== null
+                ? {
+                    source_portal_id: traversedSourceFrame.portal_id || null,
+                    target_portal_id: traversedTargetFrame.portal_id || null,
+                    source_frame_yaw_rad: Number(yawFromVector(traversedSourceFrame.forward, 0).toFixed(6)),
+                    target_frame_yaw_rad: Number(yawFromVector(traversedTargetFrame.forward, 0).toFixed(6)),
+                    crossing_yaw_delta_rad: Number(crossingYawDelta.toFixed(6)),
+                    target_into_room_forward: traversedTargetFrame.forward.slice(0, 3),
+                    entry_rotation_y: pendingCameraContinuity
+                        ? Number(pendingCameraContinuity.entry_yaw.toFixed(6))
+                        : null,
+                    exit_rotation_y: Number((Number(exitPose.rotation_y) || 0).toFixed(6)),
+                    frames_source: "packet.avatar_context.portal_frame_transform",
+                }
+                : null;
+            crossing.camera_mapping = mappedCamera
+                ? {
+                    ...mappedCamera,
+                    frame_source: "packet.avatar_context.portal_frame_transform",
+                    source_portal_id: traversedSourceFrame.portal_id || null,
+                    target_portal_id: traversedTargetFrame.portal_id || null,
+                    crossing_yaw_delta_rad: Number(crossingYawDelta.toFixed(6)),
+                    movement_basis_forward: mappedCamera.forward.slice(0, 3),
+                    source_camera_transform: {
+                        position: Array.isArray(pendingCameraContinuity.cameraTransform.position)
+                            ? pendingCameraContinuity.cameraTransform.position.slice(0, 3)
+                            : null,
+                        target: Array.isArray(pendingCameraContinuity.cameraTransform.target)
+                            ? pendingCameraContinuity.cameraTransform.target.slice(0, 3)
+                            : null,
+                        rotation_y: Number(pendingCameraContinuity.cameraTransform.rotation_y) || 0,
+                    },
+                    source_avatar_entry_transform: {
+                        position: pendingCameraContinuity.entry_position.slice(0, 3),
+                        rotation_y: Number(pendingCameraContinuity.entry_yaw) || 0,
+                    },
+                }
                 : null;
             pendingCameraContinuity = null;
             const equippedItems = packet.avatar_context && Array.isArray(packet.avatar_context.equippedItems)
@@ -880,6 +995,9 @@ export function createPortalTraversalHandoffController(options) {
                 ...host.controls,
                 enabled: true,
                 moving: false,
+                movement_mode: "idle",
+                run_mode: false,
+                speed_mps: 0,
                 movement_direction: "none",
                 last_planar_delta: [0, 0, 0],
                 facing_semantics: carriedFacing,
@@ -927,16 +1045,14 @@ export function createPortalTraversalHandoffController(options) {
             updatePortalStatus();
             const markerComparison = recordMarkerComparison();
             crossing.marker_comparison = markerComparison;
-            pushCrossingPhase("destination_arrived");
-            crossing.completed_at = nowIso();
-            crossing.controls_resume_ms = nowMs() - commitStartMs;
             playerHandoffProfile = buildPlayerHandoffProfile(packet, exitPose, markerComparison);
             patchHost({ playerHandoffProfile });
             if (visualTransition && typeof visualTransition.commit === "function") {
                 visualTransition.commit();
             }
-            handoffInFlight = false;
+            const visualAtomicityToken = armVisualAtomicityTripwire();
             dispatchCrossing(copiedCrossing(crossing));
+            completeVisualAtomicityTripwire(visualAtomicityToken);
             emitState();
             broadcastPlayerPose({ force: true });
             stageStart = nowMs();
@@ -954,8 +1070,31 @@ export function createPortalTraversalHandoffController(options) {
             patchHost({ equipmentStatus });
             const presenceStart = nowMs();
             await presence.departPresence({ base: fromEndpoint.proxy_base, reason: "portal_departure" });
-            await presence.registerPresence({ spawnReason: "portal_arrival" });
+            const destinationRegistration = await presence.registerPresence({ spawnReason: "portal_arrival" });
+            const registrationAccepted = destinationRegistration !== null;
             timings.presence_handoff_ms = nowMs() - presenceStart;
+            const presenceRegistration = presence.snapshot();
+            crossing.presence_registration = {
+                accepted: registrationAccepted,
+                source_base: fromEndpoint.proxy_base,
+                destination_base: targetEndpoint.proxy_base,
+                committed_base: presenceRegistration ? presenceRegistration.registered_base || null : null,
+            };
+            if (registrationAccepted) {
+                pushCrossingPhase("destination_arrived");
+                crossing.completed_at = nowIso();
+                crossing.controls_resume_ms = nowMs() - commitStartMs;
+            }
+            else {
+                pushCrossingPhase("destination_registration_failed");
+                log(`crossing: destination presence registration failed; ownership retained at ${crossing.presence_registration.committed_base || "none"}`);
+            }
+            if (playerHandoffProfile && playerHandoffProfile.server_switch) {
+                playerHandoffProfile.server_switch.transition_phase_history = phaseHistory.slice();
+                playerHandoffProfile.server_switch.controls_resume_ms = crossing.controls_resume_ms ?? null;
+            }
+            patchHost({ playerHandoffProfile });
+            handoffInFlight = false;
             timings.step_in_delay_ms = portalPlaneCrossedAtMs != null ? nowMs() - portalPlaneCrossedAtMs : null;
             crossing.timings = { ...timings };
             emitState();
@@ -1192,6 +1331,9 @@ export function createPortalTraversalHandoffController(options) {
             ...host.controls,
             enabled: true,
             moving: false,
+            movement_mode: "idle",
+            run_mode: false,
+            speed_mps: 0,
             movement_direction: "none",
             last_planar_delta: [0, 0, 0],
             facing_semantics: "still",
@@ -1334,6 +1476,20 @@ export function createPortalTraversalHandoffController(options) {
                 verified_on_arrival: umVerifyOnArrival || null,
             },
             player_handoff_profile: playerHandoffProfile,
+            visual_atomicity: visualAtomicity
+                ? {
+                    mode: visualAtomicity.mode,
+                    armed_count: visualAtomicity.armed_count,
+                    completed_count: visualAtomicity.completed_count,
+                    violation_count: visualAtomicity.violation_count,
+                    last: visualAtomicity.last
+                        ? {
+                            ...visualAtomicity.last,
+                            observed_boundaries: visualAtomicity.last.observed_boundaries.slice(),
+                        }
+                        : null,
+                }
+                : null,
             in_flight: handoffInFlight,
             transition_commit_started: transitionCommitStarted,
             transition_notice_sent: transitionNoticeSent,

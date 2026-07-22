@@ -282,7 +282,7 @@ export function createPeerPresenceReducer({ clientMode, clientId, controlledIden
         const current = context();
         const locationId = current.world && current.world.location_id;
         if (clientMode === "observer") {
-            const local = peerPlayersDebug().filter((peer) => peer.co_present).length || localVisibleAvatarCount();
+            const local = peerPlayersDebug().filter((peer) => peer.co_present).length;
             return {
                 location_id: locationId,
                 local_avatar_visible: local > 0,

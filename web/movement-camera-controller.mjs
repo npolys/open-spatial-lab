@@ -1,3 +1,5 @@
+import { crossingYawDeltaRad, mapCameraAcrossCrossing, normalizeYawRad, } from "./live-adapter-portal-geometry.mjs";
+export { crossingYawDeltaRad, normalizeYawRad } from "./live-adapter-portal-geometry.mjs";
 const CONTROL_KEY_MAP = Object.freeze({
     KeyW: "forward",
     KeyS: "back",
@@ -37,9 +39,114 @@ const GROUNDING_FOOT_BONES = Object.freeze(["leftFoot", "rightFoot", "leftToes",
 const PORTAL_APERTURE_PLANE_EPS_M = 0.02;
 const PORTAL_APERTURE_SEGMENT_MARGIN_M = 0.6;
 const CAMERA_WALL_HYSTERESIS_M = 0.08;
+export function reframeCrossingCameraMapping({ detail, frameMapping, entryTransform, cameraTransform, lookTargetHeightM = PLAYER_CAMERA_DEFAULT.look_target_height_m, } = {}) {
+    const record = {
+        kind: detail && detail.kind ? detail.kind : null,
+        applied: false,
+        changed: false,
+        synthesized: false,
+        validated: false,
+        reason: null,
+        crossing_yaw_delta_rad: null,
+        source_portal_id: null,
+        target_portal_id: null,
+        pre_reframe_forward_yaw_rad: null,
+        reframed_forward_yaw_rad: null,
+        position_correction_m: null,
+        focus_correction_m: null,
+        forward_correction_deg: null,
+        movement_basis_correction_deg: null,
+        identity_match: false,
+    };
+    if (!detail || detail.kind !== "world_navigator_composition_crossing") {
+        record.reason = "not_a_composition_crossing";
+        return record;
+    }
+    const sourceFrame = frameMapping ? frameMapping.source_portal_frame : null;
+    const targetFrame = frameMapping ? frameMapping.target_portal_frame : null;
+    const deltaYaw = crossingYawDeltaRad(sourceFrame, targetFrame);
+    if (deltaYaw === null) {
+        record.reason = "traversed_edge_frames_unavailable";
+        return record;
+    }
+    record.crossing_yaw_delta_rad = Number(deltaYaw.toFixed(6));
+    record.source_portal_id = sourceFrame.portal_id || null;
+    record.target_portal_id = targetFrame.portal_id || null;
+    const exitPose = detail.exit_pose || null;
+    const headingContinuity = detail.heading_continuity || null;
+    if (!headingContinuity ||
+        headingContinuity.source_portal_id !== record.source_portal_id ||
+        headingContinuity.target_portal_id !== record.target_portal_id) {
+        record.reason = "source_heading_continuity_unavailable";
+        return record;
+    }
+    const entryPosition = entryTransform && Array.isArray(entryTransform.position)
+        ? entryTransform.position
+        : null;
+    const exitPosition = exitPose && Array.isArray(exitPose.position) ? exitPose.position : null;
+    if (!entryPosition || !exitPosition) {
+        record.reason = "entry_or_exit_pose_unavailable";
+        return record;
+    }
+    const remapped = cameraTransform
+        ? mapCameraAcrossCrossing({
+            sourceFrame,
+            targetFrame,
+            cameraTransform,
+            avatarEntryPosition: entryPosition,
+            avatarEntryYaw: Number(entryTransform.rotation_y) || 0,
+            avatarExitPosition: exitPosition,
+            avatarExitYaw: Number(exitPose.rotation_y) || 0,
+            lookTargetHeightM,
+        })
+        : null;
+    if (!remapped) {
+        record.reason = "no_entry_camera_transform";
+        return record;
+    }
+    record.reframed_forward_yaw_rad = Number(Math.atan2(Number(remapped.forward[0]) || 0, Number(remapped.forward[2]) || 0).toFixed(6));
+    const mapping = detail.camera_mapping;
+    if (!mapping ||
+        !Array.isArray(mapping.position) ||
+        !Array.isArray(mapping.focus) ||
+        !Array.isArray(mapping.forward) ||
+        !Array.isArray(mapping.movement_basis_forward)) {
+        record.reason = "source_camera_mapping_unavailable";
+        return record;
+    }
+    record.pre_reframe_forward_yaw_rad = Number(Math.atan2(Number(mapping.forward[0]) || 0, Number(mapping.forward[2]) || 0).toFixed(6));
+    record.position_correction_m = Number(Math.hypot(Number(mapping.position[0]) - Number(remapped.position[0]), Number(mapping.position[1]) - Number(remapped.position[1]), Number(mapping.position[2]) - Number(remapped.position[2])).toFixed(6));
+    record.focus_correction_m = Number(Math.hypot(Number(mapping.focus[0]) - Number(remapped.focus[0]), Number(mapping.focus[1]) - Number(remapped.focus[1]), Number(mapping.focus[2]) - Number(remapped.focus[2])).toFixed(6));
+    const forwardLength = Math.max(1e-9, Math.hypot(...mapping.forward.slice(0, 3).map(Number)));
+    const expectedForwardLength = Math.max(1e-9, Math.hypot(...remapped.forward.slice(0, 3).map(Number)));
+    const forwardDot = mapping.forward.slice(0, 3).reduce((sum, value, index) => sum + Number(value) * Number(remapped.forward[index]), 0) / (forwardLength * expectedForwardLength);
+    record.forward_correction_deg = Number((Math.acos(Math.max(-1, Math.min(1, forwardDot))) * 180 / Math.PI).toFixed(6));
+    const basisLength = Math.max(1e-9, Math.hypot(...mapping.movement_basis_forward.slice(0, 3).map(Number)));
+    const basisDot = mapping.movement_basis_forward.slice(0, 3).reduce((sum, value, index) => sum + Number(value) * Number(remapped.forward[index]), 0) / (basisLength * expectedForwardLength);
+    record.movement_basis_correction_deg = Number((Math.acos(Math.max(-1, Math.min(1, basisDot))) * 180 / Math.PI).toFixed(6));
+    record.identity_match =
+        mapping.frame_source === "packet.avatar_context.portal_frame_transform" &&
+            mapping.source_portal_id === record.source_portal_id &&
+            mapping.target_portal_id === record.target_portal_id;
+    record.changed =
+        !record.identity_match ||
+            record.position_correction_m > 0.05 ||
+            record.focus_correction_m > 0.05 ||
+            record.forward_correction_deg > 1 ||
+            record.movement_basis_correction_deg > 1 ||
+            Math.abs(normalizeYawRad(Number(headingContinuity.crossing_yaw_delta_rad) - Number(record.crossing_yaw_delta_rad))) > Math.PI / 180;
+    if (record.changed) {
+        record.reason = "source_mapping_mismatch";
+        return record;
+    }
+    record.validated = true;
+    record.reason = "source_mapping_validated";
+    return record;
+}
 export function createMovementCameraController({ THREE, isPlayer, role, windowTarget, documentTarget, lookup, requestFrame, cancelFrame, now, getRuntime, sceneRuntime, getAvatarLayers, resolveClientSceneLoadTraversal, persistPlayerSession, refreshViewMatch, renderOrientation, refreshDebugProjection, updateMovementProjection, applyPortalOcclusion, logLine, showToast, isTypingTarget, motionPreference = null, }) {
     const controlState = { forward: false, back: false, left: false, right: false, jump: false };
     const runModifierKeys = new Set();
+    const crossingSuppressedKeyCodes = new Set();
     const movementDebug = {
         previousAvatarKey: null,
         previousPosition: null,
@@ -129,6 +236,7 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         for (const key of Object.keys(controlState))
             controlState[key] = false;
         runModifierKeys.clear();
+        crossingSuppressedKeyCodes.clear();
     }
     function resetMovementDebug() {
         movementDebug.previousAvatarKey = null;
@@ -177,7 +285,12 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         if (!hasShortcutModifier && !typingTarget)
             event.preventDefault();
         movementDebug.lastKeyEvent = `${event.code}:${pressed ? "down" : "up"}`;
-        if (isRunKey) {
+        if (crossingSuppressedKeyCodes.has(event.code)) {
+            if (!pressed)
+                crossingSuppressedKeyCodes.delete(event.code);
+            movementDebug.lastKeyEvent += pressed ? ":crossing_latched" : ":crossing_released";
+        }
+        else if (isRunKey) {
             if (pressed)
                 runModifierKeys.add(event.code);
             else
@@ -283,6 +396,7 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
             const rigHostedInActiveScene = !host?.scene || !layers.local?.avatarRig ||
                 layers.local.avatarRig.parent === host.scene;
             if (pendingFirstPersonCrossingMapping &&
+                host?.scene &&
                 rigHostedInActiveScene &&
                 host?.scene !== pendingFirstPersonCrossingMapping.source_scene) {
                 const expected = pendingFirstPersonCrossingMapping.position;
@@ -633,7 +747,7 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
             orbitCamera.focus.z += (z - orbitCamera.focus.z) * gain;
         }
     }
-    function seedOrbitCamera({ azimuth, polar, distance, focus } = {}) {
+    function seedOrbitCamera({ azimuth, polar, distance, focus, avatarPosition } = {}) {
         if (Number.isFinite(azimuth))
             orbitCamera.azimuth = orbitCamera.targetAzimuth = azimuth;
         if (Number.isFinite(polar)) {
@@ -644,19 +758,39 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
             const value = Math.min(PLAYER_CAMERA_DEFAULT.max_distance_m, Math.max(PLAYER_CAMERA_DEFAULT.min_distance_m, distance));
             orbitCamera.distance = orbitCamera.targetDistance = value;
         }
-        if (focus && orbitCamera.focus) {
-            orbitCamera.focus.set(focus[0], focus[1], focus[2]);
+        const seededFocus = Array.isArray(avatarPosition)
+            ? [
+                Number(avatarPosition[0]) || 0,
+                (Number(avatarPosition[1]) || 0) + PLAYER_CAMERA_DEFAULT.look_target_height_m,
+                Number(avatarPosition[2]) || 0,
+            ]
+            : focus;
+        if (seededFocus && orbitCamera.focus) {
+            orbitCamera.focus.set(seededFocus[0], seededFocus[1], seededFocus[2]);
             orbitCamera.focusInitialized = true;
         }
     }
+    function applyCrossingHeadingDelta(detail) {
+        const continuity = detail && detail.heading_continuity ? detail.heading_continuity : null;
+        const deltaYaw = continuity ? Number(continuity.crossing_yaw_delta_rad) : NaN;
+        if (!Number.isFinite(deltaYaw))
+            return false;
+        pendingFirstPersonCrossingMapping = null;
+        firstPersonCrossingCorrectionLocal = null;
+        firstPersonCrossingCorrectionWorld = null;
+        seedOrbitCamera({ azimuth: normalizeYawRad(orbitCamera.azimuth + deltaYaw) });
+        orbitCamera.focusInitialized = false;
+        applyPlayerCamera();
+        return "heading_delta";
+    }
     function applyCrossingCameraMapping(detail) {
-        if (!isPlayer || !detail || !detail.camera_mapping)
+        if (!isPlayer || !detail)
             return false;
-        const mapping = detail.camera_mapping;
-        const camera = Array.isArray(mapping.position) ? mapping.position : null;
-        const focus = Array.isArray(mapping.focus) ? mapping.focus : null;
+        const mapping = detail.camera_mapping || null;
+        const camera = mapping && Array.isArray(mapping.position) ? mapping.position : null;
+        const focus = mapping && Array.isArray(mapping.focus) ? mapping.focus : null;
         if (!camera || !focus)
-            return false;
+            return applyCrossingHeadingDelta(detail);
         if (playerCameraMode.mode === "first_person" && Array.isArray(mapping.forward)) {
             const mappedYaw = Math.atan2(Number(mapping.forward[0]) || 0, Number(mapping.forward[2]) || 0);
             let azimuth = mappedYaw - Math.PI;
@@ -854,8 +988,13 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
     function updateServerViewModeButton() {
         if (!serverViewModeButton)
             return;
-        serverViewModeButton.textContent = serverViewCamera.mode === "top_down" ? "View: top-down" : "View: 3rd person";
+        const actionLabel = serverViewCamera.mode === "top_down"
+            ? "Switch server view to third-person camera"
+            : "Switch server view to top-down camera";
         serverViewModeButton.setAttribute("data-server-view-mode", serverViewCamera.mode);
+        serverViewModeButton.setAttribute("aria-label", actionLabel);
+        serverViewModeButton.setAttribute("aria-pressed", String(serverViewCamera.mode === "top_down"));
+        serverViewModeButton.title = actionLabel;
     }
     function setServerViewMode(mode) {
         if (isPlayer)
@@ -1089,16 +1228,13 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
             updateCameraModeButton();
         }
         else {
-            if (!serverViewModeButton || serverViewModeButton.parentNode !== sceneMount) {
-                serverViewModeButton = documentTarget.createElement("button");
-                serverViewModeButton.id = "btn-server-camera-mode";
-                serverViewModeButton.type = "button";
-                serverViewModeButton.setAttribute("data-testid", "server-camera-mode-toggle");
-                serverViewModeButton.title = "Toggle this server view between top-down and third-person cameras";
-                serverViewModeButton.style.cssText = cameraButtonStyle();
+            const sharedToggle = lookup("btn-camera-toggle");
+            if (sharedToggle && serverViewModeButton !== sharedToggle) {
+                serverViewModeButton = sharedToggle;
                 addListener(serverViewModeButton, "click", (event) => { event.stopPropagation(); toggleServerViewMode(); }, undefined, mountListeners);
-                sceneMount.appendChild(serverViewModeButton);
             }
+            if (serverViewModeButton)
+                serverViewModeButton.hidden = false;
             documentTarget.body.setAttribute("data-server-view-mode", serverViewCamera.mode);
             updateServerViewModeButton();
         }
@@ -1168,7 +1304,9 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         started = true;
         refreshSceneHost();
         addListener(windowTarget, "keydown", (event) => {
-            if (isPlayer && CONTROL_KEY_MAP[event.code] && typeof renderOrientation === "function")
+            if (isPlayer &&
+                (CONTROL_KEY_MAP[event.code] || event.key === "Escape") &&
+                typeof renderOrientation === "function")
                 renderOrientation();
             setControlKey(event, true);
         });
@@ -1226,8 +1364,11 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         removeListeners(mountListeners);
         if (cameraModeButton && cameraModeButton.parentNode)
             cameraModeButton.parentNode.removeChild(cameraModeButton);
-        if (serverViewModeButton && serverViewModeButton.parentNode)
-            serverViewModeButton.parentNode.removeChild(serverViewModeButton);
+        if (serverViewModeButton) {
+            serverViewModeButton.hidden = true;
+            serverViewModeButton.removeAttribute("aria-pressed");
+            serverViewModeButton.removeAttribute("data-server-view-mode");
+        }
         cameraModeButton = null;
         serverViewModeButton = null;
         sceneMount = null;
@@ -1241,6 +1382,17 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
     }
     function handleCrossing(detail = {}) {
         autoHandoffStarted = false;
+        for (const [code, control] of Object.entries(CONTROL_KEY_MAP)) {
+            if (control !== "jump" && controlState[control])
+                crossingSuppressedKeyCodes.add(code);
+        }
+        for (const code of runModifierKeys)
+            crossingSuppressedKeyCodes.add(code);
+        for (const control of Object.values(CONTROL_KEY_MAP)) {
+            if (control !== "jump")
+                controlState[control] = false;
+        }
+        runModifierKeys.clear();
         groundingCalibrationByModel.clear();
         groundingDebug = { active: false, mode: "scene_rebind", model_offset_y_m: 0, residual_m: null };
         refreshSceneHost();
@@ -1343,6 +1495,7 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         playerCameraDebug: () => playerCameraDebug,
         movementBasisYaw,
         sessionCameraSnapshot,
+        releaseControls: resetControlState,
         controlState: () => controlState,
         movementDebug: movementSnapshot,
         updateMovementDebug: updateMovementDebugState,

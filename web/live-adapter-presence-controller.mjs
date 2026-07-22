@@ -152,6 +152,10 @@ export function createPresenceController({ transport, clientMode, playerId, clie
         const base = getBase();
         try {
             const output = await transport.postJson(`${base}/fabric/presence/heartbeat`, presenceIdentity());
+            if (base !== getBase() || getHandoffInFlight()) {
+                record("presence_heartbeat_stale", { base, current_base: getBase() });
+                return output;
+            }
             state.registered = true;
             state.registered_base = base;
             state.registered_location_id =
@@ -215,6 +219,8 @@ export function createPresenceController({ transport, clientMode, playerId, clie
         }
         pagehideInstalled = false;
     }
+    if (clientMode === "player")
+        installPagehide();
     return {
         controlledIdentity,
         registerPresence,

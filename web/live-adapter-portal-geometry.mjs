@@ -76,6 +76,21 @@ export function yawFromVector(vector, fallbackYaw = 0) {
     const z = Number(vector && vector[2]) || 0;
     return Math.hypot(x, z) > 1e-6 ? Math.atan2(x, z) : fallbackYaw;
 }
+export function normalizeYawRad(value) {
+    let yaw = Number(value) || 0;
+    while (yaw > Math.PI)
+        yaw -= Math.PI * 2;
+    while (yaw < -Math.PI)
+        yaw += Math.PI * 2;
+    return yaw;
+}
+export function crossingYawDeltaRad(sourceFrame, targetFrame) {
+    if (!sourceFrame || !targetFrame)
+        return null;
+    if (!Array.isArray(sourceFrame.forward) || !Array.isArray(targetFrame.forward))
+        return null;
+    return normalizeYawRad(yawFromVector(targetFrame.forward, 0) + Math.PI - yawFromVector(sourceFrame.forward, 0));
+}
 export function vectorFromYaw(yaw) {
     return [Math.sin(Number(yaw) || 0), 0, Math.cos(Number(yaw) || 0)];
 }
@@ -94,11 +109,15 @@ export function fabricPortalKey(portal) {
     }
     return portal.portal_id != null ? String(portal.portal_id) : null;
 }
-export function mappedExitOffsetForApproach(approachSignedDistanceM) {
+export function mappedExitOffsetForApproach(approachSignedDistanceM, targetFrame = null) {
     const approach = Math.abs(Number(approachSignedDistanceM));
+    const triggerDepth = Math.max(0.001, Number(targetFrame && targetFrame.trigger_depth_m) || PORTAL_TRIGGER_DEPTH_M);
+    const minimum = triggerDepth + PORTAL_EXIT_CLEARANCE_M;
+    const declaredMaximum = Number(targetFrame && targetFrame.exit_offset_m);
+    const maximum = Math.max(minimum, Number.isFinite(declaredMaximum) ? declaredMaximum : PORTAL_EXIT_OFFSET_MAX_M);
     if (!Number.isFinite(approach))
-        return PORTAL_EXIT_OFFSET_MIN_M;
-    return clamp(approach + PORTAL_EXIT_CLEARANCE_M, PORTAL_EXIT_OFFSET_MIN_M, PORTAL_EXIT_OFFSET_MAX_M);
+        return minimum;
+    return clamp(approach + PORTAL_EXIT_CLEARANCE_M, minimum, maximum);
 }
 export function portalFrameForLocation({ portalId, locationId, triggerPosition, triggerRadius, targetLocationId, }) {
     const preset = PORTAL_FRAME_PRESETS[locationId] || {};
@@ -260,7 +279,10 @@ export function mapTransformBetweenPortalFrames({ sourceFrame, targetFrame, entr
     const mappedLocal = properPortalLocalRotation({ x: localX, y: 0, z: 0 });
     const targetGround = clonePosition(targetFrame.ground_center, [targetFrame.position[0], 0, targetFrame.position[2]]);
     const approachSignedDistanceM = local ? local.signed_plane_distance_m : null;
-    const exitOffset = mappedExitOffsetForApproach(approachSignedDistanceM);
+    const exitOffset = mappedExitOffsetForApproach(approachSignedDistanceM, targetFrame);
+    const triggerDepth = Math.max(0.001, Number(targetFrame.trigger_depth_m) || PORTAL_TRIGGER_DEPTH_M);
+    const minimumExitOffset = triggerDepth + PORTAL_EXIT_CLEARANCE_M;
+    const maximumExitOffset = Math.max(minimumExitOffset, Number(targetFrame.exit_offset_m) || PORTAL_EXIT_OFFSET_MAX_M);
     const lateralPosition = addScaled3(targetGround, targetFrame.right, mappedLocal.x);
     const exitPosition = addScaled3(lateralPosition, targetFrame.forward, exitOffset);
     exitPosition[1] = 0;
@@ -286,6 +308,19 @@ export function mapTransformBetweenPortalFrames({ sourceFrame, targetFrame, entr
         lateral_offset_m: roundNumber(localX),
         mapped_lateral_offset_m: roundNumber(mappedLocal.x),
         exit_offset_m: roundNumber(exitOffset),
+        landing_policy: {
+            source: "traversed_edge_target_frame",
+            entry_plane_sample_m: Number.isFinite(Number(approachSignedDistanceM))
+                ? roundNumber(Math.abs(Number(approachSignedDistanceM)))
+                : null,
+            trigger_depth_m: roundNumber(triggerDepth),
+            actor_clearance_m: PORTAL_EXIT_CLEARANCE_M,
+            minimum_standoff_m: roundNumber(minimumExitOffset),
+            maximum_standoff_m: roundNumber(maximumExitOffset),
+            standoff_m: roundNumber(exitOffset),
+            outside_trigger_rearm_zone: exitOffset > triggerDepth,
+            rule: "max(entry-plane sample + actor clearance, target trigger depth + actor clearance), bounded by the traversed target frame exit offset",
+        },
         approach_signed_distance_m: Number.isFinite(Number(approachSignedDistanceM))
             ? roundNumber(Math.abs(Number(approachSignedDistanceM)))
             : null,

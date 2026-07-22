@@ -1,8 +1,106 @@
-const HOSTED_POINT_RELOAD_MS = 750;
+const HOSTED_POINT_RELOAD_MS = 100;
 const CLIENT_READ_INTERVAL_MIN_MS = 100;
 const CLIENT_READ_INTERVAL_MAX_MS = 10000;
 const DRAG_POST_THROTTLE_MS = 120;
 const DEMO_DRAG_LIMIT_M = 5.4;
+function disposeMesh(mesh) {
+    try {
+        if (mesh.parent)
+            mesh.parent.remove(mesh);
+        mesh.geometry?.dispose?.();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        materials.forEach((material) => material?.dispose?.());
+    }
+    catch { }
+}
+export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, version = null, layer = null, setLayerRecursive = null, preservePositionForId = null, configureMesh = null, }) {
+    if (!parent || !(meshes instanceof Map)) {
+        return { object_ids: [], created: 0, removed: 0, geometry_updated: 0, structure_changed: false };
+    }
+    const seen = new Set();
+    let created = 0;
+    let removed = 0;
+    let geometryUpdated = 0;
+    for (const definition of Array.isArray(objects) ? objects : []) {
+        if (!definition?.object_id)
+            continue;
+        const objectId = String(definition.object_id);
+        const shape = definition.shape === "sphere" ? "sphere" : "box";
+        const sizeM = Math.max(0.15, Number(definition.size_m) || 0.5);
+        const color = new THREE.Color(String(definition.color || "#8899aa"));
+        seen.add(objectId);
+        let mesh = meshes.get(objectId);
+        if (!mesh) {
+            const geometry = shape === "sphere"
+                ? new THREE.SphereGeometry(sizeM / 2, 24, 18)
+                : new THREE.BoxGeometry(sizeM, sizeM, sizeM);
+            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+                color,
+                roughness: 0.55,
+                metalness: 0.1,
+                emissive: color.clone().multiplyScalar(0.18),
+            }));
+            mesh.name = `demo-scene-object-${objectId}`;
+            mesh.userData.demoDrag = { kind: "scene-object", object_id: objectId };
+            mesh.userData.portalDynamicBounds = true;
+            if (layer != null && typeof setLayerRecursive === "function")
+                setLayerRecursive(mesh, layer);
+            parent.add(mesh);
+            meshes.set(objectId, mesh);
+            created += 1;
+        }
+        else if (mesh.userData.hostedSceneObject?.shape !== shape ||
+            mesh.userData.hostedSceneObject?.size_m !== sizeM) {
+            mesh.geometry?.dispose?.();
+            mesh.geometry = shape === "sphere"
+                ? new THREE.SphereGeometry(sizeM / 2, 24, 18)
+                : new THREE.BoxGeometry(sizeM, sizeM, sizeM);
+            geometryUpdated += 1;
+        }
+        mesh.material?.color?.copy?.(color);
+        mesh.material?.emissive?.copy?.(color)?.multiplyScalar?.(0.18);
+        if (preservePositionForId !== objectId) {
+            const position = Array.isArray(definition.position) ? definition.position : [0, 0, 0];
+            mesh.position.set(Number(position[0]) || 0, Number(position[1]) || 0, Number(position[2]) || 0);
+        }
+        mesh.userData.hostedSceneObject = {
+            object_id: objectId,
+            shape,
+            size_m: sizeM,
+            color: `#${color.getHexString()}`,
+            version,
+            projection_authority: "shared_hosted_scene_object_projection_v1",
+            geometry_type: mesh.geometry?.type || null,
+            material_type: mesh.material?.type || null,
+            material_authority: "shared_hosted_scene_object_standard_material_v1",
+        };
+        mesh.visible = true;
+        if (typeof configureMesh === "function")
+            configureMesh(mesh, definition);
+    }
+    for (const [id, mesh] of [...meshes.entries()]) {
+        if (seen.has(id))
+            continue;
+        disposeMesh(mesh);
+        meshes.delete(id);
+        removed += 1;
+    }
+    return {
+        object_ids: [...seen],
+        created,
+        removed,
+        geometry_updated: geometryUpdated,
+        structure_changed: created > 0 || removed > 0,
+    };
+}
+export function disposeHostedSceneObjectMeshes(meshes) {
+    if (!(meshes instanceof Map))
+        return 0;
+    const count = meshes.size;
+    meshes.forEach(disposeMesh);
+    meshes.clear();
+    return count;
+}
 export function createPortalRenderController({ THREE, isPlayer, getPortalHost, getScene, getServerViewMode, alignPortalVisualToTrigger, setPortalVisualAlignment, setLayerRecursive, childFabricLayer, lookup, documentTarget, windowTarget, nowMs, nowIso, logLine, writeDebugText, vec3Label, fixed3, isTypingTarget, }) {
     const state = {
         started: false,
@@ -25,7 +123,7 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
         settings: {
             mode: "auto",
             clientIntervalMs: HOSTED_POINT_RELOAD_MS,
-            serverRepublishMs: 0,
+            serverRepublishMs: HOSTED_POINT_RELOAD_MS,
         },
         intervalHandle: null,
     };
@@ -55,71 +153,28 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
             return [];
         if (!isPlayer)
             return [live.activeEndpointKey];
-        const keys = [live.activeEndpointKey];
+        const keys = new Set([live.activeEndpointKey]);
         if (live.previewEndpointKey)
-            keys.push(live.previewEndpointKey);
-        return keys;
-    }
-    function makeSceneObjectMesh(definition) {
-        const size = Math.max(0.15, Number(definition.size_m) || 0.5);
-        const geometry = definition.shape === "sphere"
-            ? new THREE.SphereGeometry(size / 2, 24, 18)
-            : new THREE.BoxGeometry(size, size, size);
-        const color = new THREE.Color(String(definition.color || "#8899aa"));
-        const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-            color,
-            roughness: 0.55,
-            metalness: 0.1,
-            emissive: color.clone().multiplyScalar(0.18),
-        }));
-        mesh.name = `demo-scene-object-${definition.object_id}`;
-        mesh.userData.demoDrag = { kind: "scene-object", object_id: definition.object_id };
-        return mesh;
-    }
-    function disposeMesh(mesh) {
-        try {
-            if (mesh.parent)
-                mesh.parent.remove(mesh);
-            mesh.geometry?.dispose?.();
-            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            materials.forEach((material) => material?.dispose?.());
+            keys.add(live.previewEndpointKey);
+        const portals = Array.isArray(live.world?.portals)
+            ? live.world.portals
+            : live.world?.portal
+                ? [live.world.portal]
+                : [];
+        for (const entry of portals) {
+            const locationId = String(entry?.target_location_id || "");
+            const endpointKey = locationId.startsWith("location-")
+                ? locationId.slice("location-".length)
+                : locationId;
+            if (endpointKey)
+                keys.add(endpointKey);
         }
-        catch { }
+        return [...keys];
     }
     function clearMeshMap(map, remove = false) {
         if (remove)
             map.forEach(disposeMesh);
         map.clear();
-    }
-    function syncSceneObjectMeshes(map, parent, objects, layer) {
-        if (!parent)
-            return;
-        const seen = new Set();
-        for (const definition of Array.isArray(objects) ? objects : []) {
-            if (!definition?.object_id)
-                continue;
-            seen.add(definition.object_id);
-            let mesh = map.get(definition.object_id);
-            if (!mesh) {
-                mesh = makeSceneObjectMesh(definition);
-                if (layer != null)
-                    setLayerRecursive(mesh, layer);
-                parent.add(mesh);
-                map.set(definition.object_id, mesh);
-            }
-            if (state.drag?.kind === "scene-object" &&
-                state.drag.id === definition.object_id &&
-                map === state.rootMeshes)
-                continue;
-            const position = Array.isArray(definition.position) ? definition.position : [0, 0, 0];
-            mesh.position.set(Number(position[0]) || 0, Number(position[1]) || 0, Number(position[2]) || 0);
-        }
-        for (const [id, mesh] of [...map.entries()]) {
-            if (!seen.has(id)) {
-                disposeMesh(mesh);
-                map.delete(id);
-            }
-        }
     }
     function ensurePortalDragHandle() {
         const live = portalHost();
@@ -303,25 +358,43 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
         const isActiveWorld = key === live.activeEndpointKey;
         const isDestinationWorld = isPlayer && key === live.previewEndpointKey;
         if (isActiveWorld) {
-            if (webgl)
-                syncSceneObjectMeshes(state.rootMeshes, impl.scene, attachPoint.value?.objects || [], null);
+            if (webgl) {
+                syncHostedSceneObjectMeshes({
+                    THREE,
+                    meshes: state.rootMeshes,
+                    parent: impl.scene,
+                    objects: attachPoint.value?.objects || [],
+                    version: attachPoint.version,
+                    preservePositionForId: state.drag?.kind === "scene-object" ? state.drag.id : null,
+                    configureMesh: (mesh, definition) => {
+                        const suppressAirportWowProxy = isPlayer
+                            && portalHost()?.world?.location_id === "location-airport"
+                            && /^wow-node-\d+$/.test(String(definition.object_id));
+                        mesh.visible = !suppressAirportWowProxy;
+                        mesh.userData.airportWowProxySuppressed = suppressAirportWowProxy;
+                    },
+                });
+            }
             const trigger = attachPoint.portal_pose?.trigger_position || null;
             if (trigger && state.drag?.kind !== "portal" && typeof live.applyHostedPortalPose === "function") {
                 const applied = live.applyHostedPortalPose(trigger);
                 if (applied.changed) {
                     setPortalVisualAlignment(alignPortalVisualToTrigger(activeScene, live.world));
                     ensurePortalDragHandle();
-                    const wire = webgl && impl.rootFabricNodesGroup?.getObjectByName("fabric-root-portal-trigger-node");
-                    if (wire) {
-                        wire.position.x = Number(trigger[0]) || 0;
-                        wire.position.z = Number(trigger[2]) || 0;
-                    }
                     logLine(`hosted point v${attachPoint.version}: portal pose adopted from reload → ${vec3Label(trigger)} (visual + crossing frame follow the hosted point)`);
                 }
             }
         }
         if (isDestinationWorld && webgl && impl.childFabricRender?.group) {
-            syncSceneObjectMeshes(state.childMeshes, impl.childFabricRender.group, attachPoint.value?.objects || [], childFabricLayer);
+            syncHostedSceneObjectMeshes({
+                THREE,
+                meshes: state.childMeshes,
+                parent: impl.childFabricRender.group,
+                objects: attachPoint.value?.objects || [],
+                version: attachPoint.version,
+                layer: childFabricLayer,
+                setLayerRecursive,
+            });
             const trigger = attachPoint.portal_pose?.trigger_position || null;
             if (trigger && typeof live.applyHostedTargetPortalPose === "function")
                 live.applyHostedTargetPortalPose(trigger);
@@ -743,6 +816,7 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
         ensurePortalDragHandle();
         refreshContained();
         applyRefreshLoop();
+        setServerRepublishRate(state.settings.serverRepublishMs).catch(() => { });
         body.setAttribute("data-portal-render-validation", "active");
         logLine(`portal-render validation active: hosted scene objects + reloadable UM attach-point (client re-reads every ${state.settings.clientIntervalMs} ms in Auto mode + on demand; ` +
             "toggle Auto/On-demand + tune client interval & optional server republish in the Portal-view panel; labeled demo interpretation, NOT UM/IWPS conformance; splats rung stubbed)");
@@ -768,10 +842,14 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
             root_object_meshes: [...state.rootMeshes.entries()].map(([id, mesh]) => ({
                 object_id: id,
                 position: [mesh.position.x, mesh.position.y, mesh.position.z].map((number) => Number(number.toFixed(3))),
+                ...mesh.userData.hostedSceneObject,
+                visible: mesh.visible,
             })),
             child_object_meshes: [...state.childMeshes.entries()].map(([id, mesh]) => ({
                 object_id: id,
                 position: [mesh.position.x, mesh.position.y, mesh.position.z].map((number) => Number(number.toFixed(3))),
+                ...mesh.userData.hostedSceneObject,
+                visible: mesh.visible,
             })),
             portal_handle_visible: state.portalHandle ? state.portalHandle.visible : null,
             player_panel_opened: state.playerPanelOpened,

@@ -3,7 +3,9 @@ import { GLTFLoader } from "./vendor-three-examples/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "./vendor-three-examples/utils/SkeletonUtils.js";
 import { VRMLoaderPlugin } from "./vendor-vrm/three-vrm.module.js";
 import { createRetargetedLocomotionClips } from "./procedural-animation.js";
+import { fetchAndParseGltf } from "./gltf-fetch-loader.mjs";
 import { createParametricAvatar, DEFAULT_AVATAR_PARAMS } from "./avatar/parametric-avatar.mjs";
+import { withBase } from "./base-path.mjs";
 const ATTACHMENT_PRESETS = {
     head: { position: [0, 1.55, 0.12], label: "head" },
     chest: { position: [0, 1.08, 0.16], label: "chest" },
@@ -18,7 +20,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "dwarf",
         label: "Dwarf stand-in (short and wide)",
         type: "vrm",
-        url: "/assets/avatar-dwarf.vrm",
+        url: withBase("/assets/avatar-dwarf.vrm"),
         scale: 0.95,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -46,7 +48,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "cute-moth",
         label: "Cute Moth",
         type: "vrm",
-        url: "/assets/avatars/vrm/CuteMoth_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/CuteMoth_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -58,7 +60,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "cool-waffle",
         label: "Cool Waffle",
         type: "vrm",
-        url: "/assets/avatars/vrm/CoolWaffle_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/CoolWaffle_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -70,7 +72,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "cool-banana",
         label: "Cool Banana",
         type: "vrm",
-        url: "/assets/avatars/vrm/CoolBanana_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/CoolBanana_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -82,7 +84,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "mushy-voxel",
         label: "Mushy Voxel",
         type: "vrm",
-        url: "/assets/avatars/vrm/Mushy_Voxel_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/Mushy_Voxel_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -94,7 +96,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "cool-banana-voxel",
         label: "Cool Banana Voxel",
         type: "vrm",
-        url: "/assets/avatars/vrm/CoolBanana_Voxel_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/CoolBanana_Voxel_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -106,7 +108,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "froggy",
         label: "Froggy",
         type: "vrm",
-        url: "/assets/avatars/vrm/Froggy_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/Froggy_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -118,7 +120,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "abissal-dude",
         label: "Abissal Dude",
         type: "vrm",
-        url: "/assets/avatars/vrm/AbissalDude_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/AbissalDude_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -130,7 +132,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "froggy-voxel",
         label: "Froggy Voxel",
         type: "vrm",
-        url: "/assets/avatars/vrm/Froggy_Voxel_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/Froggy_Voxel_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -142,7 +144,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "mushy",
         label: "Mushy",
         type: "vrm",
-        url: "/assets/avatars/vrm/Mushy_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/Mushy_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -154,7 +156,7 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "mr-bush",
         label: "Mr Bush",
         type: "vrm",
-        url: "/assets/avatars/vrm/MrBush_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/MrBush_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
@@ -166,12 +168,54 @@ export const AVATAR_VARIANTS = Object.freeze({
         key: "bad-bot",
         label: "Bad Bot",
         type: "vrm",
-        url: "/assets/avatars/vrm/BadBot_VRM.vrm",
+        url: withBase("/assets/avatars/vrm/BadBot_VRM.vrm"),
         scale: 0.92,
         rotation_y: Math.PI,
         load_mode: "vrm-humanoid",
         mocap_retarget: "supported_if_vrm_humanoid_bones_present",
         equipment_attachment: "vrm-normalized-bones",
+        structured_unsupported: [],
+    },
+    "rpm-female-cyberpunk": {
+        key: "rpm-female-cyberpunk",
+        label: "Rose",
+        type: "glb",
+        url: withBase("/assets/avatars/glb/rpm_female_cyberpunk.glb"),
+        scale: 1,
+        rotation_y: 0,
+        load_mode: "gltf-humanoid-facade",
+        mocap_retarget: "supported",
+        equipment_attachment: "glb-humanoid-normalized-bones",
+        licence: "CC-BY-NC-SA-4.0",
+        licence_holder: "Ready Player Me (via Sketchfab)",
+        structured_unsupported: [],
+    },
+    "rpm-female-ninja": {
+        key: "rpm-female-ninja",
+        label: "Helium",
+        type: "glb",
+        url: withBase("/assets/avatars/glb/rpm_female_ninja.glb"),
+        scale: 1,
+        rotation_y: 0,
+        load_mode: "gltf-humanoid-facade",
+        mocap_retarget: "supported",
+        equipment_attachment: "glb-humanoid-normalized-bones",
+        licence: "CC-BY-NC-SA-4.0",
+        licence_holder: "Ready Player Me (via Sketchfab)",
+        structured_unsupported: [],
+    },
+    "rpm-female-character": {
+        key: "rpm-female-character",
+        label: "Nea",
+        type: "glb",
+        url: withBase("/assets/avatars/glb/rpm_female_character.glb"),
+        scale: 1,
+        rotation_y: 0,
+        load_mode: "gltf-humanoid-facade",
+        mocap_retarget: "supported",
+        equipment_attachment: "glb-humanoid-normalized-bones",
+        licence: "CC-BY-NC-SA-4.0",
+        licence_holder: "Ready Player Me (via Sketchfab)",
         structured_unsupported: [],
     },
 });
@@ -185,6 +229,12 @@ const HEAD_ITEM_SINK_FRACTION = Object.freeze({
 });
 const WORLD_MOVE_SPEED_MPS = 2.35;
 const WALK_NATURAL_SPEED_MPS = 1.55;
+const RUN_CYCLE_DISTANCE_M = 1.9375500814918891;
+const RUN_CONTACT_WINDOWS_S = Object.freeze({
+    left: Object.freeze({ start: 0.2139999963556017, end: 0.4494999923450606 }),
+    right: Object.freeze({ start: 0.570999990275928, end: 0.7804999867081642 }),
+});
+const RUN_CONTACT_RELEASE_S = 0.11;
 const LOCOMOTION_CROSSFADE_S = 0.22;
 const JUMP_PLAYBACK_FAULT = "hidden-clock-repeat";
 function jumpPlaybackStatus(fault) {
@@ -482,6 +532,12 @@ export class AvatarEquipmentLayer {
             : null;
         this._jumpPlaybackFault = jumpPlaybackFault === JUMP_PLAYBACK_FAULT ? jumpPlaybackFault : null;
         this._lastJumpActionTime = null;
+        this._runCalibrationTelemetry = {
+            active_wall_seconds: 0,
+            active_clip_seconds: 0,
+            completed_cycles: 0,
+        };
+        this._runFootContactLock = null;
         this._avatarModel = null;
         this._switchInFlight = false;
         this._pendingVariant = null;
@@ -512,7 +568,8 @@ export class AvatarEquipmentLayer {
             anim_speed_match: {
                 world_move_speed_mps: WORLD_MOVE_SPEED_MPS,
                 walk_clip_natural_speed_mps: WALK_NATURAL_SPEED_MPS,
-                note: "selected walk/run playback rate = effective world speed / calibrated clip natural speed",
+                run_cycle_distance_m: RUN_CYCLE_DISTANCE_M,
+                note: "walk uses its calibrated natural speed; run cycles/s = run translation m/s / measured run metres/cycle",
             },
             animation_mixer_active: false,
             animation_time_seconds: 0,
@@ -522,6 +579,35 @@ export class AvatarEquipmentLayer {
             locomotion_movement_mode: "idle",
             locomotion_run_mode: false,
             locomotion_speed_mps: 0,
+            run_calibration: {
+                supported: false,
+                source_derived: false,
+                run_clip_duration_seconds: null,
+                run_playback_rate: null,
+                run_cycle_speed: null,
+                run_cycle_distance: null,
+                effective_run_translation_speed_mps: null,
+                active_wall_seconds: 0,
+                active_clip_seconds: 0,
+                completed_cycles: 0,
+            },
+            run_contact_lock: {
+                owner: "AvatarEquipmentLayer._loop",
+                enabled: true,
+                active: false,
+                active_side: null,
+                phase_seconds: null,
+                plant_window: null,
+                anchor_world_xz: null,
+                horizontal_error_mm: 0,
+                max_horizontal_error_mm: 0,
+                release_active: false,
+                simultaneous_overconstraint_count: 0,
+                phase_discontinuity_release_count: 0,
+                state_transition_release_count: 0,
+                lifecycle_release_count: 0,
+                outside_run_release_count: 0,
+            },
             avatar_grounded: true,
             avatar_jump_height_m: 0,
             jump_playback: jumpPlaybackStatus(this._jumpPlaybackFault),
@@ -655,12 +741,13 @@ export class AvatarEquipmentLayer {
         }
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
-        const gltf = await loader.loadAsync(variant.url);
+        const gltf = await fetchAndParseGltf(loader, variant.url);
         const vrm = gltf.userData && gltf.userData.vrm ? gltf.userData.vrm : null;
         const model = (vrm && vrm.scene) || gltf.scene;
         return withRigMetrics(vrm, model);
     }
     _adoptVrmModel(variant, vrm, model, metrics = null) {
+        this._resetRunFootContactLock("avatar-switch");
         const support = variantSupportStatus(variant);
         this._rigMetrics = metrics || measureRigMetrics(model, vrm);
         const isStaticGlb = support.avatar_asset_type === "glb" && !vrm;
@@ -842,6 +929,7 @@ export class AvatarEquipmentLayer {
         }
     }
     async _loadLocomotionClips() {
+        this._resetRunFootContactLock("locomotion-reload");
         if (!this.status.real_vrm_loaded) {
             this.status.retargeted_walk_loaded = false;
             this.status.retargeted_track_count = 0;
@@ -858,6 +946,11 @@ export class AvatarEquipmentLayer {
                 throw new Error("retargeted walk produced no tracks");
             this.mixer = new THREE.AnimationMixer(this.vrm.scene);
             this.actions = {};
+            this._runCalibrationTelemetry = {
+                active_wall_seconds: 0,
+                active_clip_seconds: 0,
+                completed_cycles: 0,
+            };
             this.status.jump_playback = jumpPlaybackStatus(this._jumpPlaybackFault);
             this._lastJumpActionTime = null;
             for (const [state, clip] of Object.entries(clips)) {
@@ -894,13 +987,46 @@ export class AvatarEquipmentLayer {
             this.status.animation_mixer_active = false;
         }
     }
+    characterizeRunCalibration(translationSpeedMps) {
+        const action = this.actions && this.actions.run;
+        const clipDuration = Number(action && action.getClip().duration);
+        const translationSpeed = Number(translationSpeedMps);
+        if (!action || !Number.isFinite(clipDuration) || clipDuration <= 0) {
+            throw new Error("selected run clip is unavailable for runtime calibration");
+        }
+        if (!Number.isFinite(translationSpeed) || translationSpeed <= 0) {
+            throw new RangeError("run translation speed must be a positive finite value");
+        }
+        const runCycleDistance = RUN_CYCLE_DISTANCE_M;
+        const runCycleSpeed = translationSpeed / runCycleDistance;
+        const playbackRate = runCycleSpeed * clipDuration;
+        this.status.run_calibration = {
+            ...this.status.run_calibration,
+            supported: true,
+            source_derived: true,
+            rig_path: this.status.avatar_render_source || this.status.avatar_variant,
+            run_clip_duration_seconds: clipDuration,
+            run_playback_rate: playbackRate,
+            run_cycle_speed: runCycleSpeed,
+            run_cycle_distance: runCycleDistance,
+            effective_run_translation_speed_mps: translationSpeed,
+            cadence_steps_per_min: runCycleSpeed * 120,
+            gait_cycle_mapping: "one run loop = one same-foot-to-same-foot two-step cycle",
+            calibration_source: "runtime fixed-foot/sole-derived measured run-cycle distance",
+            formula: "cycles_per_second=translation_mps/measured_run_metres_per_cycle; animation_time_scale=cycles_per_second*clip_duration_s",
+        };
+        return { ...this.status.run_calibration };
+    }
     _updateLocomotionState(delta) {
         if (!this.actions)
             return;
         const airborne = this.status.avatar_grounded === false || (this.status.avatar_jump_height_m || 0) > 0.02;
         const desired = airborne && this.actions.jump
             ? "jump"
-            : this.status.locomotion_movement_mode === "run" && this.actions.run
+            : this.status.locomotion_moving &&
+                this.status.locomotion_run_mode &&
+                this.status.locomotion_movement_mode === "run" &&
+                this.actions.run
                 ? "run"
                 : this.status.locomotion_moving
                     ? "walk"
@@ -928,12 +1054,23 @@ export class AvatarEquipmentLayer {
                 playback.landing_action_time_seconds = Number(jump.time.toFixed(4));
                 this._lastJumpActionTime = null;
             }
+            if (desired === "run") {
+                this._runCalibrationTelemetry = {
+                    active_wall_seconds: 0,
+                    active_clip_seconds: 0,
+                    completed_cycles: 0,
+                };
+            }
             this._animState = desired;
         }
         this.status.current_animation_state = this._animState;
         if ((desired === "walk" || desired === "run") && this.actions[desired]) {
             const speedMps = Number(this.status.locomotion_speed_mps) || WORLD_MOVE_SPEED_MPS;
-            const playbackRate = speedMps / WALK_NATURAL_SPEED_MPS;
+            const runCycleSpeed = Number(this.avatar?.locomotion?.run_cycle_speed);
+            const clipDuration = Number(this.actions[desired].getClip().duration) || 0;
+            const playbackRate = desired === "run" && Number.isFinite(runCycleSpeed) && runCycleSpeed > 0
+                ? runCycleSpeed * clipDuration
+                : speedMps / WALK_NATURAL_SPEED_MPS;
             this.actions[desired].setEffectiveTimeScale(playbackRate);
             this.status.locomotion_playback_rate = Number(playbackRate.toFixed(3));
         }
@@ -943,6 +1080,257 @@ export class AvatarEquipmentLayer {
             const weight = action.getEffectiveWeight();
             const next = target > weight ? Math.min(target, weight + step) : Math.max(target, weight - step);
             action.setEffectiveWeight(next);
+        }
+    }
+    _syncRunCalibrationTelemetry(delta) {
+        const action = this.actions && this.actions.run;
+        if (!action)
+            return;
+        const duration = Number(action.getClip().duration) || 0;
+        const locomotion = this.avatar && this.avatar.locomotion ? this.avatar.locomotion : {};
+        const configuredCycleSpeed = Number(locomotion.run_cycle_speed);
+        const playbackRate = this._animState === "run"
+            ? Number(action.getEffectiveTimeScale()) || 0
+            : Number.isFinite(configuredCycleSpeed) && configuredCycleSpeed > 0
+                ? configuredCycleSpeed * duration
+                : Number(action.getEffectiveTimeScale()) || 0;
+        if (duration <= 0 || playbackRate <= 0)
+            return;
+        if (this._animState === "run") {
+            this._runCalibrationTelemetry.active_wall_seconds += delta;
+            this._runCalibrationTelemetry.active_clip_seconds += delta * playbackRate;
+            this._runCalibrationTelemetry.completed_cycles = Math.floor((this._runCalibrationTelemetry.active_clip_seconds + 1e-9) / duration);
+        }
+        const runCycleSpeed = playbackRate / duration;
+        const translationSpeed = Number(locomotion.run_translation_speed_mps) || Number(locomotion.speed_mps) || 0;
+        const runCycleDistance = Number(locomotion.run_cycle_distance) || RUN_CYCLE_DISTANCE_M;
+        this.status.run_calibration = {
+            ...this.status.run_calibration,
+            supported: true,
+            rig_path: this.status.avatar_render_source || this.status.avatar_variant,
+            run_clip_duration_seconds: duration,
+            run_playback_rate: playbackRate,
+            run_cycle_speed: runCycleSpeed,
+            run_cycle_distance: runCycleDistance,
+            effective_run_translation_speed_mps: runCycleDistance ? runCycleSpeed * runCycleDistance : translationSpeed,
+            cadence_steps_per_min: runCycleSpeed * 120,
+            action_time_seconds: Number(action.time.toFixed(6)),
+            active_wall_seconds: Number(this._runCalibrationTelemetry.active_wall_seconds.toFixed(6)),
+            active_clip_seconds: Number(this._runCalibrationTelemetry.active_clip_seconds.toFixed(6)),
+            completed_cycles: this._runCalibrationTelemetry.completed_cycles,
+        };
+    }
+    _resetRunFootContactLock(reason = "state-transition") {
+        const lock = this._runFootContactLock;
+        const status = this.status && this.status.run_contact_lock;
+        const hadCorrection = Boolean(lock && (lock.activeSide || lock.release));
+        if (status && hadCorrection) {
+            if (reason === "dispose" || reason === "avatar-switch" || reason === "locomotion-reload") {
+                status.lifecycle_release_count += 1;
+            }
+            else if (reason === "phase-discontinuity") {
+                status.phase_discontinuity_release_count += 1;
+            }
+            else {
+                status.state_transition_release_count += 1;
+            }
+        }
+        this._runFootContactLock = null;
+        if (!status)
+            return;
+        status.active = false;
+        status.active_side = null;
+        status.phase_seconds = null;
+        status.plant_window = null;
+        status.anchor_world_xz = null;
+        status.horizontal_error_mm = 0;
+        status.release_active = false;
+    }
+    _runFootContactPoint(side) {
+        const lock = this._runFootContactLock;
+        const fixedMarker = lock && lock.markers && lock.markers[side];
+        if (fixedMarker && fixedMarker.mesh && typeof fixedMarker.mesh.getVertexPosition === "function") {
+            const point = new THREE.Vector3();
+            fixedMarker.mesh.getVertexPosition(fixedMarker.vertex, point);
+            fixedMarker.mesh.localToWorld(point);
+            return point;
+        }
+        const raw = this.vrm?.humanoid?.getRawBoneNode?.(`${side}Foot`);
+        return raw ? raw.getWorldPosition(new THREE.Vector3()) : null;
+    }
+    _applyRunFootContactLock(delta) {
+        const action = this.actions && this.actions.run;
+        const duration = Number(action && action.getClip().duration);
+        const status = this.status.run_contact_lock;
+        const inRun = this._animState === "run" && this.status.locomotion_movement_mode === "run";
+        if (!action || !this.vrm || !this._avatarModel || !Number.isFinite(duration) || duration <= 0 || !inRun) {
+            if (this._runFootContactLock && (this._runFootContactLock.activeSide || this._runFootContactLock.release)) {
+                status.outside_run_release_count += 1;
+            }
+            this._resetRunFootContactLock("state-transition");
+            return;
+        }
+        if (!this._runFootContactLock || this._runFootContactLock.model !== this._avatarModel) {
+            const defaultSole = this.status.avatar_variant === DEFAULT_AVATAR_VARIANT
+                ? this._avatarModel.getObjectByName("Object_21")
+                : null;
+            this._runFootContactLock = {
+                model: this._avatarModel,
+                activeSide: null,
+                anchor: null,
+                corrected: null,
+                previousPhase: null,
+                release: null,
+                markers: {
+                    left: defaultSole && defaultSole.isSkinnedMesh ? { mesh: defaultSole, vertex: 289 } : null,
+                    right: defaultSole && defaultSole.isSkinnedMesh ? { mesh: defaultSole, vertex: 777 } : null,
+                },
+            };
+        }
+        const lock = this._runFootContactLock;
+        const phase = ((Number(action.time) % duration) + duration) % duration;
+        const expectedAdvance = Math.max(0, Number(delta) || 0) * Math.max(0, Number(action.getEffectiveTimeScale()) || 0);
+        if (lock.previousPhase !== null) {
+            const actualAdvance = (phase - lock.previousPhase + duration) % duration;
+            if (actualAdvance > Math.max(0.08, expectedAdvance * 3 + 0.01)) {
+                this._resetRunFootContactLock("phase-discontinuity");
+                return;
+            }
+        }
+        lock.previousPhase = phase;
+        const activeSides = Object.entries(RUN_CONTACT_WINDOWS_S)
+            .filter(([, window]) => window.end <= duration
+            ? phase >= window.start && phase <= window.end
+            : phase >= window.start || phase <= window.end - duration)
+            .map(([side]) => side);
+        if (activeSides.length > 1) {
+            status.simultaneous_overconstraint_count += 1;
+            this._resetRunFootContactLock("simultaneous-overconstraint");
+            return;
+        }
+        const side = activeSides[0] || null;
+        const humanoid = this.vrm.humanoid;
+        const upper = side ? humanoid?.getNormalizedBoneNode?.(`${side}UpperLeg`) : null;
+        const lower = side ? humanoid?.getNormalizedBoneNode?.(`${side}LowerLeg`) : null;
+        const foot = side ? humanoid?.getNormalizedBoneNode?.(`${side}Foot`) : null;
+        if (lock.activeSide && lock.activeSide !== side) {
+            const releaseUpper = humanoid?.getNormalizedBoneNode?.(`${lock.activeSide}UpperLeg`);
+            const releaseLower = humanoid?.getNormalizedBoneNode?.(`${lock.activeSide}LowerLeg`);
+            lock.release = releaseUpper && releaseLower
+                ? {
+                    side: lock.activeSide,
+                    elapsed: 0,
+                    upper: lock.corrected?.side === lock.activeSide
+                        ? lock.corrected.upper.clone()
+                        : releaseUpper.quaternion.clone(),
+                    lower: lock.corrected?.side === lock.activeSide
+                        ? lock.corrected.lower.clone()
+                        : releaseLower.quaternion.clone(),
+                }
+                : null;
+            lock.activeSide = null;
+            lock.anchor = null;
+            lock.corrected = null;
+        }
+        if (side && upper && lower && foot) {
+            lock.release = null;
+            this.vrm.update(0);
+            this._avatarModel.updateMatrixWorld(true);
+            const current = this._runFootContactPoint(side);
+            if (!current) {
+                this._resetRunFootContactLock("missing-foot");
+                return;
+            }
+            if (lock.activeSide !== side || !lock.anchor) {
+                lock.activeSide = side;
+                lock.anchor = current.clone();
+            }
+            const identity = new THREE.Quaternion();
+            const worldDelta = new THREE.Quaternion();
+            const parentWorld = new THREE.Quaternion();
+            const localDelta = new THREE.Quaternion();
+            const boneWorld = new THREE.Vector3();
+            const endWorld = new THREE.Vector3();
+            const targetWorld = new THREE.Vector3();
+            const toEnd = new THREE.Vector3();
+            const toTarget = new THREE.Vector3();
+            let horizontalError = 0;
+            for (let iteration = 0; iteration < 4; iteration += 1) {
+                this.vrm.update(0);
+                this._avatarModel.updateMatrixWorld(true);
+                const marker = this._runFootContactPoint(side);
+                if (!marker)
+                    break;
+                const errorX = lock.anchor.x - marker.x;
+                const errorZ = lock.anchor.z - marker.z;
+                horizontalError = Math.hypot(errorX, errorZ);
+                if (horizontalError <= 0.0005)
+                    break;
+                foot.getWorldPosition(endWorld);
+                targetWorld.copy(endWorld).set(endWorld.x + errorX, endWorld.y, endWorld.z + errorZ);
+                for (const bone of [lower, upper]) {
+                    bone.updateWorldMatrix(true, true);
+                    foot.getWorldPosition(endWorld);
+                    bone.getWorldPosition(boneWorld);
+                    toEnd.copy(endWorld).sub(boneWorld);
+                    toTarget.copy(targetWorld).sub(boneWorld);
+                    if (toEnd.lengthSq() <= 1e-10 || toTarget.lengthSq() <= 1e-10)
+                        continue;
+                    worldDelta.setFromUnitVectors(toEnd.normalize(), toTarget.normalize());
+                    const angle = identity.angleTo(worldDelta);
+                    if (angle > 0.35)
+                        worldDelta.slerp(identity, 1 - 0.35 / angle);
+                    bone.parent.getWorldQuaternion(parentWorld);
+                    localDelta.copy(parentWorld).invert().multiply(worldDelta).multiply(parentWorld);
+                    bone.quaternion.premultiply(localDelta).normalize();
+                }
+            }
+            this.vrm.update(0);
+            this._avatarModel.updateMatrixWorld(true);
+            const corrected = this._runFootContactPoint(side);
+            horizontalError = corrected ? Math.hypot(lock.anchor.x - corrected.x, lock.anchor.z - corrected.z) : horizontalError;
+            lock.corrected = {
+                side,
+                upper: upper.quaternion.clone(),
+                lower: lower.quaternion.clone(),
+            };
+            status.active = true;
+            status.active_side = side;
+            status.phase_seconds = Number(phase.toFixed(6));
+            status.plant_window = { ...RUN_CONTACT_WINDOWS_S[side] };
+            status.anchor_world_xz = [Number(lock.anchor.x.toFixed(6)), Number(lock.anchor.z.toFixed(6))];
+            status.horizontal_error_mm = Number((horizontalError * 1000).toFixed(3));
+            status.max_horizontal_error_mm = Math.max(status.max_horizontal_error_mm, status.horizontal_error_mm);
+            status.release_active = false;
+            return;
+        }
+        status.active = false;
+        status.active_side = null;
+        status.phase_seconds = Number(phase.toFixed(6));
+        status.plant_window = null;
+        status.anchor_world_xz = null;
+        status.horizontal_error_mm = 0;
+        if (lock.release) {
+            const releaseUpper = humanoid?.getNormalizedBoneNode?.(`${lock.release.side}UpperLeg`);
+            const releaseLower = humanoid?.getNormalizedBoneNode?.(`${lock.release.side}LowerLeg`);
+            if (!releaseUpper || !releaseLower) {
+                lock.release = null;
+            }
+            else {
+                lock.release.elapsed += Math.max(0, Number(delta) || 0);
+                const linear = Math.min(1, lock.release.elapsed / RUN_CONTACT_RELEASE_S);
+                const blend = linear * linear * (3 - 2 * linear);
+                const nativeUpper = releaseUpper.quaternion.clone();
+                const nativeLower = releaseLower.quaternion.clone();
+                releaseUpper.quaternion.copy(lock.release.upper).slerp(nativeUpper, blend);
+                releaseLower.quaternion.copy(lock.release.lower).slerp(nativeLower, blend);
+                status.release_active = blend < 1;
+                if (blend >= 1)
+                    lock.release = null;
+            }
+        }
+        else {
+            status.release_active = false;
         }
     }
     _syncJumpPlaybackTelemetry() {
@@ -1145,6 +1533,10 @@ export class AvatarEquipmentLayer {
         const hasWorn = this.status.attachedItems.some((item) => item.mode === "worn");
         return {
             ...this.status,
+            locomotion_action_weights: Object.fromEntries(Object.entries(this.actions || {}).map(([state, action]) => [
+                state,
+                Number(action.getEffectiveWeight().toFixed(4)),
+            ])),
             expected_item_count: items.length,
             attached_item_count: this.status.attachedItems.length,
             has_held_item: hasHeld,
@@ -1165,7 +1557,7 @@ export class AvatarEquipmentLayer {
         this.scene.updateMatrixWorld(true);
         const _w = new THREE.Vector3();
         const bones = {};
-        for (const name of ["hips", "head", "leftHand", "rightHand", "leftLowerLeg", "rightLowerLeg", "leftFoot", "rightFoot"]) {
+        for (const name of ["hips", "head", "leftHand", "rightHand", "leftUpperLeg", "rightUpperLeg", "leftLowerLeg", "rightLowerLeg", "leftFoot", "rightFoot"]) {
             const node = rawBone(name);
             if (!node) {
                 bones[name] = null;
@@ -1240,6 +1632,7 @@ export class AvatarEquipmentLayer {
             animation_state: this.status.current_animation_state,
             mixer_active: this.status.animation_mixer_active === true,
             locomotion_moving: this.status.locomotion_moving === true,
+            run_contact_lock: { ...this.status.run_contact_lock },
             avatar_rig_world: [this.avatarRig.position.x, this.avatarRig.position.y, this.avatarRig.position.z],
             avatar_model_local_y: this._avatarModel ? Number(this._avatarModel.position.y.toFixed(4)) : null,
             avatar_model_world_y: modelWorld ? Number(modelWorld.y.toFixed(4)) : null,
@@ -1258,9 +1651,13 @@ export class AvatarEquipmentLayer {
         if (this.mixer && this.avatarRig.visible) {
             this._updateLocomotionState(delta);
             this.mixer.update(delta);
+            this._applyRunFootContactLock(delta);
+            this._syncRunCalibrationTelemetry(delta);
             this._syncJumpPlaybackTelemetry();
             this.status.animation_time_seconds = Number((this.status.animation_time_seconds + delta).toFixed(3));
         }
+        else if (this._runFootContactLock)
+            this._resetRunFootContactLock("state-transition");
         if (this.vrm && typeof this.vrm.update === "function")
             this.vrm.update(delta);
         if (!this.sharedScene)
@@ -1290,6 +1687,7 @@ export class AvatarEquipmentLayer {
         return true;
     }
     dispose() {
+        this._resetRunFootContactLock("dispose");
         if (this._raf)
             cancelAnimationFrame(this._raf);
         if (this._onResize)

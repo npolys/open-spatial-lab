@@ -1,3 +1,4 @@
+import { withBase } from "./base-path.mjs";
 const VRM_ATTACHMENT_POINTS = new Set([
     "hips", "spine", "chest", "upperChest", "neck", "head",
     "leftShoulder", "leftUpperArm", "leftLowerArm", "leftHand",
@@ -6,7 +7,7 @@ const VRM_ATTACHMENT_POINTS = new Set([
     "rightUpperLeg", "rightLowerLeg", "rightFoot",
 ]);
 function featureItem(itemId, attachmentPoint, mode, label, position, quaternion) {
-    const base = new URL("/assets/", window.location.origin).href.replace(/\/$/, "");
+    const base = new URL(withBase("/assets/"), window.location.origin).href.replace(/\/$/, "");
     return {
         itemId,
         assetUri: `${base}/${itemId}.glb`,

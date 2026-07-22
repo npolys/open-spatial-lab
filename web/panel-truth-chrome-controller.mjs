@@ -1,4 +1,5 @@
-const PANEL_SIZE_STORAGE_KEY = "osl-floating-panel-size-v1";
+import { createPresentationJsonViewer } from "./presentation-json-viewer.mjs";
+const LEGACY_PANEL_SIZE_STORAGE_KEY = "osl-floating-panel-size-v1";
 const RAIL_WIDTH_MIN = 260;
 const PANEL_HEIGHT_MIN = 240;
 const RAIL_WIDTH_STEP = 24;
@@ -18,6 +19,12 @@ export function createPanelTruthChromeController(options = {}) {
     if (typeof lookup !== "function" || !documentTarget || !windowTarget || !body) {
         throw new Error("panel truth/chrome controller requires explicit DOM roots");
     }
+    const presentationViewer = createPresentationJsonViewer({
+        lookup,
+        documentTarget,
+        windowTarget,
+        body,
+    });
     const listeners = [];
     const observers = [];
     const ownedFrames = new Set();
@@ -41,6 +48,7 @@ export function createPanelTruthChromeController(options = {}) {
     let apiEventAttached = false;
     let lifecycleToken = 0;
     let manualPanelSize = null;
+    let manualPanelPosition = null;
     const controllerIdentity = Object.freeze({ owner: "panel-truth-chrome-controller", version: "runtime" });
     const on = (target, type, listener, settings) => {
         if (!target || typeof target.addEventListener !== "function")
@@ -467,7 +475,7 @@ export function createPanelTruthChromeController(options = {}) {
     function syncPanelControls(size = currentPanelSize(), bounds = panelSizeBounds()) {
         const widthHandle = lookup("rail-resizer");
         const heightHandle = lookup("panel-height-resizer");
-        body.setAttribute("data-panel-dock", "right");
+        body.setAttribute("data-panel-dock", manualPanelPosition ? "free" : "right");
         body.setAttribute("data-panel-size-mode", manualPanelSize ? "manual" : "auto");
         body.setAttribute("data-rail-width", String(size.width));
         body.setAttribute("data-panel-height", String(size.height));
@@ -487,12 +495,6 @@ export function createPanelTruthChromeController(options = {}) {
             manualPanelSize = null;
             body.style.removeProperty("--rail-w");
             body.style.removeProperty("--rail-h");
-            if (settings.persist !== false && storage) {
-                try {
-                    storage.removeItem(PANEL_SIZE_STORAGE_KEY);
-                }
-                catch { }
-            }
             syncPanelControls();
             if (settings.notify !== false) {
                 try {
@@ -511,12 +513,8 @@ export function createPanelTruthChromeController(options = {}) {
         body.style.setProperty("--rail-w", `${clamped.width}px`);
         body.style.setProperty("--rail-h", `${clamped.height}px`);
         syncPanelControls(clamped, clamped.bounds);
-        if (settings.persist !== false && storage) {
-            try {
-                storage.setItem(PANEL_SIZE_STORAGE_KEY, JSON.stringify(manualPanelSize || preferred));
-            }
-            catch { }
-        }
+        if (manualPanelPosition)
+            applyPanelPosition(manualPanelPosition);
         if (settings.notify !== false) {
             try {
                 windowTarget.dispatchEvent(new windowTarget.Event("resize"));
@@ -532,27 +530,53 @@ export function createPanelTruthChromeController(options = {}) {
         const result = applyPanelSize({ width: px, height: current.height }, settings);
         return result ? result.width : null;
     }
-    function restorePanelSize() {
-        let stored = null;
-        try {
-            stored = storage ? storage.getItem(PANEL_SIZE_STORAGE_KEY) : null;
-        }
-        catch {
-            stored = null;
-        }
-        if (!stored)
+    function applyPanelPosition(position) {
+        if (!position) {
+            manualPanelPosition = null;
+            body.style.removeProperty("--rail-top");
+            body.style.removeProperty("--rail-left");
+            body.style.removeProperty("--rail-right");
+            syncPanelControls();
             return null;
-        try {
-            return applyPanelSize(JSON.parse(stored), { persist: false, notify: false });
         }
-        catch {
-            return null;
+        const rail = documentTarget.querySelector("aside.rail");
+        const header = documentTarget.querySelector("header.role-banner");
+        const footer = documentTarget.querySelector("footer.controls");
+        const rectangle = rail ? rail.getBoundingClientRect() : null;
+        const bounds = panelSizeBounds();
+        const width = Math.max(1, Number(rectangle?.width) || currentPanelSize().width);
+        const height = Math.max(1, Number(rectangle?.height) || currentPanelSize().height);
+        const headerBottom = Number(header?.getBoundingClientRect().bottom) || 68;
+        const footerTop = Number(footer?.getBoundingClientRect().top) || windowTarget.innerHeight;
+        const minTop = headerBottom + bounds.edge;
+        const maxLeft = Math.max(bounds.edge, windowTarget.innerWidth - width - bounds.edge);
+        const maxTop = Math.max(minTop, footerTop - height - bounds.edge);
+        manualPanelPosition = {
+            left: Math.min(maxLeft, Math.max(bounds.edge, Math.round(Number(position.left) || 0))),
+            top: Math.min(maxTop, Math.max(minTop, Math.round(Number(position.top) || 0))),
+        };
+        body.style.setProperty("--rail-top", `${manualPanelPosition.top}px`);
+        body.style.setProperty("--rail-left", `${manualPanelPosition.left}px`);
+        body.style.setProperty("--rail-right", "auto");
+        syncPanelControls();
+        return { ...manualPanelPosition };
+    }
+    function resetPanelGeometry(settings = {}) {
+        applyPanelSize(null, { notify: false });
+        applyPanelPosition(null);
+        if (settings.notify !== false) {
+            try {
+                windowTarget.dispatchEvent(new windowTarget.Event("resize"));
+            }
+            catch { }
         }
     }
     function syncPanelDock() {
         if (manualPanelSize) {
-            return applyPanelSize(manualPanelSize, { persist: false, notify: false, updatePreferred: false });
+            applyPanelSize(manualPanelSize, { notify: false, updatePreferred: false });
         }
+        if (manualPanelPosition)
+            return applyPanelPosition(manualPanelPosition);
         syncPanelControls();
         return null;
     }
@@ -562,7 +586,12 @@ export function createPanelTruthChromeController(options = {}) {
             { element: lookup("rail-resizer"), axis: "width" },
             { element: lookup("panel-height-resizer"), axis: "height" },
         ].filter((entry) => entry.element);
-        restorePanelSize();
+        try {
+            if (storage)
+                storage.removeItem(LEGACY_PANEL_SIZE_STORAGE_KEY);
+        }
+        catch { }
+        resetPanelGeometry({ notify: false });
         for (const { element: handle, axis } of handles) {
             let dragging = false;
             let pendingSize = null;
@@ -570,15 +599,19 @@ export function createPanelTruthChromeController(options = {}) {
                 const rectangle = rail ? rail.getBoundingClientRect() : { top: 0, right: windowTarget.innerWidth };
                 const current = manualPanelSize || currentPanelSize();
                 return axis === "width"
-                    ? { width: rectangle.right - event.clientX, height: current.height }
+                    ? { width: rectangle.right - event.clientX, height: current.height, left: event.clientX }
                     : { width: current.width, height: event.clientY - rectangle.top };
             };
             const flush = () => {
                 railFrame = 0;
                 if (!pendingSize)
                     return;
-                applyPanelSize(pendingSize, { persist: false, notify: false });
+                const next = pendingSize;
                 pendingSize = null;
+                applyPanelSize(next, { notify: false });
+                if (manualPanelPosition && Number.isFinite(next.left)) {
+                    applyPanelPosition({ ...manualPanelPosition, left: next.left });
+                }
             };
             const pointerDown = (event) => {
                 if (event.button != null && event.button !== 0)
@@ -617,6 +650,9 @@ export function createPanelTruthChromeController(options = {}) {
                 const finalSize = pendingSize || sizeFromEvent(event);
                 pendingSize = null;
                 applyPanelSize(finalSize);
+                if (manualPanelPosition && Number.isFinite(finalSize.left)) {
+                    applyPanelPosition({ ...manualPanelPosition, left: finalSize.left });
+                }
             };
             const keyDown = (event) => {
                 const current = manualPanelSize || currentPanelSize();
@@ -647,13 +683,64 @@ export function createPanelTruthChromeController(options = {}) {
         on(windowTarget, "resize", () => queueFrame(syncPanelDock), { passive: true });
         syncPanelDock();
     }
+    function wirePanelDrag() {
+        const rail = documentTarget.querySelector("aside.rail");
+        const dragRegion = documentTarget.querySelector(".panel-control-strip");
+        const closeButton = lookup("btn-panel-close");
+        if (!rail || !dragRegion)
+            return;
+        let dragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+        const pointerDown = (event) => {
+            if (event.button != null && event.button !== 0)
+                return;
+            if (closeButton && closeButton.contains(event.target))
+                return;
+            const rectangle = rail.getBoundingClientRect();
+            dragging = true;
+            offsetX = event.clientX - rectangle.left;
+            offsetY = event.clientY - rectangle.top;
+            dragRegion.setAttribute("data-dragging", "1");
+            body.setAttribute("data-panel-dragging", "true");
+            try {
+                dragRegion.setPointerCapture(event.pointerId);
+            }
+            catch { }
+            event.preventDefault();
+        };
+        const pointerMove = (event) => {
+            if (!dragging)
+                return;
+            applyPanelPosition({ left: event.clientX - offsetX, top: event.clientY - offsetY });
+            event.preventDefault();
+        };
+        const endDrag = (event) => {
+            if (!dragging)
+                return;
+            dragging = false;
+            dragRegion.removeAttribute("data-dragging");
+            body.removeAttribute("data-panel-dragging");
+            try {
+                dragRegion.releasePointerCapture(event.pointerId);
+            }
+            catch { }
+        };
+        on(dragRegion, "pointerdown", pointerDown);
+        on(dragRegion, "pointermove", pointerMove);
+        on(dragRegion, "pointerup", endDrag);
+        on(dragRegion, "pointercancel", endDrag);
+    }
     function setPanelOpen(open, settings = {}) {
         const next = open === true;
+        const wasOpen = !appRoot?.classList.contains("rail-collapsed");
         const rail = documentTarget.querySelector("aside.rail");
         const railToggle = lookup("btn-rail-toggle");
         if (!next && rail && rail.contains(documentTarget.activeElement) && settings.focusToggle !== false) {
             railToggle?.focus();
         }
+        if (next && !wasOpen)
+            resetPanelGeometry({ notify: false });
         appRoot?.classList.toggle("rail-collapsed", !next);
         body.setAttribute("data-panel-open", String(next));
         if (railToggle)
@@ -724,6 +811,7 @@ export function createPanelTruthChromeController(options = {}) {
     }
     function wirePanelChrome() {
         wireRailResizer();
+        wirePanelDrag();
         wirePanelGroups();
         wirePanelCards();
         wireActivityJournal();
@@ -737,9 +825,6 @@ export function createPanelTruthChromeController(options = {}) {
         const closeButton = lookup("btn-panel-close");
         if (closeButton)
             on(closeButton, "click", () => setPanelOpen(false, { announce: true }));
-        const autoSizeButton = lookup("btn-panel-auto-size");
-        if (autoSizeButton)
-            on(autoSizeButton, "click", () => applyPanelSize(null));
         if (rail) {
             on(rail, "keydown", (event) => {
                 if (event.key !== "Escape")
@@ -829,11 +914,20 @@ export function createPanelTruthChromeController(options = {}) {
             return;
         const bad = settings.isError || (result && result.ok === false);
         el.className = "wow-json" + (bad ? " bad" : "");
-        const header = result && result.status !== undefined
-            ? `// ${result.url || ""} → ${result.status} · ${result.schema || ""}\n`
-            : "";
-        const value = result && "json" in result ? result.json : result;
-        el.textContent = header + JSON.stringify(value, null, 2);
+        const value = result && typeof result === "object" && "json" in result ? result.json : result;
+        const schema = result && result.schema ? result.schema : settings.schema || "";
+        return presentationViewer.present(targetId, value, {
+            label: settings.label || (targetId === "wow-presenter-result"
+                ? "Web of Worlds · crossing API response"
+                : `Web of Worlds · ${schema || "endpoint"} response`),
+            method: settings.method || (targetId === "wow-presenter-result" ? "POST" : "GET"),
+            path: result && result.url ? result.url : settings.path || "",
+            status: result && result.status !== undefined ? `HTTP ${result.status}` : bad ? "error" : "current",
+            schema,
+            freshness: settings.freshness || "Current response already shown in this panel preview",
+            state: bad ? "error" : "current",
+            sourceKind: settings.sourceKind || String(schema).toLowerCase(),
+        });
     }
     async function onWowChipClick(kind) {
         const cap = capabilities();
@@ -842,7 +936,11 @@ export function createPanelTruthChromeController(options = {}) {
         const idEl = lookup("wow-id-input");
         const id = idEl ? idEl.value.trim() : "";
         const result = await cap.apiFetchEndpoint(kind, id);
-        renderWowJson("wow-json-view", result, { isError: result.ok === false });
+        renderWowJson("wow-json-view", result, {
+            isError: result.ok === false,
+            method: "GET",
+            sourceKind: kind,
+        });
         return result;
     }
     function setWowArrivalEditFromPacket(packet) {
@@ -882,7 +980,10 @@ export function createPanelTruthChromeController(options = {}) {
         const out = await cap.presenterExitIntent();
         wowHeldPacket = out.packet;
         setWowArrivalEditFromPacket(wowHeldPacket);
-        renderWowJson("wow-presenter-result", { url: out.url, status: out.status, schema: "exit-intent packet", json: wowHeldPacket });
+        renderWowJson("wow-presenter-result", { url: out.url, status: out.status, schema: "exit-intent packet", json: wowHeldPacket }, {
+            method: "POST",
+            sourceKind: "crossing",
+        });
         const deliver = lookup("wow-btn-deliver");
         const wrong = lookup("wow-btn-wrongnode");
         if (deliver)
@@ -896,12 +997,24 @@ export function createPanelTruthChromeController(options = {}) {
         if (typeof cap.presenterDeliverArrival !== "function")
             return null;
         if (!wowHeldPacket) {
-            renderWowJson("wow-presenter-result", { error: "press \"Exit via API\" first to obtain a packet" }, { isError: true });
+            renderWowJson("wow-presenter-result", { error: "press \"Exit via API\" first to obtain a packet" }, {
+                isError: true,
+                method: "POST",
+                path: "client-held crossing packet",
+                schema: "operator error",
+                sourceKind: "crossing",
+            });
             return null;
         }
         const edit = applyWowArrivalEdit();
         if (!edit.ok) {
-            renderWowJson("wow-presenter-result", { error: edit.error }, { isError: true });
+            renderWowJson("wow-presenter-result", { error: edit.error }, {
+                isError: true,
+                method: "POST",
+                path: "client-held crossing packet",
+                schema: "operator error",
+                sourceKind: "crossing",
+            });
             return null;
         }
         logLine(settings.toWrongNode
@@ -920,7 +1033,11 @@ export function createPanelTruthChromeController(options = {}) {
                 arrival_count_delta: out.arrival_count_delta,
                 response: out.response,
             },
-        }, { isError: out.ok === false });
+        }, {
+            isError: out.ok === false,
+            method: "POST",
+            sourceKind: "crossing",
+        });
         return out;
     }
     function wireWowApiPanel() {
@@ -997,12 +1114,22 @@ export function createPanelTruthChromeController(options = {}) {
             return;
         if (!manifest) {
             writeDebugText("std-um-manifest", "—");
+            presentationViewer.clear("std-um-json-view", "Waiting for the current accepted manifest.");
             return;
         }
         const facetNames = (manifest.facets || []).map((facet) => facet.name || facet["@type"]).join(", ") || "none";
         const pointerCount = (manifest.pointers || []).length;
         const verified = manifest.__wo116_signature_verified ? "sig✓" : "sig?";
         writeDebugText("std-um-manifest", `v0.4 emitted · ${verified} · facets ${facetNames} · ${pointerCount} pointers`);
+        presentationViewer.present("std-um-json-view", manifest, {
+            label: "Universal Manifest · current panel manifest",
+            path: "Universal Manifest live state",
+            schema: "bounded local um:Manifest v0.4 projection",
+            status: manifest.__wo116_signature_verified ? "signature verified" : "signature pending",
+            freshness: "Current accepted in-memory manifest already represented by this panel",
+            state: "current",
+            sourceKind: "manifest",
+        });
     }
     function emitManifestForPanel(debug, avatar, items) {
         if (!avatar || typeof buildAndSignManifest !== "function")
@@ -1282,6 +1409,7 @@ export function createPanelTruthChromeController(options = {}) {
         if (!mounted) {
             mounted = true;
             mountCount += 1;
+            presentationViewer.mount();
             wirePanelChrome();
             wireRp1FailClosed();
         }
@@ -1334,6 +1462,7 @@ export function createPanelTruthChromeController(options = {}) {
                     ? cap.verifyViewMatchesCamera()
                     : Promise.resolve(null);
             },
+            presentation: () => presentationViewer,
         };
     }
     function debug() {
@@ -1359,6 +1488,7 @@ export function createPanelTruthChromeController(options = {}) {
     }
     function dispose() {
         lifecycleToken += 1;
+        presentationViewer.dispose();
         while (listeners.length) {
             const remove = listeners.pop();
             try {
@@ -1385,6 +1515,7 @@ export function createPanelTruthChromeController(options = {}) {
             cancelFrame(frame);
         ownedFrames.clear();
         body.removeAttribute("data-rail-dragging");
+        body.removeAttribute("data-panel-dragging");
         for (const attribute of [
             "data-panel-group-count",
             "data-panel-card-count",
@@ -1404,6 +1535,9 @@ export function createPanelTruthChromeController(options = {}) {
             "data-reduced-transparency",
         ])
             body.removeAttribute(attribute);
+        for (const property of ["--rail-w", "--rail-h", "--rail-top", "--rail-left", "--rail-right"]) {
+            body.style.removeProperty(property);
+        }
         const handle = lookup("rail-resizer");
         if (handle)
             handle.removeAttribute("data-dragging");
@@ -1438,6 +1572,7 @@ export function createPanelTruthChromeController(options = {}) {
         chromeDriver,
         recordActivity,
         debug,
+        presentationDriver: () => presentationViewer,
         dispose,
     };
 }

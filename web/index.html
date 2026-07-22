@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Open Spatial Lab — Integration Assembly</title>
   <link rel="stylesheet" href="./demo-launcher.css" />
+  <link rel="stylesheet" href="./presentation-json-viewer.css" />
   <style>
     :root {
       --bg: #0C0D11;
@@ -91,18 +92,38 @@
     /* runtime (#17): the idle/waiting/arrived state text no longer renders in the
        header — the phase-pill is hidden (phase stays in the rail + toasts). */
     .phase-pill { display: none; }
-    .header-actions { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
-    .header-icon-button.views-toggle { width: auto; min-width: 64px; padding: 0 10px;
-      font: 750 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .header-icon-button.destinations-toggle { width: auto; min-width: 94px; padding: 0 10px;
-      font: 750 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .header-icon-button { flex: none; display: inline-flex; align-items: center;
+    .header-actions { flex: 0 0 auto; min-width: max-content; margin-left: auto;
+      display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+      position: relative; z-index: 1; isolation: isolate; }
+    .header-icon-button { flex: 0 0 40px; display: inline-flex; align-items: center;
       justify-content: center; position: relative; width: 40px; height: 40px; min-width: 40px; padding: 0;
       border-radius: 12px; font: 800 14px ui-monospace, Menlo, monospace;
       border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-dim);
-      cursor: pointer; }
+      cursor: pointer; z-index: 0; }
+    .header-actions > .header-icon-button:focus-visible { z-index: 1; }
+    .header-action-icon { display: block; flex: none; width: 20px; height: 20px;
+      pointer-events: none; }
+    .lobby-return-label { display: block; flex: none; font: 800 15px/1 ui-monospace, Menlo, monospace;
+      pointer-events: none; }
+    /* runtime: compact header avatar-switch glyph — same treatment as
+       .lobby-return-label ("L"), just a different letter. */
+    .avatar-switch-label { display: block; flex: none; font: 800 15px/1 ui-monospace, Menlo, monospace;
+      pointer-events: none; }
+    /* .header-icon-button's explicit display overrides the UA [hidden] rule. Keep the
+       role/location-controlled controls truly hidden when their controllers set hidden,
+       and keep the two owner-removed compatibility controls hidden even when Runtime
+       Tweaks clears its hidden property during mount. Their DOM/controller seams remain. */
+    #btn-camera-toggle[hidden], #btn-switch-avatar[hidden], #btn-return-lobby[hidden] { display: none; }
+    #btn-semantic-destinations, #btn-runtime-tweaks { display: none; }
     .header-icon-button:hover, .header-icon-button[aria-expanded="true"], .header-icon-button[aria-pressed="true"] {
       border-color: var(--warn); color: var(--ink); }
+    .header-actions .views-toggle { border-color: transparent; border-radius: 0;
+      background: transparent; box-shadow: none; }
+    .header-actions .views-toggle:hover:not(:disabled),
+    .header-actions .views-toggle:active:not(:disabled),
+    .header-actions .views-toggle[aria-expanded="true"] {
+      border-color: transparent; background: transparent; color: var(--ink);
+      box-shadow: inset 0 -2px 0 var(--warn); }
     .refresh-toggle .refresh-icon { font-size: 16px; line-height: 1; transform: translateY(-1px); }
     .notification-badge { position: absolute; right: -5px; top: -5px; min-width: 16px; height: 16px;
       padding: 0 4px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
@@ -119,11 +140,8 @@
       background: currentColor; opacity: .45; }
     #app.rail-collapsed .rail-icon::after { opacity: .16; }
 
-    /* runtime: the rail width is a custom property so it can be
-       DRAG-RESIZED. Precedence, weakest to strongest: :root default -> the
-       distance-mode default (set on <body>) -> the user's dragged width, which
-       the panel chrome controller writes as an inline style on <body> and
-       persists only for the current browser tab in sessionStorage. */
+    /* The canonical panel geometry lives in CSS. Dragged width, height, and
+       position override these values only for the current open cycle. */
     :root {
       --rail-w: clamp(280px, 30vw, 420px);
       --rail-h: min(640px, calc(var(--osl-viewport-height) - var(--osl-panel-top) - var(--osl-shell-footer-height) - var(--osl-glass-edge)));
@@ -136,8 +154,9 @@
     /* The drag handle sits on the rail's left edge. It is absolutely positioned
        (so it creates no grid track) and lives in <main>, which does not scroll —
        putting it inside the scrolling rail would make it scroll away. */
-    .rail-resizer { position: absolute; top: var(--osl-panel-top); height: var(--rail-h);
-      right: calc(var(--osl-glass-edge) + var(--rail-w) - 4px); width: 9px;
+    .rail-resizer { position: absolute; top: var(--rail-top, var(--osl-panel-top)); height: var(--rail-h);
+      right: calc(var(--rail-right, var(--osl-glass-edge)) + var(--rail-w) - 4px);
+      left: calc(var(--rail-left, auto) - 4px); width: 9px;
       z-index: 12; cursor: col-resize; background: transparent;
       border: 0; padding: 0; touch-action: none; }
     .rail-resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 3px;
@@ -146,7 +165,8 @@
     .rail-resizer[data-dragging="1"]::after { opacity: .75; }
     .rail-resizer:focus-visible { outline: none; }
     .panel-height-resizer { position: absolute; z-index: 12;
-      top: calc(var(--osl-panel-top) + var(--rail-h) - 4px); right: var(--osl-glass-edge);
+      top: calc(var(--rail-top, var(--osl-panel-top)) + var(--rail-h) - 4px);
+      right: var(--rail-right, var(--osl-glass-edge)); left: var(--rail-left, auto);
       width: var(--rail-w); height: 9px; cursor: row-resize; background: transparent;
       border: 0; padding: 0; touch-action: none; }
     .panel-height-resizer::after { content: ""; position: absolute; left: 20%; right: 20%; top: 3px;
@@ -157,6 +177,7 @@
     #app.rail-collapsed .rail-resizer, #app.rail-collapsed .panel-height-resizer { display: none; }
     body[data-rail-dragging="width"] { cursor: col-resize; user-select: none; }
     body[data-rail-dragging="height"] { cursor: row-resize; user-select: none; }
+    body[data-panel-dragging="true"] { cursor: grabbing; user-select: none; }
     #scene-mount { position: absolute; inset: 0; width: 100%; height: 100%;
       min-height: 0; min-width: 0; overflow: hidden; background:
       radial-gradient(120% 120% at 50% 10%, #16213f 0%, #0b1020 70%); }
@@ -213,7 +234,7 @@
       position: absolute;
       z-index: 6;
       left: 50%;
-      top: 14px;
+      top: var(--osl-panel-top);
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
@@ -245,6 +266,114 @@
       letter-spacing: .02em; text-transform: uppercase; }
     .toast.toast-arrived .sub { font-size: clamp(13px, 1.35vw, 20px); line-height: 1.25;
       color: var(--ink); text-transform: uppercase; }
+
+    .storefront-shopping-affordance { position: fixed; z-index: 40; left: 50%; bottom: 68px;
+      transform: translateX(-50%); min-height: 42px; max-width: min(520px, calc(100vw - 24px));
+      padding: 9px 16px; border-color: var(--ok); border-radius: 999px;
+      background: rgba(8,18,30,.94); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.42);
+      font: 800 12px/1.35 ui-monospace, Menlo, monospace; pointer-events: auto;
+      transition: transform .16s ease, border-color .16s ease; }
+    .storefront-shopping-affordance:hover { transform: translateX(-50%) translateY(-2px); }
+    .storefront-shopping-affordance[hidden] { display: none; }
+    .storefront-shopping-affordance:focus-visible, .storefront-shopping-panel :focus-visible {
+      outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
+    .storefront-shopping-panel { position: fixed; z-index: 43; left: 50%; bottom: 60px;
+      transform: translateX(-50%); width: min(840px, calc(100vw - 24px));
+      max-height: calc(100vh - 126px); overflow: auto; pointer-events: auto;
+      background: rgba(10,17,29,.98); border: 1px solid var(--ok);
+      box-shadow: 0 22px 58px rgba(0,0,0,.58); border-radius: 12px; }
+    .storefront-shopping-panel[hidden] { display: none; }
+    .storefront-shopping-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .storefront-shopping-title { margin: 0; font-size: 15px; }
+    .storefront-shopping-meta { color: var(--ink-dim); font: 10.5px/1.35 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-close { margin-left: auto; width: 30px; height: 28px; padding: 0; }
+    .storefront-shopping-body { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.2fr) minmax(210px, .9fr);
+      gap: 0; min-height: 250px; }
+    .storefront-shopping-column { min-width: 0; padding: 12px; border-right: 1px solid var(--line); }
+    .storefront-shopping-column:last-child { border-right: 0; }
+    .storefront-shopping-column h3, .storefront-shopping-column h4 { margin: 0 0 8px; }
+    .storefront-shopping-column-label { color: var(--ink-dim); font: 800 10px ui-monospace, Menlo, monospace;
+      text-transform: uppercase; letter-spacing: .08em; }
+    .storefront-shopping-catalog { display: grid; gap: 6px; margin-top: 8px; }
+    .storefront-catalog-item { width: 100%; display: grid; gap: 3px; padding: 8px 9px;
+      border-radius: 7px; text-align: left; }
+    .storefront-catalog-item strong { color: var(--ink); font-size: 12px; }
+    .storefront-catalog-item span { color: var(--ink-dim); font-size: 10.5px; line-height: 1.35; }
+    .storefront-catalog-item.active { border-color: var(--ok); background: rgba(70,209,138,.12); }
+    .storefront-shopping-detail p { margin: 7px 0; color: var(--ink-dim); font-size: 11px; line-height: 1.45; }
+    .storefront-shopping-detail .storefront-shopping-pickup-note { color: var(--ink); }
+    .storefront-shopping-detail button { margin-top: 8px; }
+    .storefront-shopping-message { color: var(--ink-dim); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+    .storefront-shopping-basket-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .storefront-shopping-basket-count { color: var(--ok); font: 800 10px ui-monospace, Menlo, monospace; }
+    .storefront-shopping-basket { display: grid; gap: 6px; margin-top: 8px; }
+    .storefront-basket-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+    .storefront-basket-row span { min-width: 0; display: grid; gap: 2px; }
+    .storefront-basket-row strong { font-size: 11px; overflow-wrap: anywhere; }
+    .storefront-basket-row small { color: var(--ink-dim); font-size: 9.5px; overflow-wrap: anywhere; }
+    .storefront-basket-row button { padding: 4px 7px; font-size: 10px; }
+    .storefront-shopping-boundary { margin: 10px 0 0; color: var(--warn); font: 9.5px/1.4 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-status { margin: 0; padding: 9px 12px; border-top: 1px solid var(--line);
+      color: var(--ink-dim); font: 10.5px/1.4 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-status[data-state="success"] { color: var(--ok); }
+    .storefront-shopping-status[data-state="warning"] { color: var(--warn); }
+    .storefront-shopping-status[data-state="error"] { color: var(--bad); }
+
+    .boarding-journey-affordance { position: fixed; z-index: 41; left: 50%; bottom: 68px;
+      transform: translateX(-50%); min-height: 42px; max-width: min(620px, calc(100vw - 24px));
+      padding: 9px 16px; border-color: var(--warn); border-radius: 999px;
+      background: rgba(8,18,30,.95); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.42);
+      font: 800 12px/1.35 ui-monospace, Menlo, monospace; pointer-events: auto;
+      transition: transform .16s ease, border-color .16s ease; }
+    .boarding-journey-affordance:hover { transform: translateX(-50%) translateY(-2px); }
+    .boarding-journey-affordance[hidden], .boarding-journey-panel[hidden] { display: none; }
+    .boarding-journey-affordance:focus-visible, .boarding-journey-panel :focus-visible {
+      outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
+    .boarding-journey-panel { position: fixed; z-index: 44; left: 50%; bottom: 60px;
+      transform: translateX(-50%); width: min(680px, calc(100vw - 24px));
+      max-height: calc(100vh - 126px); overflow: auto; pointer-events: auto;
+      background: rgba(10,17,29,.98); border: 1px solid var(--warn);
+      box-shadow: 0 22px 58px rgba(0,0,0,.58); border-radius: 12px; }
+    .boarding-journey-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .boarding-journey-title { margin: 0; font-size: 15px; }
+    .boarding-journey-meta { color: var(--ink-dim); font: 10.5px/1.35 ui-monospace, Menlo, monospace; }
+    .boarding-journey-close { margin-left: auto; width: 30px; height: 28px; padding: 0; }
+    .boarding-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px; list-style: none; margin: 0; padding: 12px 12px 0; }
+    .boarding-progress li { padding: 7px 5px; border: 1px solid var(--line); border-radius: 7px;
+      color: var(--ink-dim); text-align: center; font: 800 9.5px/1.3 ui-monospace, Menlo, monospace;
+      text-transform: uppercase; letter-spacing: .04em; }
+    .boarding-progress li[data-state="done"] { color: var(--ok); border-color: var(--ok); background: rgba(70,209,138,.1); }
+    .boarding-progress li[data-state="error"] { color: var(--bad); border-color: var(--bad); background: rgba(255,102,126,.1); }
+    .boarding-credential-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: end; padding: 12px; }
+    .boarding-credential-field { display: grid; gap: 6px; min-width: 0; }
+    .boarding-credential-field label { color: var(--ink); font-size: 11px; font-weight: 800; }
+    .boarding-credential-field input { min-width: 0; width: 100%; padding: 9px 10px; color: var(--ink);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+      font: 12px ui-monospace, Menlo, monospace; text-transform: uppercase; }
+    .boarding-credential-field input[aria-invalid="true"] { border-color: var(--bad); }
+    .boarding-credential-hint { color: var(--ink-dim); font: 10px/1.4 ui-monospace, Menlo, monospace; }
+    .boarding-journey-actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 12px 12px; }
+    .boarding-journey-boundary { margin: 0; padding: 0 12px 12px; color: var(--warn);
+      font: 9.5px/1.45 ui-monospace, Menlo, monospace; }
+    .boarding-journey-status { margin: 0; padding: 9px 12px; border-top: 1px solid var(--line);
+      color: var(--ink-dim); font: 10.5px/1.4 ui-monospace, Menlo, monospace; }
+    .boarding-journey-status[data-state="success"] { color: var(--ok); }
+    .boarding-journey-status[data-state="warning"] { color: var(--warn); }
+    .boarding-journey-status[data-state="error"] { color: var(--bad); }
+    @media (max-width: 720px) {
+      .storefront-shopping-panel { bottom: 54px; max-height: calc(100vh - 112px); }
+      .storefront-shopping-body { grid-template-columns: 1fr; }
+      .storefront-shopping-column { border-right: 0; border-bottom: 1px solid var(--line); }
+      .storefront-shopping-column:last-child { border-bottom: 0; }
+      .boarding-journey-panel { bottom: 54px; max-height: calc(100vh - 112px); }
+      .boarding-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .boarding-credential-form { grid-template-columns: 1fr; }
+    }
 
     .notification-center { position: fixed; z-index: 7; top: 56px; right: 12px;
       width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 72px);
@@ -317,6 +446,61 @@
     .refresh-settings-modal .refresh-row label { color: var(--ink-dim); overflow-wrap: anywhere; }
     .refresh-settings-modal .refresh-line { color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace;
       margin-top: 8px; overflow-wrap: anywhere; }
+
+    /* runtime: compact session-local tuning surface. It floats independently
+       of the rail so the player can tune while the inspector stays collapsed. */
+    .runtime-tweak-palette { position: fixed; z-index: 42; top: 80px; right: 8px;
+      width: 430px; height: 390px; min-width: min(360px, calc(100vw - 16px));
+      min-height: min(280px, calc(100dvh - 88px)); max-width: min(720px, calc(100vw - 16px));
+      max-height: min(720px, calc(100dvh - 88px)); display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden;
+      border: 1px solid var(--osl-glass-border); border-radius: 16px;
+      background: rgba(12,17,33,.97); color: var(--ink); box-shadow: var(--osl-glass-shadow);
+      pointer-events: auto; }
+    .runtime-tweak-palette[hidden] { display: none; }
+    .runtime-tweak-head { display: flex; align-items: center; gap: 6px; padding: 9px 10px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .runtime-tweak-title { margin: 0 auto 0 0; font-size: 12px; font-weight: 800;
+      letter-spacing: .5px; text-transform: uppercase; }
+    .runtime-tweak-head button, .runtime-tweak-output button { min-height: 28px; padding: 4px 7px;
+      border-radius: 6px; font-size: 10.5px; white-space: nowrap; }
+    .runtime-tweak-close { width: 28px; padding: 0 !important; font-size: 15px !important; }
+    .runtime-tweak-rows { min-height: 0; overflow: auto; padding: 8px 10px 2px; }
+    .runtime-tweak-row { padding: 7px 0 9px; border-bottom: 1px solid var(--line); }
+    .runtime-tweak-row:last-child { border-bottom: 0; }
+    .runtime-tweak-row-head { display: flex; align-items: baseline; gap: 8px; }
+    .runtime-tweak-row-head label { font-size: 12px; font-weight: 750; }
+    .runtime-tweak-default { margin-left: auto; color: var(--ok);
+      font: 9.5px ui-monospace, Menlo, monospace; white-space: nowrap; }
+    .runtime-tweak-description { margin: 2px 0 6px; color: var(--ink-dim); font-size: 10.5px; }
+    .runtime-tweak-inputs { display: grid; grid-template-columns: minmax(100px, 1fr) 86px auto;
+      align-items: center; gap: 7px; }
+    .runtime-tweak-inputs input[type="range"] { width: 100%; accent-color: var(--source); }
+    .runtime-tweak-number { width: 86px; min-width: 0; padding: 5px 6px;
+      color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+      font: 10.5px ui-monospace, Menlo, monospace; }
+    .runtime-tweak-units { color: var(--ink-dim); font: 9.5px ui-monospace, Menlo, monospace; }
+    .runtime-tweak-output { display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center; gap: 6px; margin-top: 6px; }
+    .runtime-tweak-output code { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+      color: var(--warn); font: 10.5px ui-monospace, Menlo, monospace; white-space: nowrap; }
+    .runtime-tweak-status { min-height: 28px; margin: 0; padding: 6px 10px;
+      border-top: 1px solid var(--line); color: var(--ink-dim);
+      font: 10px/1.35 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+    .runtime-tweak-status[data-state="success"] { color: var(--ok); }
+    .runtime-tweak-status[data-state="error"] { color: var(--bad); }
+    .runtime-tweak-copy-fallback { width: calc(100% - 20px); min-height: 48px; margin: 0 10px 8px;
+      resize: vertical; color: var(--ink); background: var(--panel); border: 1px solid var(--bad);
+      border-radius: 5px; font: 10px/1.4 ui-monospace, Menlo, monospace; }
+    .runtime-tweak-resizer { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px;
+      padding: 0; border: 0; border-radius: 0; background: transparent; cursor: nwse-resize;
+      touch-action: none; }
+    .runtime-tweak-resizer::after { content: ""; position: absolute; right: 4px; bottom: 4px;
+      width: 9px; height: 9px; border-right: 2px solid var(--source);
+      border-bottom: 2px solid var(--source); opacity: .7; }
+    .runtime-tweak-resizer:hover::after, .runtime-tweak-resizer:focus-visible::after,
+    .runtime-tweak-resizer[data-dragging="1"]::after { opacity: 1; }
+    .runtime-tweak-palette :focus-visible { outline: 2px solid var(--osl-glass-focus); outline-offset: 2px; }
 
     .avatar-selector-modal { position: fixed; z-index: 8; inset: 54px 12px 60px;
       display: grid; place-items: center; pointer-events: auto; }
@@ -393,8 +577,9 @@
 
     /* runtime (#8), refreshed by runtime: preserve the dense editor
        accordion content inside a rounded, frosted, right-docked floating panel. */
-    aside.rail { position: absolute; z-index: 10; top: var(--osl-panel-top);
-      right: var(--osl-glass-edge); width: var(--rail-w); height: var(--rail-h);
+    aside.rail { position: absolute; z-index: 10; top: var(--rail-top, var(--osl-panel-top));
+      right: var(--rail-right, var(--osl-glass-edge)); left: var(--rail-left, auto);
+      width: var(--rail-w); height: var(--rail-h);
       min-width: 0; min-height: 0; max-width: calc(100% - (2 * var(--osl-glass-edge)));
       max-height: calc(100% - var(--osl-panel-top) - var(--osl-shell-footer-height) - var(--osl-glass-edge));
       border: 1px solid var(--osl-glass-border); border-radius: var(--osl-glass-radius-panel);
@@ -403,12 +588,13 @@
       padding: 0; display: flex; flex-direction: column; gap: 0; pointer-events: auto; }
     .panel-control-strip { position: sticky; top: 0; z-index: 3; display: flex; align-items: center;
       gap: 6px; padding: 8px 10px; background: rgba(19,26,46,.94); border-bottom: 1px solid var(--line);
-      box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+      box-shadow: 0 4px 12px rgba(0,0,0,.2); cursor: move; touch-action: none; user-select: none; }
+    .panel-control-strip[data-dragging="1"] { cursor: grabbing; }
     .panel-control-title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis;
       white-space: nowrap; color: var(--ink); font: 800 10.5px ui-monospace, Menlo, monospace;
       letter-spacing: .5px; text-transform: uppercase; }
     .panel-control-strip button { padding: 5px 9px; border-radius: 6px; font: 700 10.5px ui-monospace, Menlo, monospace; }
-    .panel-control-strip .panel-close-button { min-width: 36px; min-height: 36px; padding: 0; }
+    .panel-control-strip .panel-close-button { min-width: 36px; min-height: 36px; padding: 0; cursor: pointer; }
     .panel-control-strip button[aria-pressed="true"] { color: var(--ok); border-color: var(--ok);
       background: rgba(70,209,138,.12); }
     /* Each .card is now a docked accordion section. runtime (#7): the <h3> is the
@@ -494,7 +680,39 @@
       border-top: 1px solid var(--line);
       padding: 8px max(16px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
         max(16px, env(safe-area-inset-left)); display: flex;
-      align-items: center; gap: 10px; background: var(--panel); }
+      align-items: center; justify-content: stretch; background: var(--panel); }
+    /* The hosted destination is the sole in-world footer link. It uses the same inherited
+       system-sans family as .loc-title while retaining the launcher's cyan/focus tokens. */
+    .footer-links { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; }
+    .footer-link { display: inline-flex; max-width: 100%; align-items: center; justify-content: center;
+      color: var(--launcher-cyan, #63d8ff); font-family: inherit;
+      font-size: clamp(17px, 5vw, 21px); font-weight: 600; line-height: 1.2;
+      overflow-wrap: anywhere; text-align: center; text-decoration: none; }
+    .footer-link:hover { color: #9fe8ff; }
+    .footer-link:focus-visible { outline: 3px solid var(--launcher-focus, #fff);
+      outline-offset: 3px; border-radius: 6px; }
+    /* runtime / runtime: the player compatibility branch
+       may still create the legacy in-canvas camera pill, while server views now
+       reuse the header icon. Keep the legacy pill hidden in either case. */
+    #btn-camera-mode { display: none; }
+    /* runtime: #avatar-runtime-status / #connection-footer-status carry the
+       "hidden" attribute (see footer markup) to keep them out of the visible bottom bar,
+       but .legend / .legend.spacer below both set an explicit "display", which — same
+       specificity, author origin — beats the UA [hidden] rule the moment either element
+       gets text (confirmed live: connection-footer-status renders its static initial
+       text on load; avatar-runtime-status would too as soon as
+       avatar-selector-controller.mjs writes "selector canceled" etc. into it). ID selectors
+       here outrank the .legend class, so this rule wins regardless of textContent. */
+    #avatar-runtime-status, #connection-footer-status { display: none; }
+    /* runtime: #connection-status ("Live Backend" pill) — setConnectionPresentation()
+       in app.js reassigns this element's className wholesale on every state change
+       (header.className = `live-tag connection-${state}`), which would wipe any sr-only
+       CLASS added here (confirmed live). Keying the sr-only treatment to the ID instead
+       makes it immune to that reassignment: the pill is invisible in the top bar in every
+       view/state, while staying a real, updated role="status" aria-live="polite" region so
+       screen readers still hear connection-state changes. */
+    #connection-status { position: fixed; width: 1px; height: 1px; padding: 0;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 8px;
       border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; }
     button:hover:not(:disabled) { border-color: var(--source); }
@@ -573,21 +791,24 @@
         padding: 3px 7px; font-size: 10px; }
       .loc-title { display: none; }
       .live-tag { max-width: 112px; overflow: hidden; text-overflow: ellipsis;
-        padding: 2px 5px; font-size: 9px; }
+        width: 37px; flex-basis: 37px; padding: 2px 5px; font-size: 9px; }
       .header-actions { gap: 3px; }
-      .header-icon-button { width: 36px; height: 36px; min-width: 36px; border-radius: 10px; }
-      .header-icon-button.views-toggle { width: 38px; min-width: 38px; padding: 0 3px; font-size: 9px; }
-      .header-icon-button.destinations-toggle { width: 38px; min-width: 38px; padding: 0 3px; font-size: 0; }
-      .destinations-toggle::after { content: "Go"; font-size: 9px; }
+      /* runtime: shrunk 36px -> 30px. The header now carries 9 possible
+         icon buttons (7 original + camera-toggle + avatar-switch) instead of 7; at
+         36px+3px-gap none of the 9 fit this breakpoint's available width (verified:
+         #btn-rail-toggle got clipped off past the header's right edge). 30px is the
+         largest uniform size that keeps all 9 on-screen at 375-390px width. This is a
+         narrower touch target than before on this one breakpoint only (desktop is
+         untouched) — an intentional, necessary trade-off for the 2 added controls. */
+      .header-icon-button { flex-basis: 30px; width: 30px; height: 30px; min-width: 30px; border-radius: 9px; }
+      .header-icon-button.views-toggle { width: 30px; min-width: 30px; padding: 0; font-size: 9px; }
+      .header-icon-button.destinations-toggle { width: 30px; min-width: 30px; padding: 0; }
       aside.rail { width: min(var(--rail-w), calc(100% - (2 * var(--osl-glass-edge)))); }
       .player-first-frame { width: calc(100% - 20px); padding: 18px; border-radius: 16px; }
       .player-first-frame .player-first-frame-actions { align-items: stretch; flex-direction: column; }
       .player-first-frame .player-first-frame-actions button { width: 100%; }
       footer.controls { padding: 8px 10px; }
       #connection-footer-status { margin-left: 0; }
-    }
-    @media (max-width: 620px) {
-      .refresh-toggle, .notification-toggle, .rail-toggle { display: none; }
     }
 
     /* runtime (#12): inventory + avatar picker section (player view).
@@ -701,6 +922,9 @@
     .journal-empty { color: var(--ink-dim); grid-template-columns: 1fr !important; }
     html[data-motion="reduced"] .rail-resizer::after,
     html[data-motion="reduced"] .panel-height-resizer::after,
+    html[data-motion="reduced"] .runtime-tweak-resizer::after,
+    html[data-motion="reduced"] .storefront-shopping-affordance,
+    html[data-motion="reduced"] .boarding-journey-affordance,
     html[data-motion="reduced"] .toast,
     html[data-motion="reduced"] .card > h3::before,
     html[data-motion="reduced"] .panel-group-toggle::before {
@@ -712,7 +936,8 @@
       outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
     @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
       body:not([data-glass-blur="off"]) header.role-banner,
-      body:not([data-glass-blur="off"]) aside.rail {
+      body:not([data-glass-blur="off"]) aside.rail,
+      body:not([data-glass-blur="off"]) .runtime-tweak-palette {
         background: var(--osl-glass-fill);
         -webkit-backdrop-filter: saturate(135%) blur(var(--osl-glass-blur));
         backdrop-filter: saturate(135%) blur(var(--osl-glass-blur));
@@ -720,14 +945,16 @@
     }
     body[data-glass-blur="off"] header.role-banner,
     body[data-glass-blur="off"] aside.rail,
+    body[data-glass-blur="off"] .runtime-tweak-palette,
     body[data-reduced-transparency="true"] header.role-banner,
-    body[data-reduced-transparency="true"] aside.rail {
+    body[data-reduced-transparency="true"] aside.rail,
+    body[data-reduced-transparency="true"] .runtime-tweak-palette {
       background: var(--osl-glass-fill-solid);
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
     }
     @media (prefers-reduced-transparency: reduce) {
-      header.role-banner, aside.rail { background: var(--osl-glass-fill-solid);
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: var(--osl-glass-fill-solid);
         -webkit-backdrop-filter: none; backdrop-filter: none; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -735,12 +962,12 @@
         transition-duration: .001ms !important; animation-duration: .001ms !important; }
     }
     @media (prefers-contrast: more) {
-      header.role-banner, aside.rail { background: #080b12; border-color: rgba(255,255,255,.86);
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: #080b12; border-color: rgba(255,255,255,.86);
         box-shadow: 0 0 0 2px #000; }
       .header-icon-button, .panel-control-strip button { border-color: currentColor; }
     }
     @media (forced-colors: active) {
-      header.role-banner, aside.rail { background: Canvas; color: CanvasText;
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: Canvas; color: CanvasText;
         border: 2px solid CanvasText; box-shadow: none; forced-color-adjust: auto; }
       .rail-resizer::after, .panel-height-resizer::after { background: Highlight; opacity: 1; }
     }
@@ -749,22 +976,60 @@
 
 </head>
 <body>
-  <div id="app" class="role-source">
+  <div id="app" class="role-source rail-collapsed">
     
     <header class="role-banner">
       <span class="role-chip" id="role-chip">SERVER A</span>
       <span class="loc-title" id="loc-title">Location A</span>
       <span class="loc-meta" id="loc-meta">location-a · demo-room-a · local-session-a</span>
+      
       <span class="live-tag connection-loading" id="connection-status" data-testid="connection-status"
             role="status" aria-live="polite">Loading</span>
       <span class="phase-pill" id="phase-pill">idle</span>
       <div class="header-actions" data-testid="header-actions">
         <button class="header-icon-button views-toggle" id="btn-views-home" type="button"
-                data-testid="views-home" title="Open mission views" aria-label="Open mission views">Views</button>
+                data-testid="views-home" title="Open mission views" aria-label="Open mission views">
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="M3 10.5 12 3l9 7.5"></path>
+            <path d="M5.5 9.5V21h13V9.5M9.5 21v-6h5v6"></path>
+          </svg>
+        </button>
         <button class="header-icon-button destinations-toggle" id="btn-semantic-destinations" type="button"
                 data-testid="semantic-destinations-toggle" aria-expanded="false"
                 aria-controls="semantic-destinations-panel"
-                title="World destinations" aria-label="Open world destinations">Destinations</button>
+                title="World destinations" aria-label="Open world destinations"
+                aria-hidden="true" tabindex="-1" hidden>
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="m3 5.5 6-2 6 2 6-2v15l-6 2-6-2-6 2z"></path>
+            <path d="M9 3.5v15M15 5.5v15"></path>
+          </svg>
+        </button>
+        
+        <button class="header-icon-button camera-toggle" id="btn-camera-toggle" type="button"
+                data-testid="header-camera-toggle" hidden
+                title="Toggle first/third-person camera (C)" aria-label="Toggle first/third-person camera">
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="M4 8.5h2.6l1.4-2h8l1.4 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z"></path>
+            <circle cx="12" cy="13.5" r="3.4"></circle>
+          </svg>
+        </button>
+        
+        <button id="btn-switch-avatar" class="header-icon-button" type="button"
+                data-testid="btn-switch-avatar" title="Switch avatar" aria-label="Switch avatar" hidden>
+          <span class="avatar-switch-label" aria-hidden="true">A</span>
+        </button>
+        <button class="header-icon-button runtime-tweak-toggle" id="btn-runtime-tweaks" type="button"
+                data-testid="runtime-tweak-toggle" aria-expanded="false"
+                aria-controls="runtime-tweak-palette" title="Runtime tweaks"
+                aria-label="Open runtime tweak palette" aria-hidden="true" tabindex="-1" hidden>
+          <span aria-hidden="true">⌁</span>
+        </button>
         <button class="header-icon-button refresh-toggle" id="btn-refresh-settings" type="button"
                 data-testid="refresh-settings-toggle" aria-expanded="false"
                 aria-controls="refresh-settings-modal"
@@ -779,10 +1044,10 @@
         <button class="header-icon-button lobby-return-toggle" id="btn-return-lobby" type="button"
                 data-testid="return-lobby-button"
                 title="Return to lobby" aria-label="Return to lobby" hidden>
-          <span aria-hidden="true">⌂</span>
+          <span class="lobby-return-label" aria-hidden="true">L</span>
         </button>
         <button class="header-icon-button rail-toggle" id="btn-rail-toggle" type="button"
-                data-testid="rail-toggle" aria-expanded="true"
+                data-testid="rail-toggle" aria-expanded="false"
                 onclick="if (!window.__assembly) { const app = document.getElementById('app'); const collapsed = app.classList.toggle('rail-collapsed'); this.setAttribute('aria-expanded', String(!collapsed)); }"
                 title="Toggle inspector panel" aria-label="Toggle inspector panel">
           <span class="rail-icon" aria-hidden="true"></span>
@@ -791,8 +1056,98 @@
     </header>
 
     <main>
-      <div id="scene-mount">
+      <div id="scene-mount" tabindex="-1" aria-label="Interactive spatial world">
         <div class="state-overlay" id="state-overlay"></div>
+        <button class="boarding-journey-affordance" id="boarding-journey-affordance"
+                type="button" data-testid="boarding-journey-affordance"
+                aria-haspopup="dialog" aria-expanded="false" hidden>
+          Board local-demo flight at Gate A12 · E
+        </button>
+        <section class="boarding-journey-panel" id="boarding-journey-panel"
+                 data-testid="boarding-journey-panel" role="dialog" aria-modal="false"
+                 aria-labelledby="boarding-journey-title" data-world-input-suppressed="true" hidden>
+          <div class="boarding-journey-head">
+            <div>
+              <h2 class="boarding-journey-title" id="boarding-journey-title">A12 · Local demo flight</h2>
+              <div class="boarding-journey-meta" id="boarding-journey-meta">Graph-authored local demo</div>
+            </div>
+            <button class="boarding-journey-close" id="btn-boarding-close"
+                    type="button" data-testid="boarding-close"
+                    title="Close boarding panel" aria-label="Close boarding panel and resume movement">x</button>
+          </div>
+          <ol class="boarding-progress" aria-label="Local-demo boarding progress">
+            <li id="boarding-progress-ready" data-state="waiting">Gate ready</li>
+            <li id="boarding-progress-admitted" data-state="waiting">Admitted</li>
+            <li id="boarding-progress-boarding" data-state="waiting">Boarding components</li>
+            <li id="boarding-progress-completed" data-state="waiting">Completed</li>
+          </ol>
+          <div class="boarding-credential-form">
+            <div class="boarding-credential-field">
+              <label for="boarding-credential-input">Visible local-demo credential</label>
+              <input id="boarding-credential-input" data-testid="boarding-credential-input"
+                     type="text" inputmode="text" autocomplete="off" spellcheck="false"
+                     placeholder="OSL-DEMO-DS482-A12" maxlength="64">
+              <div class="boarding-credential-hint" id="boarding-credential-hint">
+                Visible local-demo value: OSL-DEMO-DS482-A12
+              </div>
+            </div>
+            <button id="btn-boarding-validate" data-testid="boarding-validate" type="button" class="primary">
+              Validate local-demo credential
+            </button>
+          </div>
+          <div class="boarding-journey-actions">
+            <button id="btn-boarding-cancel" data-testid="boarding-cancel" type="button">
+              Cancel journey and resume movement
+            </button>
+          </div>
+          <p class="boarding-journey-boundary">Local-demo state only. This is not a ticket, airline connection,
+            identity verification, security clearance, legal travel authorization, or real boarding.</p>
+          <p class="boarding-journey-status" id="boarding-journey-status"
+             data-testid="boarding-journey-status" role="status" aria-live="polite" aria-atomic="true">
+            Approach Gate A12 to begin the local-demo boarding journey.
+          </p>
+        </section>
+        <button class="storefront-shopping-affordance" id="storefront-shopping-affordance"
+                type="button" data-testid="storefront-shopping-affordance"
+                aria-haspopup="dialog" aria-expanded="false" hidden>
+          Browse airport storefront · E
+        </button>
+        <section class="storefront-shopping-panel" id="storefront-shopping-panel"
+                 data-testid="storefront-shopping-panel" role="dialog" aria-modal="false"
+                 aria-labelledby="storefront-shopping-title" data-world-input-suppressed="true" hidden>
+          <div class="storefront-shopping-head">
+            <div>
+              <h2 class="storefront-shopping-title" id="storefront-shopping-title">Airport storefront</h2>
+              <div class="storefront-shopping-meta" id="storefront-shopping-meta">Local demo pickup list</div>
+            </div>
+            <button class="storefront-shopping-close" id="btn-storefront-shopping-close"
+                    type="button" data-testid="storefront-shopping-close"
+                    title="Close storefront" aria-label="Close storefront and resume movement">x</button>
+          </div>
+          <div class="storefront-shopping-body">
+            <section class="storefront-shopping-column" aria-label="Store catalog">
+              <div class="storefront-shopping-column-label">Browse catalog</div>
+              <div class="storefront-shopping-catalog" id="storefront-shopping-catalog"
+                   data-testid="storefront-shopping-catalog"></div>
+            </section>
+            <section class="storefront-shopping-column storefront-shopping-detail"
+                     id="storefront-shopping-detail" data-testid="storefront-shopping-detail"
+                     aria-label="Selected item details"></section>
+            <section class="storefront-shopping-column" aria-label="Local demo pickup list">
+              <div class="storefront-shopping-basket-head">
+                <h3>Local demo pickup list</h3>
+                <span class="storefront-shopping-basket-count" id="storefront-shopping-basket-count">0 selected</span>
+              </div>
+              <div class="storefront-shopping-basket" id="storefront-shopping-basket"
+                   data-testid="storefront-shopping-basket"></div>
+              <p class="storefront-shopping-boundary">Session-local selection only. No order, payment,
+                stock reservation, fulfillment, or purchase occurs.</p>
+            </section>
+          </div>
+          <p class="storefront-shopping-status" id="storefront-shopping-status"
+             data-testid="storefront-shopping-status" role="status" aria-live="polite"
+             aria-atomic="true">Approach an airport storefront to browse.</p>
+        </section>
         <section class="notification-center" id="notification-center"
                  data-testid="notification-center" hidden aria-label="Notifications">
           <div class="notification-center-head">
@@ -839,14 +1194,38 @@
           <div class="refresh-row">
             <label for="hdr-client-interval">client read interval (ms)</label>
             <input class="pv-num-input" id="hdr-client-interval" data-testid="refresh-client-interval"
-              type="number" min="100" max="10000" step="50" value="750" />
+              type="number" min="100" max="10000" step="50" value="100" />
           </div>
           <div class="refresh-row">
             <label for="hdr-server-republish">server republish (ms)</label>
             <input class="pv-num-input" id="hdr-server-republish" data-testid="refresh-server-republish"
-              type="number" min="0" max="60000" step="100" value="0" />
+              type="number" min="0" max="60000" step="100" value="100" />
           </div>
           <div class="refresh-line" id="hdr-refresh-mode-line" data-testid="refresh-mode-line">—</div>
+        </section>
+        <section class="runtime-tweak-palette" id="runtime-tweak-palette"
+                 data-testid="runtime-tweak-palette" role="dialog" aria-modal="false"
+                 aria-labelledby="runtime-tweak-title" hidden>
+          <div class="runtime-tweak-head">
+            <h2 class="runtime-tweak-title" id="runtime-tweak-title">Runtime tweaks</h2>
+            <button type="button" id="btn-runtime-tweak-copy-all"
+                    data-testid="runtime-tweak-copy-all">Copy all</button>
+            <button type="button" id="btn-runtime-tweak-reset-all"
+                    data-testid="runtime-tweak-reset-all">Reset all</button>
+            <button class="runtime-tweak-close" id="btn-runtime-tweak-close" type="button"
+                    data-testid="runtime-tweak-close" title="Close runtime tweaks"
+                    aria-label="Close runtime tweak palette">x</button>
+          </div>
+          <div class="runtime-tweak-rows" id="runtime-tweak-rows"
+               data-testid="runtime-tweak-rows"></div>
+          <p class="runtime-tweak-status" id="runtime-tweak-status" role="status"
+             aria-live="polite" aria-atomic="true">Session-local values; source defaults remain unchanged.</p>
+          <textarea class="runtime-tweak-copy-fallback" id="runtime-tweak-copy-fallback"
+                    data-testid="runtime-tweak-copy-fallback" readonly hidden></textarea>
+          <button class="runtime-tweak-resizer" id="runtime-tweak-resizer" type="button"
+                  data-testid="runtime-tweak-resizer" role="separator" tabindex="0"
+                  aria-orientation="horizontal"
+                  aria-label="Resize runtime tweak palette; use arrow keys"></button>
         </section>
         <section class="avatar-selector-modal" id="avatar-selector-modal"
                  data-testid="avatar-selector-modal" role="dialog" aria-modal="true"
@@ -905,7 +1284,7 @@
             </div>
             <div class="avatar-selector-footer">
               <span class="avatar-selector-status" id="avatar-selector-status"
-                    data-testid="avatar-selector-status">—</span>
+                    data-testid="avatar-selector-status" role="status" aria-live="polite">—</span>
               <span class="actions">
                 <button type="button" id="btn-avatar-selector-cancel"
                         data-testid="avatar-selector-cancel">Cancel</button>
@@ -918,11 +1297,9 @@
         
       </div>
 
-      <aside class="rail" aria-label="Live world information" data-testid="floating-panel">
+      <aside class="rail" aria-label="Inspector" data-testid="floating-panel">
         <div class="panel-control-strip" data-testid="panel-control-strip">
-          <span class="panel-control-title">Live world information</span>
-          <button id="btn-panel-auto-size" type="button" data-testid="panel-auto-size"
-                  title="Restore automatic panel size" aria-label="Restore automatic panel size">Auto size</button>
+          <span class="panel-control-title">Inspector</span>
           <button class="panel-close-button" id="btn-panel-close" type="button"
                   data-testid="panel-close" title="Close inspector panel"
                   aria-label="Close inspector panel">x</button>
@@ -960,7 +1337,17 @@
               </div>
               <details class="developer-detail">
                 <summary>Last endpoint response</summary>
-                <pre class="wow-json" data-testid="wow-json-view" id="wow-json-view">Choose an endpoint to fetch its live response.</pre>
+                <div class="presentation-json-preview">
+                  <button class="presentation-json-open" id="btn-open-wow-json-view" type="button"
+                          data-testid="open-wow-json-view" data-presentation-source="wow-json-view"
+                          aria-label="Open the current Web of Worlds endpoint response in the presentation viewer"
+                          title="Open presentation viewer" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                    </svg>
+                  </button>
+                  <pre class="wow-json" data-testid="wow-json-view" id="wow-json-view">Choose an endpoint to fetch its live response.</pre>
+                </div>
               </details>
               <div class="wow-presenter" data-testid="wow-presenter" id="wow-presenter">
                 <div class="wow-sub">Crossing API actions</div>
@@ -976,7 +1363,17 @@
                 </div>
                 <details class="developer-detail">
                   <summary>Last crossing API response</summary>
-                  <pre class="wow-json" data-testid="wow-presenter-result" id="wow-presenter-result">No crossing API action yet.</pre>
+                  <div class="presentation-json-preview">
+                    <button class="presentation-json-open" id="btn-open-wow-presenter-result" type="button"
+                            data-testid="open-wow-presenter-result" data-presentation-source="wow-presenter-result"
+                            aria-label="Open the current Web of Worlds crossing response in the presentation viewer"
+                            title="Open presentation viewer" disabled>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                      </svg>
+                    </button>
+                    <pre class="wow-json" data-testid="wow-presenter-result" id="wow-presenter-result">No crossing API action yet.</pre>
+                  </div>
                 </details>
               </div>
             </div>
@@ -994,6 +1391,20 @@
               <div class="kv"><span class="k">crossing signature</span><span class="v" id="std-um-signing">—</span></div>
               <div class="kv"><span class="k">panel manifest</span><span class="v" id="std-um-manifest">—</span></div>
               <div class="kv"><span class="k">destination loading value</span><span class="v" id="std-um-loading">—</span></div>
+              <details class="developer-detail">
+                <summary>Current Universal Manifest preview</summary>
+                <div class="presentation-json-preview">
+                  <button class="presentation-json-open" id="btn-open-std-um-json-view" type="button"
+                          data-testid="open-std-um-json-view" data-presentation-source="std-um-json-view"
+                          aria-label="Open the current Universal Manifest panel data in the presentation viewer"
+                          title="Open presentation viewer" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                    </svg>
+                  </button>
+                  <pre class="wow-json" data-testid="std-um-json-view" id="std-um-json-view">Waiting for the current accepted manifest.</pre>
+                </div>
+              </details>
             </div>
 
             <div class="card std-view panel-live-card" id="std-iwps-card" data-testid="std-iwps-card"
@@ -1054,10 +1465,10 @@
               <label class="journal-filter"><input type="checkbox" id="pv-auto-toggle" data-testid="pv-auto-toggle" checked /> Auto-refresh</label>
               <div class="kv"><span class="k">client interval (ms)</span><span class="v">
                 <input class="pv-num-input" id="pv-client-interval" data-testid="pv-client-interval"
-                       type="number" min="100" max="10000" step="50" value="750" /></span></div>
+                       type="number" min="100" max="10000" step="50" value="100" /></span></div>
               <div class="kv"><span class="k">server republish (ms)</span><span class="v">
                 <input class="pv-num-input" id="pv-server-republish" data-testid="pv-server-republish"
-                       type="number" min="0" max="60000" step="100" value="0" /></span></div>
+                       type="number" min="0" max="60000" step="100" value="100" /></span></div>
               <div class="kv"><span class="k">active mode</span><span class="v" id="pv-refresh-mode-line" data-testid="pv-refresh-mode-line">—</span></div>
               <div class="kv"><span class="k">TeleportXR transport</span><span class="v" id="std-txr-transport">not used</span></div>
               <div class="kv"><span class="k">native teleport</span><span class="v" id="std-txr-native">—</span></div>
@@ -1234,15 +1645,50 @@
 
     <footer class="controls">
       
-      <button id="btn-switch-avatar" data-testid="btn-switch-avatar" hidden>Switch avatar</button>
       <button id="btn-equip-item" data-testid="btn-equip-item" hidden>Equip item</button>
-      <span class="legend" id="avatar-runtime-status" data-testid="avatar-runtime-status"></span>
-      <span class="legend spacer" id="connection-footer-status" data-testid="connection-footer-status">
+      <span class="legend" id="avatar-runtime-status" data-testid="avatar-runtime-status" hidden></span>
+      <span class="legend spacer" id="connection-footer-status" data-testid="connection-footer-status" hidden>
         <span><span class="prov prov-loading">loading</span> connecting to components 3 backend</span>
         <span>correlate by <b>handoff_id</b></span>
       </span>
+      <span class="footer-links">
+        <a class="footer-link footer-hosted-link" href="https://labs.peers.social/open-spatial-lab/"
+           target="_blank" rel="noopener noreferrer">labs.peers.social/open-spatial-lab</a>
+      </span>
     </footer>
   </div>
+
+  <dialog class="presentation-json-dialog" id="presentation-json-dialog"
+          data-testid="presentation-json-dialog" aria-labelledby="presentation-json-title"
+          aria-describedby="presentation-json-source presentation-json-freshness"
+          aria-hidden="true">
+    <div class="presentation-json-surface" data-testid="presentation-json-surface">
+      <header class="presentation-json-head">
+        <div class="presentation-json-heading">
+          <h2 id="presentation-json-title">JSON presentation viewer</h2>
+          <p class="presentation-json-context" id="presentation-json-source">Authoritative application data</p>
+          <p class="presentation-json-freshness" id="presentation-json-freshness">Current panel snapshot</p>
+          <span class="presentation-json-redaction" id="presentation-json-redaction">redacted</span>
+        </div>
+        <button class="presentation-json-close" id="btn-presentation-json-close" type="button"
+                data-testid="presentation-json-close" aria-label="Close JSON presentation viewer"
+                title="Close JSON presentation viewer">×</button>
+      </header>
+      <div class="presentation-json-controls">
+        <label class="presentation-json-path-label" for="presentation-json-path">Highlight JSON Pointer or dot path</label>
+        <input class="presentation-json-path" id="presentation-json-path"
+               data-testid="presentation-json-path" type="text" inputmode="text"
+               autocomplete="off" spellcheck="false" placeholder="/destination/target_world_id" />
+        <button class="presentation-json-highlight-button" id="btn-presentation-json-highlight"
+                data-testid="presentation-json-highlight" type="button">Highlight field</button>
+        <p class="presentation-json-path-status" id="presentation-json-path-status"
+           data-testid="presentation-json-path-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="presentation-json-output" id="presentation-json-output"
+           data-testid="presentation-json-output" role="region" tabindex="0"
+           aria-label="Formatted redacted JSON"></div>
+    </div>
+  </dialog>
 
   <script type="importmap">
     {

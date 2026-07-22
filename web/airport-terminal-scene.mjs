@@ -1,4 +1,6 @@
 import { createAirportWalkableSurfaceContract, resolveAirportGroundSurface, } from "./airport-walkable-surface.mjs";
+import { createAirportEntityRuntime } from "./airport-entity-runtime.mjs";
+import { initAirportHudOverlay } from "./hud/airport-hud-overlay.mjs";
 function terminalNodeList(graph) {
     const raw = graph && graph.nodes;
     return Array.isArray(raw) ? raw : raw && typeof raw === "object" ? Object.values(raw) : [];
@@ -113,15 +115,21 @@ function terminalStorefront(THREE, doc, node, materials) {
 }
 function terminalGateArea(THREE, doc, node, materials) {
     const ext = node.webofworlds_extension || {};
+    const boarding = ext.boarding && typeof ext.boarding === "object" ? ext.boarding : null;
     const [x, , z] = terminalNodePosition(node);
     const group = new THREE.Group();
     group.name = `airport-gate:${ext.gate || node.label}`;
-    group.userData.airportGate = { gate: ext.gate, flight: ext.flight, label: node.label };
+    group.userData.airportGate = {
+        gate: ext.gate,
+        flight: ext.flight,
+        label: node.label,
+        boardingSchema: boarding?.schema || null,
+    };
     group.position.set(x, 0, z);
     group.add(terminalBoxMesh(THREE, "gate-window-wall", [22, 6.2, 0.28], [0, 3.05, 5.5], materials.glass));
     group.add(terminalBoxMesh(THREE, "gate-jetbridge-door", [3.0, 3.6, 0.4], [0, 1.8, 5.22], materials.door));
     group.add(terminalBoxMesh(THREE, "gate-desk", [4.6, 1.15, 1.45], [4.2, 0.6, 1.6], materials.gateDesk));
-    const sign = terminalSignMesh(THREE, doc, `${ext.gate || "A12"}  •  ${ext.flight || "FLIGHT 482"}  •  BOARDING`, "#102b4e", "#f6d365", 10.5, 1.55);
+    const sign = terminalSignMesh(THREE, doc, `${ext.gate || "A12"}  •  ${ext.flight || "FLIGHT 482"}  •  LOCAL DEMO BOARDING`, "#102b4e", "#f6d365", 10.5, 1.55);
     sign.position.set(0, 4.65, 2.2);
     sign.rotation.y = Math.PI;
     group.add(sign);
@@ -139,6 +147,31 @@ function terminalGateArea(THREE, doc, node, materials) {
     marker.rotation.x = Math.PI / 2;
     marker.position.set(0, 0.08, 1.2);
     group.add(marker);
+    if (boarding) {
+        const components = boarding.components && typeof boarding.components === "object" ? boarding.components : {};
+        const threshold = boarding.threshold && typeof boarding.threshold === "object" ? boarding.threshold : {};
+        const thresholdCenter = Array.isArray(threshold.center_m) ? threshold.center_m : [x, 0, z + 4.5];
+        const laneEntryZ = Number(components.entry_z_m);
+        const thresholdZ = Number(thresholdCenter[2]);
+        const halfWidth = Number(components.half_width_m) || Number(threshold.half_width_m) || 1.45;
+        if (Number.isFinite(laneEntryZ) && Number.isFinite(thresholdZ) && thresholdZ > laneEntryZ && halfWidth > 0) {
+            const laneLength = thresholdZ - laneEntryZ;
+            const laneCenterZ = (laneEntryZ + thresholdZ) / 2 - z;
+            const laneFloor = terminalBoxMesh(THREE, "gate-a12-boarding-components", [halfWidth * 2, 0.045, laneLength], [Number(components.center_x_m) - x || 0, 0.13, laneCenterZ], materials.boardingLane);
+            laneFloor.userData.airportBoardingLane = {
+                schema: boarding.schema,
+                flight_id: boarding.flight_id,
+                gate_id: boarding.gate_id,
+            };
+            group.add(laneFloor);
+            const thresholdLine = terminalBoxMesh(THREE, "gate-a12-boarding-threshold", [halfWidth * 2, 0.065, 0.18], [Number(thresholdCenter[0]) - x || 0, 0.17, thresholdZ - z], materials.boardingThreshold);
+            thresholdLine.userData.airportBoardingThreshold = {
+                crossing_direction: threshold.crossing_direction || null,
+                local_demo_only: true,
+            };
+            group.add(thresholdLine);
+        }
+    }
     return group;
 }
 export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
@@ -153,9 +186,10 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
     }
     const stores = nodes.filter((node) => node && node.webofworlds_extension && node.webofworlds_extension.role === "storefront");
     const travelers = nodes.filter((node) => node && node.webofworlds_extension && node.webofworlds_extension.role === "npc-traveler");
+    const staff = nodes.filter((node) => node && node.webofworlds_extension && node.webofworlds_extension.role === "store-staff");
     const gateNode = nodes.find((node) => node && node.webofworlds_extension && node.webofworlds_extension.role === "flight-gate");
-    if (stores.length < 3 || travelers.length < 3 || !gateNode) {
-        throw new Error("airport terminal fixture requires at least 3 storefronts, 3 NPC travelers, and one flight gate");
+    if (stores.length !== 4 || travelers.length !== 5 || staff.length !== 4 || !gateNode) {
+        throw new Error("airport terminal fixture requires 4 storefronts, 5 NPC travelers, 4 store staff, and one flight gate");
     }
     const group = new THREE.Group();
     group.name = "airport-terminal-content";
@@ -179,6 +213,8 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
         gateDesk: new THREE.MeshStandardMaterial({ color: 0x286f9d, roughness: 0.42 }),
         seat: new THREE.MeshStandardMaterial({ color: 0x567180, roughness: 0.58, metalness: 0.2 }),
         destination: new THREE.MeshStandardMaterial({ color: 0x42e5ff, emissive: 0x42e5ff, emissiveIntensity: 1.4 }),
+        boardingLane: new THREE.MeshStandardMaterial({ color: 0x194c74, emissive: 0x194c74, emissiveIntensity: 0.32, roughness: 0.72 }),
+        boardingThreshold: new THREE.MeshStandardMaterial({ color: 0xf6d365, emissive: 0xf6d365, emissiveIntensity: 0.9, roughness: 0.5 }),
     };
     const width = Number(definition.width_m) || 24;
     const length = Number(definition.length_m) || 86;
@@ -212,12 +248,23 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
     entrySign.rotation.y = Math.PI;
     group.add(entrySign);
     const wayfinding = terminalSignMesh(THREE, opts.document, "GATES A10–A18  →", "#f4cf45", "#10243b", 8.5, 1.25);
-    wayfinding.position.set(0, 4.15, 62);
+    wayfinding.position.set(0, 4.15, terminalNodePosition(gateNode)[2] - 4.5);
     wayfinding.rotation.y = Math.PI;
     group.add(wayfinding);
     for (const store of stores)
         group.add(terminalStorefront(THREE, opts.document, store, materials));
     group.add(terminalGateArea(THREE, opts.document, gateNode, materials));
+    const airportActorIds = new Set([...travelers, ...staff].map((node) => String(node.id)));
+    for (const asset of built.asset_nodes || []) {
+        if (!airportActorIds.has(String(asset.id)) || !asset.placeholder)
+            continue;
+        asset.placeholder.visible = false;
+        asset.placeholder.userData.airportProxySuppressed = true;
+    }
+    const entityRuntime = createAirportEntityRuntime(graph, built, THREE, {
+        document: opts.document,
+        motionPreference: opts.motionPreference,
+    });
     const entryPosition = definition.entry_spawn?.position_m || [0, 0, 0];
     const entryGround = resolveAirportGroundSurface(walkableSurface, entryPosition[0], entryPosition[2]);
     if (!entryGround.ok)
@@ -230,13 +277,41 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
         storefront_count: stores.length,
         storefront_categories: stores.map((node) => node.webofworlds_extension.category),
         storefront_labels: stores.map((node) => node.label),
+        storefronts: stores.map((node) => {
+            const extension = node.webofworlds_extension || {};
+            const shopping = extension.shopping && typeof extension.shopping === "object"
+                ? extension.shopping
+                : null;
+            return {
+                node_id: String(node.id),
+                label: node.label,
+                category: extension.category || null,
+                sign: extension.sign || node.label,
+                position_m: terminalNodePosition(node),
+                catalog_schema: shopping?.schema || null,
+                interaction_radius_m: shopping?.interaction_radius_m ?? null,
+                availability: shopping?.availability || null,
+                availability_reason: shopping?.availability_reason || null,
+                pickup_label: shopping?.pickup_label || null,
+                claim_boundary: shopping?.claim_boundary || null,
+                catalog: Array.isArray(shopping?.catalog)
+                    ? shopping.catalog.map((item) => ({ ...item }))
+                    : shopping?.catalog ?? null,
+            };
+        }),
         npc_count: travelers.length,
         npc_labels: travelers.map((node) => node.label),
+        staff_count: staff.length,
+        staff_labels: staff.map((node) => node.label),
+        entity_manifests: entityRuntime ? built.render_summary.airport_entities : null,
         gate: {
             label: gateNode.label,
             gate: gateNode.webofworlds_extension.gate,
             flight: gateNode.webofworlds_extension.flight,
             position: terminalNodePosition(gateNode),
+            boarding: gateNode.webofworlds_extension.boarding
+                ? JSON.parse(JSON.stringify(gateNode.webofworlds_extension.boarding))
+                : null,
         },
         walkable_surface: {
             schema: walkableSurface.schema,
@@ -259,9 +334,19 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
             "AvatarEquipmentLayer for the local player",
             "adapter.stepAvatar + existing WASD/orbit/first-person controls",
         ],
-        phase_boundary: "physical airport scene only; no AR overlay, handshaking, shopping, boarding logic, or NPC pathfinding",
+        phase_boundary: "compact physical airport, staffed storefront browsing/pickup-list metadata, graph-authored Gate A12 journey, stationary non-lockstep idles, and authored entity-manifest cards; no airline connectivity, real ticket or identity verification, security clearance, legal travel authorization, destination flight world, pathfinding, exchange, transaction overlay, or general HUD",
     };
     built.render_summary.airport_terminal = summary;
+    if (opts.hudOverlay !== false) {
+        built.airport_hud_overlay = initAirportHudOverlay({
+            THREE,
+            camera: built.camera,
+            scene: built.scene,
+            document: opts.document,
+            stores,
+            travelers,
+        });
+    }
     return summary;
 }
 export default { mountAirportTerminalContent };

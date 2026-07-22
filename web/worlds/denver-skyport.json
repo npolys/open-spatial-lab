@@ -1,5 +1,5 @@
 {
-  "_note": "runtime walkable airport-terminal composition graph. Phase 1 physical scene only: recognizable concourse, varied stores, static NPC travelers, and Gate A12. No spatial-fabric/UM AR overlay, AR handshaking, shopping, boarding logic, or NPC AI/pathfinding.",
+  "_note": "runtime walkable airport-terminal composition graph extended by runtime shopping, runtime Gate A12 boarding, runtime qualified GLB travelers, and runtime compact commons staging plus authored airport-entity Universal Manifests/cards and non-lockstep idle metadata. Five qualified GLBs remain eligible; travelers retain distinct appearances and the four separately authored staff actors reuse four qualified appearances as separate live clones with distinct transforms. No general HUD, transaction overlay, AR handshaking, airline connectivity, real ticket or identity verification, security clearance, legal travel authorization, payments, completed purchases, destination flight world, or NPC AI/pathfinding.",
   "spatialID": "world-airport-terminal",
   "title": "Denver Skyport — Concourse A",
   "base_url": "http://127.0.0.1:8143",
@@ -27,7 +27,7 @@
       "webXR-immersive": "not-proven",
       "runtime": "wow-client-threejs-browser"
     },
-    "users": { "active_user_count": 7, "total_user_count": 7 },
+    "users": { "active_user_count": 10, "total_user_count": 10 },
     "views": { "view_count": 1 },
     "portals": { "portal_count": 0 },
     "id": "world-airport-terminal",
@@ -40,8 +40,8 @@
     "webofworlds_extension": {
       "schema": "OpenSpatialWorld API World + labeled OSL airport-terminal content extension",
       "spatial_id": "world-airport-terminal",
-      "stage_narrative": "Enter a bright airport concourse, walk through a commons past coffee, news, duty-free, and food storefronts and several travelers, then arrive at the clearly marked Gate A12 flight destination.",
-      "phase_boundary": "runtime physical scene only; runtime owns future spatial-fabric/UM AR overlays. AR handshaking remains owner-to-specify."
+      "stage_narrative": "Enter a compact airport concourse, pass naturally staged travelers and a staffed four-store commons, then arrive at the clearly marked Gate A12 local-demo destination.",
+      "phase_boundary": "runtime owns compact physical staging, nine stationary airport actors, canonical authored entity manifests, and short object-bound cards. runtime still owns future pathfinding; runtime owns session/user manifests and editing; runtime owns future exchange; no transaction HUD is implemented. No airline, ticket, identity, security-clearance, legal-travel, or destination-world claim."
     }
   },
   "root": 0,
@@ -56,23 +56,23 @@
       "id": 1,
       "label": "Denver Skyport — Concourse A",
       "parent": 0,
-      "children": [2,3,4,5,6,7,8,9,10,11,12,13],
+      "children": [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
       "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "airport_terminal": {
           "title": "DENVER SKYPORT • CONCOURSE A",
           "width_m": 24,
-          "length_m": 86,
+          "length_m": 48,
           "height_m": 6.4,
-          "walk_path": "spawn at concourse entry → pass four distinct commons storefronts and six NPC travelers → arrive at Gate A12",
+          "walk_path": "spawn at concourse entry → pass four distinct commons storefronts and five NPC travelers → arrive at Gate A12",
           "walkable_surfaces": [
             {
               "surface_id": "airport-concourse-floor",
               "classification": "walkable",
               "shape": "box",
-              "center_m": [0, 0.01, 38],
-              "size_m": [24, 0.12, 88],
+              "center_m": [0, 0.01, 19],
+              "size_m": [24, 0.12, 50],
               "render_material": "floor",
               "priority": 0
             },
@@ -80,8 +80,8 @@
               "surface_id": "airport-wayfinding-runner",
               "classification": "walkable",
               "shape": "box",
-              "center_m": [0, 0.09, 39],
-              "size_m": [6.4, 0.045, 83],
+              "center_m": [0, 0.09, 20],
+              "size_m": [6.4, 0.045, 44],
               "render_material": "runner",
               "priority": 1
             }
@@ -111,14 +111,72 @@
       "label": "Skyline Coffee",
       "parent": 1,
       "children": [],
-      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,15,1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,13,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "role": "storefront",
         "category": "coffee",
         "sign": "SKYLINE COFFEE",
         "sign_background": "#6d3828",
-        "accent": 12086082
+        "accent": 12086082,
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-store-skyline", "position_m": [-6.75, 2.65, 12.6] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4",
+          "@id": "urn:uuid:32400000-0000-4000-8000-000000000010",
+          "@type": "um:Manifest",
+          "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:store:airport-store-skyline",
+          "issuedAt": "2026-07-19T03:13:13.000Z",
+          "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{
+            "@id": "urn:osl:airport:facet:airport-store-skyline:public-profile",
+            "@type": "um:Facet",
+            "name": "publicProfile",
+            "entity": {
+              "@id": "urn:osl:airport:store:airport-store-skyline",
+              "@type": ["um:Entity", "osl:AirportStorefront"],
+              "subjectId": "airport-store-skyline",
+              "objectId": "airport-store-skyline",
+              "anchorId": "airport-card-anchor-airport-store-skyline",
+              "displayName": "Skyline Coffee",
+              "entityType": "storefront",
+              "role": "service counter",
+              "summary": "Coffee counter with a local demo catalog and pickup list.",
+              "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+            }
+          }],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "TJju9xmRBbaglCmzWkU1u8r3spj2DrOa_q9hww6vYrS51raJJ_g27EHfdbxvSlex5M7ivqqbxnXA0qjtOcctDQ" }
+        },
+        "shopping": {
+          "schema": "osl.airport-storefront-catalog.v1",
+          "interaction_radius_m": 5.2,
+          "availability": "available",
+          "pickup_label": "Skyline demo pickup shelf",
+          "claim_boundary": "session-local demo selection only; no order, payment, stock reservation, fulfillment, or purchase",
+          "catalog": [
+            {
+              "item_id": "skyline-mile-high-latte",
+              "name": "Mile High Latte",
+              "summary": "Espresso-style demo drink with oat foam.",
+              "detail": "A warm airport-cafe sample presented for this local interaction validation.",
+              "pickup_note": "Would appear on the Skyline demo pickup shelf."
+            },
+            {
+              "item_id": "skyline-cold-brew",
+              "name": "Concourse Cold Brew",
+              "summary": "Smooth chilled coffee demo selection.",
+              "detail": "A simple cold-brew catalog entry with no stock or merchant claim.",
+              "pickup_note": "Would appear on the Skyline demo pickup shelf."
+            },
+            {
+              "item_id": "skyline-herbal-tea",
+              "name": "Rocky Mountain Herbal Tea",
+              "summary": "Caffeine-free herbal demo selection.",
+              "detail": "A non-coffee option authored into the same storefront catalog.",
+              "pickup_note": "Would appear on the Skyline demo pickup shelf."
+            }
+          ]
+        }
       }
     },
     {
@@ -126,14 +184,72 @@
       "label": "Frontier News & Travel",
       "parent": 1,
       "children": [],
-      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,28,1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,19,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "role": "storefront",
         "category": "news",
         "sign": "FRONTIER NEWS",
         "sign_background": "#176b97",
-        "accent": 1937097
+        "accent": 1937097,
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-store-frontier", "position_m": [6.75, 2.65, 18.6] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4",
+          "@id": "urn:uuid:32400000-0000-4000-8000-000000000011",
+          "@type": "um:Manifest",
+          "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:store:airport-store-frontier",
+          "issuedAt": "2026-07-19T03:13:13.000Z",
+          "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{
+            "@id": "urn:osl:airport:facet:airport-store-frontier:public-profile",
+            "@type": "um:Facet",
+            "name": "publicProfile",
+            "entity": {
+              "@id": "urn:osl:airport:store:airport-store-frontier",
+              "@type": ["um:Entity", "osl:AirportStorefront"],
+              "subjectId": "airport-store-frontier",
+              "objectId": "airport-store-frontier",
+              "anchorId": "airport-card-anchor-airport-store-frontier",
+              "displayName": "Frontier News & Travel",
+              "entityType": "storefront",
+              "role": "service counter",
+              "summary": "News and travel counter with a local demo catalog and pickup list.",
+              "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+            }
+          }],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "NRx5f4TjCCyGtZR_4uFbIKzUtSnlUNPDIrOZgPAX0dbZg-D-Nk2bsiy_PjNAoh7ELOtPEUPJsghm8I-QTLeeDA" }
+        },
+        "shopping": {
+          "schema": "osl.airport-storefront-catalog.v1",
+          "interaction_radius_m": 5.2,
+          "availability": "available",
+          "pickup_label": "Frontier demo pickup counter",
+          "claim_boundary": "session-local demo selection only; no order, payment, stock reservation, fulfillment, or purchase",
+          "catalog": [
+            {
+              "item_id": "frontier-trail-guide",
+              "name": "Colorado Trail Pocket Guide",
+              "summary": "Compact regional guide demo entry.",
+              "detail": "An authored travel-reading selection for browsing and inspection validation.",
+              "pickup_note": "Would appear at the Frontier demo pickup counter."
+            },
+            {
+              "item_id": "frontier-flight-journal",
+              "name": "Flight Notes Journal",
+              "summary": "Pocket notebook demo selection.",
+              "detail": "A lightweight travel journal represented only in the local pickup list.",
+              "pickup_note": "Would appear at the Frontier demo pickup counter."
+            },
+            {
+              "item_id": "frontier-puzzle-book",
+              "name": "Gate-Time Puzzle Book",
+              "summary": "Travel puzzle demo selection.",
+              "detail": "A distinct newsstand item used to prove catalog navigation and removal.",
+              "pickup_note": "Would appear at the Frontier demo pickup counter."
+            }
+          ]
+        }
       }
     },
     {
@@ -141,14 +257,59 @@
       "label": "High Plains Duty Free",
       "parent": 1,
       "children": [],
-      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,42,1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, -8.6,0,25,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "role": "storefront",
         "category": "duty-free",
         "sign": "HIGH PLAINS DUTY FREE",
         "sign_background": "#181818",
-        "accent": 13214247
+        "accent": 13214247,
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-store-high-plains", "position_m": [-6.75, 2.65, 24.6] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4",
+          "@id": "urn:uuid:32400000-0000-4000-8000-000000000012",
+          "@type": "um:Manifest",
+          "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:store:airport-store-high-plains",
+          "issuedAt": "2026-07-19T03:13:13.000Z",
+          "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{
+            "@id": "urn:osl:airport:facet:airport-store-high-plains:public-profile",
+            "@type": "um:Facet",
+            "name": "publicProfile",
+            "entity": {
+              "@id": "urn:osl:airport:store:airport-store-high-plains",
+              "@type": ["um:Entity", "osl:AirportStorefront"],
+              "subjectId": "airport-store-high-plains",
+              "objectId": "airport-store-high-plains",
+              "anchorId": "airport-card-anchor-airport-store-high-plains",
+              "displayName": "High Plains Duty Free",
+              "entityType": "storefront",
+              "role": "service counter",
+              "summary": "Duty-free demo counter currently paused in this local session.",
+              "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+            }
+          }],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "1qesAhBy_G4CEUJLSmRQPXs25ufgwjjh_j10qCK1SFp19DbauWALp_UfpOhdP2hRhzM3BbCp2W4eA6IHITScDw" }
+        },
+        "shopping": {
+          "schema": "osl.airport-storefront-catalog.v1",
+          "interaction_radius_m": 5.2,
+          "availability": "unavailable",
+          "availability_reason": "This local duty-free demo catalog is paused; no inventory or merchant availability is claimed.",
+          "pickup_label": "High Plains demo pickup counter",
+          "claim_boundary": "session-local demo selection only; no order, payment, stock reservation, fulfillment, or purchase",
+          "catalog": [
+            {
+              "item_id": "high-plains-souvenir-tin",
+              "name": "Skyport Souvenir Tin",
+              "summary": "Display-only catalog entry while this demo store is paused.",
+              "detail": "The item remains authored so store identity is preserved, but it cannot be selected while unavailable.",
+              "pickup_note": "Unavailable in this local demo session."
+            }
+          ]
+        }
       }
     },
     {
@@ -156,14 +317,72 @@
       "label": "Mesa Kitchen",
       "parent": 1,
       "children": [],
-      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,55,1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 8.6,0,31,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "role": "storefront",
         "category": "food",
         "sign": "MESA KITCHEN",
         "sign_background": "#a52f25",
-        "accent": 13912882
+        "accent": 13912882,
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-store-mesa", "position_m": [6.75, 2.65, 30.6] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4",
+          "@id": "urn:uuid:32400000-0000-4000-8000-000000000013",
+          "@type": "um:Manifest",
+          "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:store:airport-store-mesa",
+          "issuedAt": "2026-07-19T03:13:13.000Z",
+          "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{
+            "@id": "urn:osl:airport:facet:airport-store-mesa:public-profile",
+            "@type": "um:Facet",
+            "name": "publicProfile",
+            "entity": {
+              "@id": "urn:osl:airport:store:airport-store-mesa",
+              "@type": ["um:Entity", "osl:AirportStorefront"],
+              "subjectId": "airport-store-mesa",
+              "objectId": "airport-store-mesa",
+              "anchorId": "airport-card-anchor-airport-store-mesa",
+              "displayName": "Mesa Kitchen",
+              "entityType": "storefront",
+              "role": "service counter",
+              "summary": "Food counter with a local demo catalog and pickup list.",
+              "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+            }
+          }],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "WKctqiyX4iNlonfYd120nu2kdl40tVL1EjF9zWVYNfNcYoc0EF48VlrB-McVpex1Ja4C7fBtk-XjpmgGnWbQCA" }
+        },
+        "shopping": {
+          "schema": "osl.airport-storefront-catalog.v1",
+          "interaction_radius_m": 5.2,
+          "availability": "available",
+          "pickup_label": "Mesa demo pickup ledge",
+          "claim_boundary": "session-local demo selection only; no order, payment, stock reservation, fulfillment, or purchase",
+          "catalog": [
+            {
+              "item_id": "mesa-breakfast-burrito",
+              "name": "Concourse Breakfast Burrito",
+              "summary": "Warm breakfast demo selection.",
+              "detail": "An airport-kitchen sample represented without restaurant fulfillment claims.",
+              "pickup_note": "Would appear on the Mesa demo pickup ledge."
+            },
+            {
+              "item_id": "mesa-green-chile-bowl",
+              "name": "Green Chile Grain Bowl",
+              "summary": "Vegetable grain-bowl demo selection.",
+              "detail": "A second distinct food item for inspection and pickup-list validation.",
+              "pickup_note": "Would appear on the Mesa demo pickup ledge."
+            },
+            {
+              "item_id": "mesa-fruit-cup",
+              "name": "Front Range Fruit Cup",
+              "summary": "Fresh-fruit demo selection.",
+              "detail": "A simple cold option authored into the Mesa catalog.",
+              "pickup_note": "Would appear on the Mesa demo pickup ledge."
+            }
+          ]
+        }
       }
     },
     {
@@ -171,13 +390,49 @@
       "label": "Gate A12 — Flight 482 to Seattle",
       "parent": 1,
       "children": [],
-      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,76,1],
+      "localTransform": [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,38,1],
       "webofworlds_extension": {
         "schema": "osl.airport-terminal-scene.v1",
         "role": "flight-gate",
         "gate": "GATE A12",
         "flight": "FLIGHT 482 • SEATTLE",
-        "destination": "walk-up endpoint only; no boarding logic"
+        "destination": "Seattle local-demo flight label; no destination flight world",
+        "boarding": {
+          "schema": "osl.airport-gate-boarding.v1",
+          "provenance": "OSL-authored local-demo state in world-airport-terminal.json; no airline or airport-system connection",
+          "flight_id": "osl-demo-ds482",
+          "flight_number": "DS 482",
+          "gate_id": "A12",
+          "destination_label": "Seattle",
+          "approach": {
+            "position_m": [0, 0, 38.8],
+            "interaction_radius_m": 4.6
+          },
+          "components": {
+            "center_x_m": 0,
+            "entry_z_m": 40.4,
+            "half_width_m": 1.45
+          },
+          "threshold": {
+            "center_m": [0, 0, 42.5],
+            "crossing_direction": "+z",
+            "half_width_m": 1.45
+          },
+          "credential": {
+            "schema": "osl.local-demo-boarding-credential.v1",
+            "accepted_value": "OSL-DEMO-DS482-A12",
+            "format": "OSL-DEMO-{FLIGHT_NUMBER_WITHOUT_SPACE}-{GATE_ID}",
+            "display_hint": "OSL-DEMO-DS482-A12",
+            "purpose": "visible non-secret local-demo input for the Gate A12 state-machine validation only"
+          },
+          "session_rule": {
+            "same_airport_resume": "admission remains active after walking away and resumes on return to Gate A12",
+            "cancellation": "clear credential and admission; return to ready when still near Gate A12",
+            "airport_exit": "clear the journey and completion count; re-entry starts unstarted",
+            "new_session": "page reload or application reset starts unstarted"
+          },
+          "claim_boundary": "local-demo state only; not a ticket, airline connection, identity verification, security clearance, legal travel authorization, or real boarding"
+        }
       }
     },
     {
@@ -190,57 +445,324 @@
     },
     {
       "id": 8,
-      "label": "NPC Traveler — Cute Moth",
+      "label": "NPC Traveler — Joe",
       "parent": 1,
       "children": [],
-      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -2.9,0,11,1],
-      "spatialAssetURI": "/assets/avatars/vrm/CuteMoth_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [0.7071,0,-0.7071,0, 0,1,0,0, 0.7071,0,0.7071,0, -4.8,0.0688,7,1],
+      "spatialAssetURI": "/assets/avatars/glb/readyplayerme_cyberpunk.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "npc-traveler",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.07 },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-traveler-01", "position_m": [-4.8, 2.45, 7] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000001", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:traveler:airport-traveler-01", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-traveler-01:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:traveler:airport-traveler-01", "@type": ["um:Entity", "osl:AirportTraveler"],
+            "subjectId": "airport-traveler-01", "objectId": "airport-traveler-01", "anchorId": "airport-card-anchor-airport-traveler-01",
+            "displayName": "Joe", "entityType": "avatar", "role": "traveler", "summary": "Waiting beside the concourse entry seating.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "faW_vkkbhS8N0a5ukVkGO6vDIP-oFAprFVDCI81-Vmm2fIYMvfuK2fSomJPb6x4G4e09JuNWf91TwStiwiJWAg" }
+        },
+        "actor": {
+          "subject_id": "airport-traveler-01",
+          "display_name": "Joe",
+          "summary": "Waiting beside the concourse entry seating.",
+          "identity_note": "Stable subject key authored independently of spatialAssetURI, filename, and appearance. runtime binds this traveler's Universal Manifest to subject_id; re-skinning the GLB must not change it."
+        },
+        "npc_asset": {
+          "catalog_id": "readyplayerme-cyberpunk",
+          "asset_type": "glb",
+          "load_mode": "gltf-humanoid-facade",
+          "authored_scale": 1.0,
+          "measured_native_height_m": 1.8873,
+          "grounding": "GLB soles at model-local y~=0 (measured min.y 0.0012 at scale 1.0); node y = concourse walkable-surface top 0.07 m minus sole offset",
+          "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later using this humanoid metadata"
+        }
+      }
     },
     {
       "id": 9,
-      "label": "NPC Traveler — Cool Waffle",
+      "label": "NPC Traveler — Rose",
       "parent": 1,
       "children": [],
-      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.2,0,20,1],
-      "spatialAssetURI": "/assets/avatars/vrm/CoolWaffle_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [0.9239,0,0.3827,0, 0,1,0,0, -0.3827,0,0.9239,0, 4.6,0.0707,10.5,1],
+      "spatialAssetURI": "/assets/avatars/glb/rpm_female_cyberpunk.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "npc-traveler",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.19 },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-traveler-02", "position_m": [4.6, 2.35, 10.5] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000002", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:traveler:airport-traveler-02", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-traveler-02:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:traveler:airport-traveler-02", "@type": ["um:Entity", "osl:AirportTraveler"],
+            "subjectId": "airport-traveler-02", "objectId": "airport-traveler-02", "anchorId": "airport-card-anchor-airport-traveler-02",
+            "displayName": "Rose", "entityType": "avatar", "role": "traveler", "summary": "Checking wayfinding before entering the store commons.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "aAtoGEBkryj9XnATeuZKGAjz6W4k89txuW3NABBX_i-zIJCGIEahUQ-T8kadSyKmDe-AXYksiMnrRUWGOZA8AA" }
+        },
+        "actor": {
+          "subject_id": "airport-traveler-02",
+          "display_name": "Rose",
+          "summary": "Checking wayfinding before entering the store commons.",
+          "identity_note": "Stable subject key authored independently of spatialAssetURI, filename, and appearance. runtime binds this traveler's Universal Manifest to subject_id; re-skinning the GLB must not change it."
+        },
+        "npc_asset": {
+          "catalog_id": "rpm-female-cyberpunk",
+          "asset_type": "glb",
+          "load_mode": "gltf-humanoid-facade",
+          "authored_scale": 1.0,
+          "measured_native_height_m": 1.7437,
+          "grounding": "GLB soles at model-local y~=0 (measured min.y -0.0007 at scale 1.0); node y = concourse walkable-surface top 0.07 m minus sole offset",
+          "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later using this humanoid metadata"
+        }
+      }
     },
     {
       "id": 10,
-      "label": "NPC Traveler — Cool Banana",
+      "label": "NPC Traveler — Helium",
       "parent": 1,
       "children": [],
-      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -3.6,0,32,1],
-      "spatialAssetURI": "/assets/avatars/vrm/CoolBanana_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [0.3827,0,-0.9239,0, 0,1,0,0, 0.9239,0,0.3827,0, -3.5,0.0671,18.5,1],
+      "spatialAssetURI": "/assets/avatars/glb/rpm_female_ninja.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "npc-traveler",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.31 },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-traveler-03", "position_m": [-3.5, 2.38, 18.5] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000003", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:traveler:airport-traveler-03", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-traveler-03:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:traveler:airport-traveler-03", "@type": ["um:Entity", "osl:AirportTraveler"],
+            "subjectId": "airport-traveler-03", "objectId": "airport-traveler-03", "anchorId": "airport-card-anchor-airport-traveler-03",
+            "displayName": "Helium", "entityType": "avatar", "role": "traveler", "summary": "Queued along the commons store approach.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "fuf1Shkgr7szM9OnxDYGU1kmNj15xigsV4mLHfPqh5ZqsMBPrvEVAHwXDcCy-i_FfiN50LfhGIhU8gKarp1fCw" }
+        },
+        "actor": {
+          "subject_id": "airport-traveler-03",
+          "display_name": "Helium",
+          "summary": "Queued along the commons store approach.",
+          "identity_note": "Stable subject key authored independently of spatialAssetURI, filename, and appearance. runtime binds this traveler's Universal Manifest to subject_id; re-skinning the GLB must not change it."
+        },
+        "npc_asset": {
+          "catalog_id": "rpm-female-ninja",
+          "asset_type": "glb",
+          "load_mode": "gltf-humanoid-facade",
+          "authored_scale": 1.0,
+          "measured_native_height_m": 1.7630,
+          "grounding": "GLB soles at model-local y~=0 (measured min.y 0.0029 at scale 1.0); node y = concourse walkable-surface top 0.07 m minus sole offset",
+          "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later using this humanoid metadata"
+        }
+      }
     },
     {
       "id": 11,
-      "label": "NPC Traveler — Froggy",
+      "label": "NPC Traveler — Nea",
       "parent": 1,
       "children": [],
-      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.8,0,43,1],
-      "spatialAssetURI": "/assets/avatars/vrm/Froggy_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [0.7071,0,0.7071,0, 0,1,0,0, -0.7071,0,0.7071,0, 4.7,0.0702,27,1],
+      "spatialAssetURI": "/assets/avatars/glb/rpm_female_character.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "npc-traveler",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.46 },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-traveler-04", "position_m": [4.7, 2.4, 27] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000004", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:traveler:airport-traveler-04", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-traveler-04:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:traveler:airport-traveler-04", "@type": ["um:Entity", "osl:AirportTraveler"],
+            "subjectId": "airport-traveler-04", "objectId": "airport-traveler-04", "anchorId": "airport-card-anchor-airport-traveler-04",
+            "displayName": "Nea", "entityType": "avatar", "role": "traveler", "summary": "Pausing at the concourse edge beyond the shops.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "-dRM0JTq0npvh0dcZFe05z6GnUe8jfu7z_-yjs6NzzwghYjSXj8Mm6yE7qn4cNLZMl5PSJ7E7T4jsWlbCulRDg" }
+        },
+        "actor": {
+          "subject_id": "airport-traveler-04",
+          "display_name": "Nea",
+          "summary": "Pausing at the concourse edge beyond the shops.",
+          "identity_note": "Stable subject key authored independently of spatialAssetURI, filename, and appearance. runtime binds this traveler's Universal Manifest to subject_id; re-skinning the GLB must not change it."
+        },
+        "npc_asset": {
+          "catalog_id": "rpm-female-character",
+          "asset_type": "glb",
+          "load_mode": "gltf-humanoid-facade",
+          "authored_scale": 1.0,
+          "measured_native_height_m": 1.7864,
+          "grounding": "GLB soles at model-local y~=0 (measured min.y -0.0002 at scale 1.0); node y = concourse walkable-surface top 0.07 m minus sole offset",
+          "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later using this humanoid metadata"
+        }
+      }
     },
     {
       "id": 12,
-      "label": "NPC Traveler — Mushy",
+      "label": "NPC Traveler — Jane",
       "parent": 1,
       "children": [],
-      "localTransform": [-0.92,0,0,0, 0,0.92,0,0, 0,0,-0.92,0, -3.1,0,55,1],
-      "spatialAssetURI": "/assets/avatars/vrm/Mushy_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [-0.7071,0,-0.7071,0, 0,1,0,0, 0.7071,0,-0.7071,0, -4.5,0.0704,34.5,1],
+      "spatialAssetURI": "/assets/avatars/glb/cyberpunk_female_full-body_character.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "npc-traveler",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.62 },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-traveler-05", "position_m": [-4.5, 2.36, 34.5] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000005", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:traveler:airport-traveler-05", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-traveler-05:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:traveler:airport-traveler-05", "@type": ["um:Entity", "osl:AirportTraveler"],
+            "subjectId": "airport-traveler-05", "objectId": "airport-traveler-05", "anchorId": "airport-card-anchor-airport-traveler-05",
+            "displayName": "Jane", "entityType": "avatar", "role": "traveler", "summary": "Waiting near Gate A12 for local-demo boarding.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "fOgXtnliYtlvrawy4fBua5HTB9zW1fDiTHZbY1bR5o5jYXf6C0MhZdgoJuQDeOl5afHz_3n5l5XPkrLVRZ-tDA" }
+        },
+        "actor": {
+          "subject_id": "airport-traveler-05",
+          "display_name": "Jane",
+          "summary": "Waiting near Gate A12 for local-demo boarding.",
+          "identity_note": "Stable subject key authored independently of spatialAssetURI, filename, and appearance. runtime binds this traveler's Universal Manifest to subject_id; re-skinning the GLB must not change it."
+        },
+        "npc_asset": {
+          "catalog_id": "cyberpunk-female-full-body",
+          "asset_type": "glb",
+          "load_mode": "gltf-humanoid-facade",
+          "authored_scale": 1.0,
+          "measured_native_height_m": 1.7495,
+          "grounding": "GLB soles at model-local y~=0 (measured min.y -0.0004 at scale 1.0); node y = concourse walkable-surface top 0.07 m minus sole offset",
+          "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later using this humanoid metadata"
+        }
+      }
     },
     {
       "id": 13,
-      "label": "NPC Traveler — Mr Bush",
+      "label": "Store Staff — Mara at Skyline Coffee",
       "parent": 1,
       "children": [],
-      "localTransform": [0.92,0,0,0, 0,0.92,0,0, 0,0,0.92,0, 3.4,0,66,1],
-      "spatialAssetURI": "/assets/avatars/vrm/MrBush_VRM.vrm",
-      "webofworlds_extension": { "schema": "osl.airport-terminal-scene.v1", "role": "npc-traveler", "behavior": "static-idle" }
+      "localTransform": [0,0,-1,0, 0,1,0,0, 1,0,0,0, -9.2,0.0688,13,1],
+      "spatialAssetURI": "/assets/avatars/glb/readyplayerme_cyberpunk.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "store-staff",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.74 },
+        "store_relationship": { "store_node_id": 2, "store_object_id": "airport-store-skyline", "service_position": "behind-counter" },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-staff-skyline", "position_m": [-9.2, 2.45, 13] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000006", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:staff:airport-staff-skyline", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-staff-skyline:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:staff:airport-staff-skyline", "@type": ["um:Entity", "osl:AirportStaff"],
+            "subjectId": "airport-staff-skyline", "objectId": "airport-staff-skyline", "anchorId": "airport-card-anchor-airport-staff-skyline",
+            "displayName": "Mara · Skyline Staff", "entityType": "avatar", "role": "store staff", "summary": "Staffing the Skyline Coffee service counter.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "5iplYTXcz0Man4DVI6GHsU-keIGOFS0qv3aVk0KDIq7Z-AxZ1hD0IYYIvGwBvKMTmrwxCNDrucTfw3HSvypjCg" }
+        },
+        "actor": { "subject_id": "airport-staff-skyline", "display_name": "Mara", "summary": "Skyline Coffee counter staff.", "identity_note": "Separately authored staff subject; appearance reuse does not merge identity or live object state." },
+        "npc_asset": { "catalog_id": "readyplayerme-cyberpunk", "asset_type": "glb", "load_mode": "gltf-humanoid-facade", "authored_scale": 1.0, "measured_native_height_m": 1.8873, "grounding": "Qualified GLB clone grounded to concourse top; appearance reused from Joe as a separate live clone.", "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later" }
+      }
+    },
+    {
+      "id": 14,
+      "label": "Store Staff — Eli at Frontier News & Travel",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0,0,1,0, 0,1,0,0, -1,0,0,0, 9.2,0.0707,19.7,1],
+      "spatialAssetURI": "/assets/avatars/glb/rpm_female_cyberpunk.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "store-staff",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.83 },
+        "store_relationship": { "store_node_id": 3, "store_object_id": "airport-store-frontier", "service_position": "behind-counter" },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-staff-frontier", "position_m": [9.2, 2.35, 19.7] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000007", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:staff:airport-staff-frontier", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-staff-frontier:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:staff:airport-staff-frontier", "@type": ["um:Entity", "osl:AirportStaff"],
+            "subjectId": "airport-staff-frontier", "objectId": "airport-staff-frontier", "anchorId": "airport-card-anchor-airport-staff-frontier",
+            "displayName": "Eli · Frontier Staff", "entityType": "avatar", "role": "store staff", "summary": "Staffing the Frontier News & Travel service counter.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "qG5qGC8JAncMIkVUWWjciySN8cJcDe2HgEkCsh-pg2lU59IwqbPqiSyBXHj1nw-k3cO6YgIOePZVNjhpjbHcAw" }
+        },
+        "actor": { "subject_id": "airport-staff-frontier", "display_name": "Eli", "summary": "Frontier News & Travel counter staff.", "identity_note": "Separately authored staff subject; appearance reuse does not merge identity or live object state." },
+        "npc_asset": { "catalog_id": "rpm-female-cyberpunk", "asset_type": "glb", "load_mode": "gltf-humanoid-facade", "authored_scale": 1.0, "measured_native_height_m": 1.7437, "grounding": "Qualified GLB clone grounded to concourse top; appearance reused from Rose as a separate live clone.", "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later" }
+      }
+    },
+    {
+      "id": 15,
+      "label": "Store Staff — Sam at High Plains Duty Free",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0,0,-1,0, 0,1,0,0, 1,0,0,0, -8.9,0.0702,24.2,1],
+      "spatialAssetURI": "/assets/avatars/glb/rpm_female_character.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "store-staff",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.91 },
+        "store_relationship": { "store_node_id": 4, "store_object_id": "airport-store-high-plains", "service_position": "behind-counter" },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-staff-high-plains", "position_m": [-8.9, 2.4, 24.2] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000008", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:staff:airport-staff-high-plains", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-staff-high-plains:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:staff:airport-staff-high-plains", "@type": ["um:Entity", "osl:AirportStaff"],
+            "subjectId": "airport-staff-high-plains", "objectId": "airport-staff-high-plains", "anchorId": "airport-card-anchor-airport-staff-high-plains",
+            "displayName": "Sam · High Plains Staff", "entityType": "avatar", "role": "store staff", "summary": "Staffing the High Plains Duty Free service counter.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "MZAsrS-qu6mEB1AcDXlAUdc8qE2RHaS_0NwxGswVIEV_Tv5gAXxv7SBrsQDICov5kaC5gEk2ywmCAgyQmys4Dw" }
+        },
+        "actor": { "subject_id": "airport-staff-high-plains", "display_name": "Sam", "summary": "High Plains Duty Free counter staff.", "identity_note": "Separately authored staff subject; appearance reuse does not merge identity or live object state." },
+        "npc_asset": { "catalog_id": "rpm-female-character", "asset_type": "glb", "load_mode": "gltf-humanoid-facade", "authored_scale": 1.0, "measured_native_height_m": 1.7864, "grounding": "Qualified GLB clone grounded to concourse top; appearance reused from Nea as a separate live clone.", "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later" }
+      }
+    },
+    {
+      "id": 16,
+      "label": "Store Staff — Ari at Mesa Kitchen",
+      "parent": 1,
+      "children": [],
+      "localTransform": [0,0,1,0, 0,1,0,0, -1,0,0,0, 9.2,0.0704,31,1],
+      "spatialAssetURI": "/assets/avatars/glb/cyberpunk_female_full-body_character.glb",
+      "webofworlds_extension": {
+        "schema": "osl.airport-terminal-scene.v1",
+        "role": "store-staff",
+        "behavior": "looping-idle",
+        "idle_animation": { "clip": "retargeted-idle", "loop": "repeat", "phase_offset": 0.97 },
+        "store_relationship": { "store_node_id": 5, "store_object_id": "airport-store-mesa", "service_position": "behind-counter" },
+        "manifest_card_anchor": { "anchor_id": "airport-card-anchor-airport-staff-mesa", "position_m": [9.2, 2.36, 31] },
+        "universal_manifest": {
+          "@context": "https://universalmanifest.net/ns/v0.4", "@id": "urn:uuid:32400000-0000-4000-8000-000000000009", "@type": "um:Manifest", "manifestVersion": "0.4",
+          "subject": "urn:osl:airport:staff:airport-staff-mesa", "issuedAt": "2026-07-19T03:13:13.000Z", "expiresAt": "2036-07-19T03:13:13.000Z",
+          "facets": [{ "@id": "urn:osl:airport:facet:airport-staff-mesa:public-profile", "@type": "um:Facet", "name": "publicProfile", "entity": {
+            "@id": "urn:osl:airport:staff:airport-staff-mesa", "@type": ["um:Entity", "osl:AirportStaff"],
+            "subjectId": "airport-staff-mesa", "objectId": "airport-staff-mesa", "anchorId": "airport-card-anchor-airport-staff-mesa",
+            "displayName": "Ari · Mesa Staff", "entityType": "avatar", "role": "store staff", "summary": "Staffing the Mesa Kitchen service counter.",
+            "provenance": { "authorship": "OSL-authored demo fixture", "simulation": true, "verification": "unverified", "umConformanceClaimed": false }
+          }}],
+          "signature": { "algorithm": "Ed25519", "canonicalization": "JCS-RFC8785", "keyRef": "did:key:z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk#z6MksPVfgnTjB9hgZEmBvqxTLTrSYtASEmVq5K4tcC7fpRYk", "created": "2026-07-19T03:13:13.000Z", "publicKeySpkiB64": "MCowBQYDK2VwAyEAwDECdydnWv7JYKS1akU4YLyjMGYGmNLcJgVGUajJv0k=", "value": "DBe9I2KUgdVNh8Y7nXttSywCAHHEDdx6Gt3hZ-m9xi81i8Y_uRhTPr_lXsDVCy6qGoC4QUmA6ABAdxw8z9PBBw" }
+        },
+        "actor": { "subject_id": "airport-staff-mesa", "display_name": "Ari", "summary": "Mesa Kitchen counter staff.", "identity_note": "Separately authored staff subject; appearance reuse does not merge identity or live object state." },
+        "npc_asset": { "catalog_id": "cyberpunk-female-full-body", "asset_type": "glb", "load_mode": "gltf-humanoid-facade", "authored_scale": 1.0, "measured_native_height_m": 1.7495, "grounding": "Qualified GLB clone grounded to concourse top; appearance reused from Jane as a separate live clone.", "feature_movement": "stationary looping idle only; runtime owns pathfinding/gait later" }
+      }
     }
   ],
   "portals": []

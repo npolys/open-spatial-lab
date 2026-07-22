@@ -1,4 +1,5 @@
-export function createAvatarSelectorController({ isPlayer, role, variants, inventorySlots, equipmentCatalog, validateEquippedItems, resolveEquipmentItems, noEquipmentChoice, applyNoEquipmentChoice, createPreviewLayer, getRuntime, lookup, documentTarget, requestFrame, cancelFrame, logger, escapeHtml, writeDebugText, fixed3, yawQuaternion, isTypingTarget, }) {
+export const AVATAR_STARTING_VARIANT_STORAGE_KEY = "wow-avatar-starting-variant-v1";
+export function createAvatarSelectorController({ isPlayer, role, variants, inventorySlots, equipmentCatalog, validateEquippedItems, resolveEquipmentItems, noEquipmentChoice, applyNoEquipmentChoice, createPreviewLayer, getRuntime, lookup, documentTarget, requestFrame, cancelFrame, logger, escapeHtml, writeDebugText, fixed3, yawQuaternion, isTypingTarget, getSessionStorage = () => (typeof sessionStorage !== "undefined" ? sessionStorage : null), randomFn = Math.random, getLocationSearch = () => (typeof window !== "undefined" && window.location ? window.location.search : ""), }) {
     const variantKeys = Object.keys(variants);
     const body = documentTarget.body;
     const listeners = [];
@@ -11,6 +12,11 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         pendingItems: [],
         previewLayer: null,
         previewReady: false,
+        previewShownVariant: null,
+        previewDesiredVariant: null,
+        previewLoading: false,
+        previewLoadToken: 0,
+        previewLoadError: null,
         previewRaf: 0,
         previewLastAt: 0,
         previewRotationY: 0,
@@ -37,11 +43,105 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         const key = liveAvatar()?.avatar_variant;
         return key && variants[key] ? key : variantKeys[0];
     }
+    function enumerableVariantKeys() {
+        const glb = variantKeys.filter((key) => variants[key] && variants[key].type === "glb");
+        return glb.length ? glb : variantKeys.slice();
+    }
+    function currentSessionStorage() {
+        try {
+            return (typeof getSessionStorage === "function" ? getSessionStorage() : null) || null;
+        }
+        catch {
+            return null;
+        }
+    }
+    function readSavedStartingVariant(storage) {
+        if (!storage)
+            return null;
+        try {
+            const saved = storage.getItem(AVATAR_STARTING_VARIANT_STORAGE_KEY);
+            return saved && variants[saved] ? saved : null;
+        }
+        catch {
+            return null;
+        }
+    }
+    function writeSavedStartingVariant(storage, variantKey) {
+        if (!storage || !variantKey)
+            return;
+        try {
+            storage.setItem(AVATAR_STARTING_VARIANT_STORAGE_KEY, variantKey);
+        }
+        catch {
+        }
+    }
+    function pinnedStartingVariant() {
+        try {
+            const search = typeof getLocationSearch === "function" ? getLocationSearch() : "";
+            const pinned = search ? new URLSearchParams(search).get("avatar_variant") : null;
+            return pinned && variants[pinned] ? pinned : null;
+        }
+        catch {
+            return null;
+        }
+    }
+    function resolveStartingAvatarVariant() {
+        const storage = currentSessionStorage();
+        const pinned = pinnedStartingVariant();
+        if (pinned) {
+            writeSavedStartingVariant(storage, pinned);
+            return { variant: pinned, source: "pinned" };
+        }
+        if (!storage)
+            return null;
+        const saved = readSavedStartingVariant(storage);
+        if (saved)
+            return { variant: saved, source: "saved" };
+        const keys = enumerableVariantKeys();
+        if (!keys.length)
+            return null;
+        const index = Math.min(keys.length - 1, Math.max(0, Math.floor(randomFn() * keys.length)));
+        const variant = keys[index];
+        writeSavedStartingVariant(storage, variant);
+        return { variant, source: "random" };
+    }
+    function defaultPendingVariant(baseline) {
+        const keys = enumerableVariantKeys();
+        if (variants[baseline] && keys.includes(baseline))
+            return baseline;
+        return keys[0] || baseline;
+    }
+    function pendingVariantKey() {
+        return variants[state.pendingVariant] ? state.pendingVariant : currentVariantKey();
+    }
     function selectedVariant() {
         return variants[state.pendingVariant] || variants[currentVariantKey()];
     }
+    function previewLayerLiveVariant() {
+        const layer = state.previewLayer;
+        if (!layer)
+            return null;
+        const fromStatus = layer.status && layer.status.avatar_variant;
+        if (fromStatus && variants[fromStatus])
+            return fromStatus;
+        if (typeof layer.debugState === "function") {
+            const fromDebug = layer.debugState().avatar_variant;
+            if (fromDebug && variants[fromDebug])
+                return fromDebug;
+        }
+        return null;
+    }
+    function previewVariantForRender() {
+        const live = previewLayerLiveVariant();
+        if (live)
+            return variants[live];
+        const shown = state.previewShownVariant;
+        if (shown && variants[shown])
+            return variants[shown];
+        return variants[state.pendingVariant] || variants[currentVariantKey()];
+    }
     function selectedVariantIndex() {
-        return Math.max(0, variantKeys.indexOf(state.pendingVariant));
+        return Math.max(0, enumerableVariantKeys().indexOf(state.pendingVariant));
     }
     function hasItem(itemId, attachmentPoint = null) {
         return state.pendingItems.some((item) => item.itemId === itemId && (!attachmentPoint || item.attachmentPoint === attachmentPoint));
@@ -77,7 +177,7 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         layer.camera.updateProjectionMatrix();
     }
     function previewAvatar() {
-        const variant = selectedVariant();
+        const variant = previewVariantForRender();
         return {
             avatar_id: `selector-${variant.key}`,
             continuity_id: "avatar-selector-preview",
@@ -149,11 +249,84 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
             state.previewLayer = createPreviewLayer(mount, role, runtime()?.world || null);
             await state.previewLayer.ready;
             state.previewReady = true;
+            const layerVariant = typeof state.previewLayer.debugState === "function" ? state.previewLayer.debugState().avatar_variant : null;
+            if (layerVariant && variants[layerVariant])
+                state.previewShownVariant = layerVariant;
         }
         if (typeof state.previewLayer.resize === "function")
             state.previewLayer.resize();
-        syncPreview();
         return state.previewLayer;
+    }
+    function previewSupportsLazyLoad() {
+        return !!state.previewLayer && typeof state.previewLayer.switchAvatarVariant === "function";
+    }
+    function previewLoadErrorMessage(error) {
+        if (!error)
+            return "avatar load failed";
+        return typeof error === "string" ? error : error.message || String(error);
+    }
+    function setPreviewBusy(busy, variantKey) {
+        const preview = lookup("avatar-selector-preview");
+        if (preview && typeof preview.setAttribute === "function") {
+            preview.setAttribute("aria-busy", busy ? "true" : "false");
+        }
+        if (busy)
+            writeDebugText("avatar-selector-preview-status", `loading ${variantKey || ""}`.trim());
+    }
+    async function requestPreviewVariant() {
+        if (!state.previewLayer)
+            return;
+        const desired = pendingVariantKey();
+        state.previewDesiredVariant = desired;
+        if (!previewSupportsLazyLoad()) {
+            state.previewShownVariant = desired;
+            syncPreview();
+            return;
+        }
+        if (desired === state.previewShownVariant && !state.previewLoading) {
+            syncPreview();
+            return;
+        }
+        state.previewLoadToken += 1;
+        if (state.previewLoading)
+            return;
+        await drivePreviewLoad();
+    }
+    async function drivePreviewLoad() {
+        const layer = state.previewLayer;
+        if (!layer || typeof layer.switchAvatarVariant !== "function")
+            return;
+        state.previewLoading = true;
+        try {
+            while (state.open && state.previewDesiredVariant && state.previewDesiredVariant !== state.previewShownVariant) {
+                const desired = state.previewDesiredVariant;
+                const token = state.previewLoadToken;
+                setPreviewBusy(true, desired);
+                let result;
+                try {
+                    result = await layer.switchAvatarVariant(desired);
+                }
+                catch (error) {
+                    result = { ok: false, error: previewLoadErrorMessage(error) };
+                }
+                if (!state.open)
+                    break;
+                if (token !== state.previewLoadToken)
+                    continue;
+                if (result && result.ok === false) {
+                    state.previewLoadError = { variant: desired, message: previewLoadErrorMessage(result.error) };
+                    setSelectorStatus(`avatar ${desired} failed to load: ${state.previewLoadError.message}`, false);
+                    break;
+                }
+                state.previewShownVariant = desired;
+                state.previewLoadError = null;
+                syncPreview();
+            }
+        }
+        finally {
+            state.previewLoading = false;
+            setPreviewBusy(false, state.previewShownVariant);
+        }
     }
     function render() {
         const modal = lookup("avatar-selector-modal");
@@ -163,7 +336,8 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         const index = selectedVariantIndex();
         body.setAttribute("data-avatar-selector-open", state.open ? "true" : "false");
         body.setAttribute("data-avatar-selector-pending-variant", variant.key);
-        writeDebugText("avatar-selector-count", `${index + 1}/${variantKeys.length}`);
+        const enumerableKeys = enumerableVariantKeys();
+        writeDebugText("avatar-selector-count", `${index + 1}/${enumerableKeys.length}`);
         writeDebugText("avatar-selector-avatar-name", variant.label || variant.key);
         const support = lookup("avatar-selector-support");
         if (support)
@@ -171,7 +345,7 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         const avatarList = lookup("avatar-selector-avatar-list");
         if (avatarList) {
             avatarList.innerHTML = "";
-            for (const key of variantKeys) {
+            for (const key of enumerableKeys) {
                 const entry = variants[key];
                 const button = documentTarget.createElement("button");
                 button.type = "button";
@@ -248,12 +422,17 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         state.pendingVariant = variantKey;
         setSelectorStatus(`staged avatar ${variantKey}`, null);
         render();
-        syncPreview();
+        void requestPreviewVariant();
         return debug();
     }
     function step(delta) {
-        const next = (selectedVariantIndex() + delta + variantKeys.length) % variantKeys.length;
-        return pickAvatar(variantKeys[next]);
+        const keys = enumerableVariantKeys();
+        if (!keys.length)
+            return debug();
+        const currentIndex = keys.indexOf(state.pendingVariant);
+        const base = currentIndex < 0 ? 0 : currentIndex;
+        const next = (base + delta + keys.length) % keys.length;
+        return pickAvatar(keys[next]);
     }
     function pickSlotItem(slot, itemId) {
         const group = inventorySlots().find((entry) => entry.slot === slot);
@@ -308,6 +487,9 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         state.open = false;
         state.previewDragging = false;
         state.previewPointerId = null;
+        state.previewLoading = false;
+        state.previewDesiredVariant = null;
+        setPreviewBusy(false, state.previewShownVariant);
         body.setAttribute("data-avatar-selector-open", "false");
         stopPreviewLoop();
         if (state.previewLayer)
@@ -364,6 +546,7 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
             item_ids: selectedItemIds(nextItems),
         };
         state.lastApplyResult = result;
+        writeSavedStartingVariant(currentSessionStorage(), variant);
         setRuntimeStatus(`applied ${variant} · ${nextItems.length} items`);
         logger(`selector: applied avatar ${variant}; items=${nextItems.length}`);
         close("apply");
@@ -383,12 +566,14 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         state.open = true;
         state.baselineVariant = currentVariantKey();
         state.baselineItems = cloneItems(avatar.equippedItems);
-        state.pendingVariant = state.baselineVariant;
+        state.pendingVariant = defaultPendingVariant(state.baselineVariant);
         state.pendingItems = cloneItems(avatar.equippedItems);
         state.previewRotationY = Number(avatar.rotation_y) || 0;
         state.previewMotion = "walk";
         state.lastApplyResult = null;
         state.lastCancelResult = null;
+        state.previewLoadError = null;
+        state.previewDesiredVariant = state.pendingVariant;
         modal.hidden = false;
         const switchButton = lookup("btn-switch-avatar");
         if (switchButton)
@@ -396,6 +581,7 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         setSelectorStatus("selection staged", null);
         render();
         await ensurePreviewLayer();
+        await requestPreviewVariant();
         startPreviewLoop();
         lookup("avatar-selector-preview")?.focus();
         return debug();
@@ -475,6 +661,11 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
             mounted: state.mounted,
             listener_count: listeners.length,
             preview_raf_active: state.previewRaf !== 0,
+            selectable_variant_keys: enumerableVariantKeys(),
+            hidden_variant_count: variantKeys.length - enumerableVariantKeys().length,
+            preview_shown_variant: state.previewShownVariant,
+            preview_loading: state.previewLoading === true,
+            preview_load_error: state.previewLoadError,
         };
     }
     function mount() {
@@ -551,6 +742,19 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
         const inventoryCard = lookup("inventory-card");
         if (inventoryCard)
             inventoryCard.hidden = true;
+        if (isPlayer) {
+            const resolved = resolveStartingAvatarVariant();
+            const host = runtime();
+            const avatar = host && host.avatar;
+            if (resolved &&
+                host &&
+                avatar &&
+                typeof host.setAvatarVariant === "function" &&
+                avatar.avatar_variant !== resolved.variant) {
+                host.setAvatarVariant(resolved.variant);
+                logger(`selector: session start -> avatar '${resolved.variant}' (${resolved.source})`);
+            }
+        }
         return controller;
     }
     function dispose() {
@@ -567,6 +771,10 @@ export function createAvatarSelectorController({ isPlayer, role, variants, inven
             state.previewLayer = null;
         }
         state.previewReady = false;
+        state.previewShownVariant = null;
+        state.previewDesiredVariant = null;
+        state.previewLoading = false;
+        state.previewLoadError = null;
         state.previewDragging = false;
         state.previewPointerId = null;
         state.previousFocus = null;

@@ -1,6 +1,8 @@
 import { HANDOFF_PHASES, PROVENANCE, validateProofBoundary, } from "./vendor/scene-core/frontend-contract.js";
 import { defaultEquippedItems, equipmentCatalog, resolveEquipmentItems, validateEquippedItems, } from "./equipment-view.js";
 import { AVATAR_VARIANTS, DEFAULT_AVATAR_VARIANT } from "./avatar-equipment-layer.js";
+import { withBase, BASE_PATH } from "./base-path.mjs";
+import { resolveFabricReference as resolveFabricReferenceForBase } from "./live-adapter-fabric-reference.mjs";
 import { geoPoseShapedFromTransform, } from "./geopose-basic-sdu.mjs";
 import { IWPS_CONFORMANCE, } from "./iwps-query-teleport.mjs";
 import { UM_CONFORMANCE } from "./conformance/um-conformance.mjs";
@@ -42,9 +44,11 @@ import { verifyManifestProfileA as umIdentityVerifyManifest } from "./signing/um
 import { buildPrivateDataPanel } from "./manifest/private-data.mjs";
 import { runFormatIndependenceScenario, buildFormatIndependencePanel, feature_CBOR_LD_PREVIEW, } from "./manifest/cbor-ld.mjs";
 import { runFactoryFloorSomDemo, somGatingPanelRecord, feature_SOM_CONFORMANCE } from "./manifest/som-branch-auth.mjs";
-const BASE_A = "/api/a";
-const BASE_B = "/api/b";
-const BASE_LOBBY = "/api/lobby";
+const BASE_A = withBase("/api/a");
+const BASE_B = withBase("/api/b");
+const BASE_LOBBY = withBase("/api/lobby");
+const BASE_AIRPORT = withBase("/api/airport");
+const HOSTED_ATTACH_POINT_EVENT = "hostedattachpoint";
 const ENDPOINTS = Object.freeze({
     a: {
         endpoint_key: "a",
@@ -73,10 +77,21 @@ const ENDPOINTS = Object.freeze({
         session_id: "local-session-lobby",
         portal_id: "lobby-portal-a",
     },
+    airport: {
+        endpoint_key: "airport",
+        proxy_base: BASE_AIRPORT,
+        backend_base_url: "http://127.0.0.1:18154",
+        location_id: "location-airport",
+        world_id: "world-airport-terminal",
+        session_id: "local-session-airport",
+        portal_id: "airport-portal-lobby",
+    },
 });
 const WORLD_LIMIT = 5.4;
 const MOVE_SPEED_MPS = 2.35;
-const RUN_SPEED_MULTIPLIER = 2;
+const RUN_MOVE_SPEED_MPS = 2.8;
+const RUN_MAX_CYCLE_SPEED = 1.6257644280216694;
+const RUN_MIN_CYCLE_DISTANCE_M = 0.5;
 const JUMP_SPEED_MPS = 4.25;
 const GRAVITY_MPS2 = 10.5;
 const SPEC_IDENTITY = Object.freeze({
@@ -94,6 +109,8 @@ function endpointKeyForRole(role, active) {
         return "a";
     if (requested === "lobby")
         return "lobby";
+    if (requested === "airport")
+        return "airport";
     if (role === "player" && !requested)
         return "lobby";
     return role === "target" ? "b" : "a";
@@ -101,6 +118,8 @@ function endpointKeyForRole(role, active) {
 function oppositeEndpointKey(endpointKey) {
     if (endpointKey === "lobby")
         return null;
+    if (endpointKey === "airport")
+        return "lobby";
     return endpointKey === "a" ? "b" : "a";
 }
 function endpointKeyForLocation(locationId) {
@@ -199,16 +218,15 @@ function findFabricSpawnNode(manifest) {
         null);
 }
 function resolveFabricReference(ref) {
-    if (!ref || typeof ref !== "string")
+    return resolveFabricReferenceForBase(BASE_PATH, ref);
+}
+function authoredWowGraphEndpoint(wowWorld, base) {
+    const endpoint = wowWorld?.webofworlds_extension?.authored_graph?.endpoint;
+    if (typeof endpoint !== "string" || !endpoint)
         return null;
-    if (/^https?:\/\//i.test(ref)) {
-        return ref
-            .replace(/^https?:\/\/127\.0\.0\.1:18151/i, BASE_A)
-            .replace(/^https?:\/\/localhost:18151/i, BASE_A)
-            .replace(/^https?:\/\/127\.0\.0\.1:18152/i, BASE_B)
-            .replace(/^https?:\/\/localhost:18152/i, BASE_B);
-    }
-    return ref;
+    if (/^https?:\/\//i.test(endpoint))
+        return endpoint;
+    return `${String(base || "").replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`;
 }
 const WOW_SERVICE_TYPE = "web-of-worlds";
 const WOW_SERVICE_MAP = Object.freeze({
@@ -325,6 +343,52 @@ function previewFreshnessMs(capturedAt) {
         return null;
     const t = Date.parse(capturedAt);
     return Number.isFinite(t) ? Math.max(0, Date.now() - t) : null;
+}
+export function snapshotRenderFacingAvatar(avatar) {
+    if (!avatar || typeof avatar !== "object")
+        return avatar;
+    const stableReferenceFields = new Set([
+        "identity",
+        "identity_handle",
+        "model",
+        "model_handle",
+        "rig",
+        "rig_handle",
+        "resource",
+        "resource_handle",
+        "controller",
+        "controller_handle",
+        "renderer",
+        "renderer_handle",
+        "scene",
+        "scene_handle",
+        "equipment_owner",
+        "equipment_owner_handle",
+    ]);
+    const copies = new WeakMap();
+    const copyMutableValue = (value, field = null) => {
+        if (!value || typeof value !== "object" || stableReferenceFields.has(field))
+            return value;
+        if (copies.has(value))
+            return copies.get(value);
+        if (Array.isArray(value)) {
+            const copy = [];
+            copies.set(value, copy);
+            for (const item of value)
+                copy.push(copyMutableValue(item));
+            return copy;
+        }
+        const prototype = Object.getPrototypeOf(value);
+        if (prototype !== Object.prototype && prototype !== null)
+            return value;
+        const copy = {};
+        copies.set(value, copy);
+        for (const [key, item] of Object.entries(value)) {
+            copy[key] = copyMutableValue(item, key);
+        }
+        return copy;
+    };
+    return copyMutableValue(avatar);
 }
 function transformSnapshot(avatar) {
     const rotationY = Number(avatar && avatar.rotation_y) || 0;
@@ -819,6 +883,9 @@ export class LiveAdapter extends EventTarget {
             throw new Error(`invalid role: ${role} (expected 'source'|'target'|'player')`);
         }
         this._transport = opts.transport || DEFAULT_LIVE_ADAPTER_TRANSPORT;
+        this._portalAtomicityOracle = ["microtask", "task", "raf", "all"].includes(opts.portalAtomicityOracle)
+            ? opts.portalAtomicityOracle
+            : null;
         this.role = role;
         this.clientMode = role === "player" ? "player" : "observer";
         this._noDefaultEquipment = !!opts.noDefaultEquipment;
@@ -854,6 +921,7 @@ export class LiveAdapter extends EventTarget {
         this._movementBounds = null;
         this._wowLocalWalk = false;
         this._airportWalkableSurface = null;
+        this._runCalibration = null;
         this.mode = "live";
         this.world = null;
         this._startsEmbodied = role === "source" || role === "player";
@@ -1155,6 +1223,7 @@ export class LiveAdapter extends EventTarget {
                 commit: () => this.commitVisualTransition(),
                 abort: (input) => this.abortVisualTransition(input),
             },
+            portalAtomicityOracle: this._portalAtomicityOracle,
             log: (message) => this._log(message),
             presence: {
                 controlledIdentity: () => ({
@@ -1457,11 +1526,16 @@ export class LiveAdapter extends EventTarget {
         if (this.role === "player")
             await this._initWorldNavigator();
         if (this.role === "player") {
+            const authoredEndpoint = authoredWowGraphEndpoint(wowWorld, this.base);
             await this._resolveWowSceneGraph({
                 base: this.base,
                 spatialId: wowWorldSpatialId(wowWorld),
-                resolvedFrom: "active world /wow/world spatialID (initial load)",
+                graphEndpoint: authoredEndpoint,
+                resolvedFrom: authoredEndpoint
+                    ? "active backend /wow/world advertised authored /wow/graph (initial load)"
+                    : "active world /wow/world spatialID (initial load)",
             });
+            this._adoptLiveAirportScenePhysics(this._wowResolved);
         }
         this.state.arrival_count = this.world.initial_arrival_count ?? 0;
         this._updatePortalStatus();
@@ -1474,6 +1548,42 @@ export class LiveAdapter extends EventTarget {
         if (this.clientMode === "player")
             this._maybeBroadcastPlayerPose({ force: true });
         return this;
+    }
+    _adoptLiveAirportScenePhysics(resolved) {
+        const isAirport = this.world?.location_id === "location-airport" &&
+            resolved?.spatialID === "world-airport-terminal" &&
+            resolved?.graph;
+        if (!isAirport) {
+            this._airportWalkableSurface = null;
+            this._movementBounds = null;
+            return null;
+        }
+        const contract = createAirportWalkableSurfaceContract(resolved.graph);
+        if (!contract.ok) {
+            throw new Error(`live airport walkable-surface contract invalid: ${contract.reason}`);
+        }
+        const walkable = contract.surfaces.filter((surface) => surface.classification === "walkable");
+        this._airportWalkableSurface = contract;
+        this._movementBounds = walkable.reduce((bounds, surface) => {
+            const halfX = surface.size_m[0] / 2;
+            const halfZ = surface.size_m[2] / 2;
+            bounds.minX = Math.min(bounds.minX, surface.center_m[0] - halfX);
+            bounds.maxX = Math.max(bounds.maxX, surface.center_m[0] + halfX);
+            bounds.minZ = Math.min(bounds.minZ, surface.center_m[2] - halfZ);
+            bounds.maxZ = Math.max(bounds.maxZ, surface.center_m[2] + halfZ);
+            return bounds;
+        }, { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
+        if (this.state.phase === HANDOFF_PHASES.IDLE && this.state.avatar) {
+            const position = clonePosition(this.state.avatar.position, [0, 0, -3]);
+            const ground = this._resolveAvatarGround(position[0], position[2]);
+            if (!ground.ok)
+                throw new Error(`live airport spawn grounding failed: ${ground.reason}`);
+            position[1] = ground.surface_y_m;
+            this.state.avatar.position = position;
+            this.world.avatar.spawn_position = position.slice();
+            this._publishGroundSurface(ground);
+        }
+        return contract;
     }
     _resolveAvatarGround(x, z) {
         if (!this._airportWalkableSurface) {
@@ -1653,6 +1763,57 @@ export class LiveAdapter extends EventTarget {
     }
     async resolveClientSceneLoad(target) {
         return this._clientSceneController.resolve(target);
+    }
+    async resolvePortalDestinationContent(portalEntry) {
+        const endpointKey = endpointKeyForLocation(portalEntry?.target_location_id);
+        const endpoint = endpointKey ? ENDPOINTS[endpointKey] : null;
+        if (!endpoint)
+            throw new Error("portal destination endpoint is unavailable");
+        const wowWorld = await this._transport.getJson(`${endpoint.proxy_base}/wow/world`);
+        const authored = wowWorld?.webofworlds_extension?.authored_graph;
+        if (authored?.endpoint) {
+            const endpointPath = String(authored.endpoint);
+            if (!endpointPath.startsWith("/")) {
+                throw new Error("portal destination authored graph endpoint must be root-relative");
+            }
+            const graphUrl = `${endpoint.proxy_base}${endpointPath}`;
+            const graph = await this._transport.getJson(graphUrl);
+            return {
+                kind: "authored_wow_graph",
+                location_id: endpoint.location_id,
+                world_id: endpoint.world_id,
+                graph,
+                graph_url: graphUrl,
+                base_url: endpoint.proxy_base,
+                revision: `${graph?.spatialID || endpoint.world_id}:${Object.keys(graph?.nodes || {}).length}`,
+            };
+        }
+        const hostedPoint = await this.demoReadAttachPoint(endpointKey);
+        return {
+            kind: "legacy_world",
+            location_id: endpoint.location_id,
+            world_id: endpoint.world_id,
+            revision: `${endpoint.location_id}:${wowWorld?.content?.version ?? "live"}:` +
+                `hosted-${hostedPoint?.version ?? "unknown"}`,
+            world: {
+                location_id: endpoint.location_id,
+                world_id: endpoint.world_id,
+                title: wowWorld?.location?.title || wowWorld?.content?.label || endpoint.location_id,
+                color: endpoint.location_id === "location-lobby" ? "#42d68a" : "#3aa0ff",
+            },
+            hosted_point: hostedPoint,
+            subscribeHostedPoint: (listener) => {
+                if (typeof listener !== "function")
+                    return () => { };
+                const handler = (event) => {
+                    if (event?.detail?.endpoint_key !== endpointKey)
+                        return;
+                    listener(event.detail.attach_point);
+                };
+                this.addEventListener(HOSTED_ATTACH_POINT_EVENT, handler);
+                return () => this.removeEventListener(HOSTED_ATTACH_POINT_EVENT, handler);
+            },
+        };
     }
     async enterClientSceneLoad({ target, contract, resolved, bounds } = {}) {
         return this._clientSceneController.enter({ target, contract, resolved, bounds });
@@ -2817,7 +2978,11 @@ export class LiveAdapter extends EventTarget {
         });
         if (!res.ok)
             throw new Error(`GET /demo/um/attach-point (${endpointKey}) -> ${res.status}`);
-        return res.json();
+        const attachPoint = await res.json();
+        this.dispatchEvent(new CustomEvent(HOSTED_ATTACH_POINT_EVENT, {
+            detail: { endpoint_key: endpointKey, attach_point: attachPoint },
+        }));
+        return attachPoint;
     }
     async demoReadPortalView(endpointKey, resolution) {
         const res = await this._transport.rawFetch(`${this.demoProxyBase(endpointKey)}/demo/portal-view?resolution=${encodeURIComponent(String(resolution || "snapshot3d"))}`, { headers: { Accept: "application/json" } });
@@ -2976,6 +3141,60 @@ export class LiveAdapter extends EventTarget {
         this._updatePortalStatus();
         this._emit();
     }
+    runCalibrationSnapshot() {
+        const sourceSpeed = RUN_MOVE_SPEED_MPS;
+        const calibration = this._runCalibration;
+        return {
+            run_cycle_speed: calibration ? calibration.run_cycle_speed : null,
+            run_cycle_distance: calibration ? calibration.run_cycle_distance : null,
+            run_cadence_steps_per_min: calibration ? calibration.run_cycle_speed * 120 : null,
+            effective_run_translation_speed_mps: calibration
+                ? calibration.run_cycle_speed * calibration.run_cycle_distance
+                : sourceSpeed,
+            source_translation_speed_mps: sourceSpeed,
+            calibrated: calibration !== null,
+            persistence: "session-local-memory-only",
+        };
+    }
+    setRunCalibration(input) {
+        const runCycleSpeed = Number(input && input.run_cycle_speed);
+        const runCycleDistance = Number(input && input.run_cycle_distance);
+        if (!Number.isFinite(runCycleSpeed) || runCycleSpeed <= 0) {
+            throw new RangeError("run_cycle_speed must be a positive finite cycles/s value");
+        }
+        if (runCycleSpeed > RUN_MAX_CYCLE_SPEED + 1e-12) {
+            throw new RangeError("run_cycle_speed exceeds the measured 195.092 steps/min hard envelope");
+        }
+        if (!Number.isFinite(runCycleDistance) || runCycleDistance < RUN_MIN_CYCLE_DISTANCE_M) {
+            throw new RangeError("run_cycle_distance must be a finite, non-near-zero metres/cycle value");
+        }
+        this._runCalibration = Object.freeze({
+            run_cycle_speed: runCycleSpeed,
+            run_cycle_distance: runCycleDistance,
+        });
+        const snapshot = this.runCalibrationSnapshot();
+        this.state.controls.run_cycle_speed = runCycleSpeed;
+        this.state.controls.run_cycle_distance = runCycleDistance;
+        this.state.controls.run_cadence_steps_per_min = runCycleSpeed * 120;
+        this.state.controls.run_translation_speed_mps = snapshot.effective_run_translation_speed_mps;
+        if (this.state.avatar) {
+            const locomotion = {
+                ...this.state.controls,
+                ...(this.state.avatar.locomotion || {}),
+                run_cycle_speed: runCycleSpeed,
+                run_cycle_distance: runCycleDistance,
+                run_cadence_steps_per_min: runCycleSpeed * 120,
+                run_translation_speed_mps: snapshot.effective_run_translation_speed_mps,
+            };
+            if (locomotion.moving === true && locomotion.run_mode === true) {
+                locomotion.speed_mps = snapshot.effective_run_translation_speed_mps;
+                this.state.controls.speed_mps = snapshot.effective_run_translation_speed_mps;
+            }
+            this.state.avatar.locomotion = locomotion;
+        }
+        this._emit();
+        return snapshot;
+    }
     stepAvatar(input, deltaSeconds) {
         if (!this.state.avatar)
             return this.state.controls;
@@ -2996,8 +3215,11 @@ export class LiveAdapter extends EventTarget {
         const strafe = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
         const hasPlanarInput = forward !== 0 || strafe !== 0;
         const runMode = hasPlanarInput && controls.run === true;
+        const runCalibration = this.runCalibrationSnapshot();
         const effectiveSpeedMps = hasPlanarInput
-            ? MOVE_SPEED_MPS * (runMode ? RUN_SPEED_MULTIPLIER : 1)
+            ? runMode
+                ? runCalibration.effective_run_translation_speed_mps
+                : MOVE_SPEED_MPS
             : 0;
         const wasMoving = this.state.controls.moving === true;
         const avatar = this.state.avatar;
@@ -3083,6 +3305,10 @@ export class LiveAdapter extends EventTarget {
         this.state.controls.speed_mps = effectiveSpeedMps;
         if (groundQueryBlocked)
             this.state.controls.speed_mps = 0;
+        this.state.controls.run_cycle_speed = runCalibration.run_cycle_speed;
+        this.state.controls.run_cycle_distance = runCalibration.run_cycle_distance;
+        this.state.controls.run_cadence_steps_per_min = runCalibration.run_cadence_steps_per_min;
+        this.state.controls.run_translation_speed_mps = runCalibration.effective_run_translation_speed_mps;
         this.state.controls.movement_basis_yaw = Number(basisYaw.toFixed(6));
         this.state.controls.movement_basis_source = Number.isFinite(Number(controls.camera_yaw))
             ? "camera_relative"
@@ -3230,11 +3456,16 @@ export class LiveAdapter extends EventTarget {
         const wowPortal = wowPortals[0] || null;
         this._adoptPortalFrameId(wowPortal);
         this.world = worldFromLive(this.role, wowWorld, wowPortals, null);
+        const authoredEndpoint = authoredWowGraphEndpoint(wowWorld, this.base);
         const promotedSceneSource = await this._resolveWowSceneGraph({
             base: this.base,
             spatialId: wowWorldSpatialId(wowWorld),
-            resolvedFrom: "crossing destination /wow/spatial (reached via source portal Portal.destination; confirmed vs promoted /wow/world)",
+            graphEndpoint: authoredEndpoint,
+            resolvedFrom: authoredEndpoint
+                ? "crossing destination backend-advertised authored /wow/graph (reached via Portal.destination; confirmed vs promoted /wow/world)"
+                : "crossing destination /wow/spatial (reached via source portal Portal.destination; confirmed vs promoted /wow/world)",
         });
+        this._adoptLiveAirportScenePhysics(this._wowResolved);
         this._lastCrossingSceneSource = promotedSceneSource;
         this.world.color =
             this.activeEndpointKey === "b"
@@ -3282,18 +3513,27 @@ export class LiveAdapter extends EventTarget {
     _fabricDerivedExitPose(frameMapping) {
         const mapped = frameMapping && frameMapping.mapped_exit_transform ? frameMapping.mapped_exit_transform : null;
         const root = this._rootFabricManifest;
+        if (mapped && Array.isArray(mapped.position)) {
+            return this._counterpartExitPoseFromFrameMapping(frameMapping, mapped, root);
+        }
         const portalBack = root ? findFabricPortalAttachmentNode(root) : null;
         const cam = root && root.primary && root.primary.camera && Array.isArray(root.primary.camera.position)
             ? root.primary.camera.position
             : null;
         if (!portalBack || !cam) {
+            const fallbackPosition = mapped
+                ? clonePosition(mapped.position, this.world ? this.world.arrival.position : [0, 0, 3.6])
+                : this.world
+                    ? this.world.arrival.position.slice()
+                    : [0, 0, 3.6];
+            const fallbackGround = this._resolveAvatarGround(fallbackPosition[0], fallbackPosition[2]);
+            if (!fallbackGround.ok) {
+                throw new Error(`portal exit has no classified destination ground: ${fallbackGround.reason}`);
+            }
+            fallbackPosition[1] = fallbackGround.surface_y_m;
             return {
                 source: "portal_frame_mapping_fallback",
-                position: mapped
-                    ? clonePosition(mapped.position, this.world ? this.world.arrival.position : [0, 0, 3.6])
-                    : this.world
-                        ? this.world.arrival.position.slice()
-                        : [0, 0, 3.6],
+                position: fallbackPosition,
                 rotation_y: mapped
                     ? Number(mapped.rotation_y) || 0
                     : this.world
@@ -3314,7 +3554,11 @@ export class LiveAdapter extends EventTarget {
                 ? -Number(frameMapping.lateral_offset_m)
                 : 0;
         const position = addScaled3(addScaled3([anchor[0], 0, anchor[2]], dir, exitOffset), right, lateral);
-        position[1] = 0;
+        const ground = this._resolveAvatarGround(position[0], position[2]);
+        if (!ground.ok) {
+            throw new Error(`portal exit has no classified destination ground: ${ground.reason}`);
+        }
+        position[1] = ground.surface_y_m;
         const rounded = roundVec3(position, 4);
         const rotation = mapped && Number.isFinite(Number(mapped.rotation_y))
             ? Number(mapped.rotation_y)
@@ -3339,6 +3583,70 @@ export class LiveAdapter extends EventTarget {
                 ? Math.abs(rounded[0] - Number(mapped.position[0] || 0)) <= 0.05 &&
                     Math.abs(rounded[2] - Number(mapped.position[2] || 0)) <= 0.05
                 : null,
+        };
+    }
+    _counterpartExitPoseFromFrameMapping(frameMapping, mapped, root) {
+        const targetFrame = frameMapping && frameMapping.target_portal_frame ? frameMapping.target_portal_frame : null;
+        const counterpartGround = targetFrame && Array.isArray(targetFrame.ground_center)
+            ? [Number(targetFrame.ground_center[0]) || 0, 0, Number(targetFrame.ground_center[2]) || 0]
+            : targetFrame && Array.isArray(targetFrame.position)
+                ? [Number(targetFrame.position[0]) || 0, 0, Number(targetFrame.position[2]) || 0]
+                : null;
+        const exitPosition = clonePosition(mapped.position, this.world ? this.world.arrival.position : [0, 0, 3.6]);
+        const ground = this._resolveAvatarGround(exitPosition[0], exitPosition[2]);
+        if (!ground.ok) {
+            throw new Error(`portal exit has no classified destination ground: ${ground.reason}`);
+        }
+        exitPosition[1] = ground.surface_y_m;
+        const rounded = roundVec3(exitPosition, 4);
+        const portalNodes = root ? findFabricPortalAttachmentNodes(root) : [];
+        let hostingNode = null;
+        if (counterpartGround) {
+            for (const node of portalNodes) {
+                const p = fabricNodePosition(node);
+                const d = Math.hypot(p[0] - counterpartGround[0], p[2] - counterpartGround[2]);
+                if (!hostingNode || d < hostingNode.distance_to_counterpart_m) {
+                    hostingNode = {
+                        node_id: fabricNodeId(node),
+                        position: roundVec3(p, 4),
+                        distance_to_counterpart_m: d,
+                    };
+                }
+            }
+        }
+        const exitOffset = frameMapping && Number.isFinite(Number(frameMapping.exit_offset_m))
+            ? Number(frameMapping.exit_offset_m)
+            : null;
+        const lateral = frameMapping && Number.isFinite(Number(frameMapping.mapped_lateral_offset_m))
+            ? Number(frameMapping.mapped_lateral_offset_m)
+            : frameMapping && Number.isFinite(Number(frameMapping.lateral_offset_m))
+                ? -Number(frameMapping.lateral_offset_m)
+                : null;
+        return {
+            source: "traversed_edge_counterpart_frame_mapping",
+            target_frame_portal_id: targetFrame ? targetFrame.portal_id || null : null,
+            target_frame_location_id: targetFrame ? targetFrame.location_id || null : null,
+            target_frame_ground_center: counterpartGround ? roundVec3(counterpartGround, 4) : null,
+            hosting_fabric_node: hostingNode
+                ? {
+                    node_id: hostingNode.node_id,
+                    position: hostingNode.position,
+                    distance_to_counterpart_m: roundNumber(hostingNode.distance_to_counterpart_m, 4),
+                }
+                : null,
+            fabric_portal_node_count: portalNodes.length,
+            exit_offset_m: exitOffset === null ? null : roundNumber(exitOffset, 3),
+            landing_policy: frameMapping && frameMapping.landing_policy
+                ? { ...frameMapping.landing_policy }
+                : null,
+            lateral_offset_m: lateral === null ? null : roundNumber(lateral, 3),
+            position: rounded,
+            rotation_y: roundNumber(Number(mapped.rotation_y) || 0, 6),
+            frame_mapped_exit: {
+                position: roundVec3(mapped.position, 4),
+                rotation_y: roundNumber(Number(mapped.rotation_y) || 0, 6),
+            },
+            matches_frame_mapping: true,
         };
     }
     _recordMarkerCrossingComparison() {
@@ -3426,6 +3734,8 @@ export class LiveAdapter extends EventTarget {
                 const wowPortals = await this._fetchWowPortals(ep, wowWorld);
                 this._adoptPortalFrameId(wowPortals[0] || null);
                 this.world = worldFromLive(this.role, wowWorld, wowPortals, null);
+                this._airportWalkableSurface = null;
+                this._movementBounds = null;
                 this.world.color =
                     this.activeEndpointKey === "b"
                         ? "#ff7a3a"
@@ -3608,6 +3918,8 @@ export class LiveAdapter extends EventTarget {
             const wowPortals = await this._fetchWowPortals(ep, wowWorld);
             this._adoptPortalFrameId(wowPortals[0] || null);
             this.world = worldFromLive(this.role, wowWorld, wowPortals, null);
+            this._airportWalkableSurface = null;
+            this._movementBounds = null;
             this.world.color = "#42d68a";
             const check = validateProofBoundary(this.world.claim_boundary);
             this._boundaryOk = check.ok;
@@ -3808,7 +4120,7 @@ export class LiveAdapter extends EventTarget {
         const sourceDebug = this.debugState();
         const state = {
             ...this.state,
-            avatar: this.state.avatar,
+            avatar: snapshotRenderFacingAvatar(this.state.avatar),
             controls: { ...(this.state.controls || {}) },
             preview: this.state.preview,
             portal_previews: this.state.portal_previews,
@@ -3818,6 +4130,8 @@ export class LiveAdapter extends EventTarget {
             metadata: { ...metadata },
             staged_at: new Date().toISOString(),
             state,
+            liveAvatar: this.state.avatar,
+            liveControls: this.state.controls,
             world: this.world,
             base: this.base,
             activeEndpointKey: this.activeEndpointKey,
@@ -3912,9 +4226,26 @@ export class LiveAdapter extends EventTarget {
             this.base = staged.base;
             this._portalId = staged.portalId;
             this.world = staged.world;
+            let restoredAvatar = staged.state.avatar;
+            if (staged.liveAvatar && staged.state.avatar) {
+                restoredAvatar = staged.liveAvatar;
+                for (const key of Object.keys(restoredAvatar))
+                    delete restoredAvatar[key];
+                Object.assign(restoredAvatar, snapshotRenderFacingAvatar(staged.state.avatar));
+            }
+            let restoredControls = { ...(staged.state.controls || {}) };
+            if (staged.liveControls) {
+                restoredControls = staged.liveControls;
+                for (const key of Object.keys(restoredControls))
+                    delete restoredControls[key];
+                Object.assign(restoredControls, staged.state.controls || {});
+            }
             for (const key of Object.keys(this.state))
                 delete this.state[key];
-            Object.assign(this.state, staged.state, { controls: { ...(staged.state.controls || {}) } });
+            Object.assign(this.state, staged.state, {
+                avatar: restoredAvatar,
+                controls: restoredControls,
+            });
             const infrastructure = staged.infrastructure;
             this._wowEndpoints = infrastructure.wowEndpoints;
             this._wowEndpointResolution = infrastructure.wowEndpointResolution;
@@ -4274,6 +4605,28 @@ export class LiveAdapter extends EventTarget {
             registers_presence: this._wowRegistersPresence,
         });
         return { intent: next.intent, registersPresence: this._wowRegistersPresence, changed: true };
+    }
+    async leaveSession(reason = "leave_session") {
+        if (this.clientMode !== "player")
+            return null;
+        this._stopPresenceHeartbeat();
+        await this._departPresence(this.base, reason, { beacon: true });
+        this._presenceController.clearRegistration();
+        this._closeRuntimeStream();
+        this._closePresenceEventStreams();
+        this._presenceController.recordEvent("leave_session", { reason });
+        return { ok: true, reason };
+    }
+    async resumeSession(reason = "resume_session") {
+        if (this.clientMode !== "player")
+            return null;
+        const output = await this._registerPresence(reason);
+        this._startPresenceHeartbeat();
+        this._connectRuntimeStream();
+        this._syncPresenceEventStreams();
+        this._emit();
+        this._maybeBroadcastPlayerPose({ force: true });
+        return { ok: true, reason, registered: !!output };
     }
     controlledIdentity() {
         return this._presenceController.controlledIdentity();
