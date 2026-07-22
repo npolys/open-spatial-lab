@@ -1,4 +1,5 @@
 import { HANDOFF_PHASES } from "./frontend-contract.js";
+import { mountCanonicalWorldContent } from "./canonical-world-content.js";
 export class Scene {
     constructor(mount, role, world) {
         this.mount = mount;
@@ -53,10 +54,6 @@ class WebGLScene {
         this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
         this.camera.position.set(0, 6.2, 8.4);
         this.camera.lookAt(0, 0, 0);
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-        const key = new THREE.DirectionalLight(0xffffff, 0.9);
-        key.position.set(4, 8, 6);
-        this.scene.add(key);
         this._buildRoom();
         this._buildPortal();
         this._buildAvatar();
@@ -68,22 +65,7 @@ class WebGLScene {
         window.addEventListener("resize", this._onResize);
     }
     _buildRoom() {
-        const T = this.THREE;
-        const floor = new T.Mesh(new T.PlaneGeometry(12, 12), new T.MeshStandardMaterial({ color: this.roomColor.clone().multiplyScalar(0.35), roughness: 0.95 }));
-        floor.rotation.x = -Math.PI / 2;
-        this.scene.add(floor);
-        const grid = new T.GridHelper(12, 12, 0xffffff, 0x88aacc);
-        grid.material.opacity = 0.28;
-        grid.material.transparent = true;
-        this.scene.add(grid);
-        const wallMat = new T.MeshStandardMaterial({ color: this.roomColor.clone().multiplyScalar(0.55), roughness: 0.9, side: T.DoubleSide });
-        const back = new T.Mesh(new T.PlaneGeometry(12, 5), wallMat);
-        back.position.set(0, 2.5, -6);
-        this.scene.add(back);
-        const left = new T.Mesh(new T.PlaneGeometry(12, 5), wallMat);
-        left.rotation.y = Math.PI / 2;
-        left.position.set(-6, 2.5, 0);
-        this.scene.add(left);
+        this.canonicalContent = mountCanonicalWorldContent(this.scene, this.THREE, this.world, { includeDebugGrid: true });
     }
     _buildPortal() {
         const T = this.THREE;

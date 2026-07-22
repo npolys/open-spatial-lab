@@ -1,5 +1,6 @@
 'use strict';
 const { createSpatialGraphStore, translationMatrix } = require('./spatial-graph');
+const { portalEdgeId } = require('./config');
 const crypto = require('crypto');
 const nodePath = require('path');
 const { pathToFileURL } = require('url');
@@ -104,7 +105,6 @@ function demoDefaultSceneObjects(locationId) {
     }
     if (locationId === 'location-lobby') {
         return [
-            { object_id: 'obj-lobby-marker-1', shape: 'box', size_m: 0.7, color: '#42d68a', position: [0, 0.35, -4.4] },
             { object_id: 'obj-lobby-bench-1', shape: 'box', size_m: 0.6, color: '#9fb0d0', position: [-4.4, 0.3, 1.6] },
             { object_id: 'obj-lobby-bench-2', shape: 'box', size_m: 0.6, color: '#9fb0d0', position: [4.4, 0.3, 1.6] },
         ];
@@ -146,6 +146,29 @@ function authoredGraphSceneObjects(graph) {
             webofworlds_extension: extension,
         };
     });
+}
+function authoredFabricRegionMaxRadius(graph) {
+    if (!graph || !Array.isArray(graph.nodes))
+        return 12.0;
+    let authoredMaximum = 12.0;
+    for (const node of graph.nodes) {
+        const extension = node && node.webofworlds_extension;
+        if (!extension || typeof extension !== 'object')
+            continue;
+        for (const value of Object.values(extension)) {
+            const surfaces = value && typeof value === 'object'
+                && Array.isArray(value.walkable_surfaces)
+                ? value.walkable_surfaces : [];
+            for (const surface of surfaces) {
+                const size = surface && Array.isArray(surface.size_m) ? surface.size_m : [];
+                const x = Math.abs(Number(size[0]) || 0);
+                const z = Math.abs(Number(size[2]) || 0);
+                if (x > 0 && z > 0)
+                    authoredMaximum = Math.max(authoredMaximum, Math.min(x, z));
+            }
+        }
+    }
+    return Math.min(48.0, authoredMaximum);
 }
 const FABRIC_DENSITY_FIXTURE_PALETTE = [
     '#2bd4ff', '#6ee7a8', '#8a7dff', '#ff8c42', '#ffd166', '#c65ccd', '#9fb0d0', '#42d68a',
@@ -641,6 +664,7 @@ function createRuntime(opts) {
             traversal_mode: traversal.mode,
             traversal: traversal,
             reciprocal: portalReciprocalRule(portal),
+            shared_edge: portalSharedEdge(portal),
         };
         return extension;
     }
@@ -674,6 +698,39 @@ function createRuntime(opts) {
             mode: raw.mode === 'automatic' ? 'automatic' : 'disabled',
             validation: {
                 automatic_reciprocal_standard_conformance: false,
+                application_level: true,
+            },
+        };
+    }
+    function portalSharedEdge(portal) {
+        if (!portal || portal.target_fixture
+            || !portal.target_location_id || !portal.target_portal_id)
+            return null;
+        const edgeId = portalEdgeId(portal);
+        if (!edgeId)
+            return null;
+        return {
+            edge_id: edgeId,
+            endpoints: [String(portal.source_location_id), String(portal.target_location_id)].sort(),
+            this_side: {
+                location_id: portal.source_location_id,
+                world_id: portal.source_world_id || null,
+                portal_id: portal.portal_id,
+            },
+            counterpart: {
+                location_id: portal.target_location_id,
+                world_id: portal.target_world_id || null,
+                portal_id: portal.target_portal_id,
+                base_url: portal.target_base_url || null,
+                region_pose_endpoint: '/fabric/region?anchor_portal_id='
+                    + encodeURIComponent(String(portal.target_portal_id)),
+            },
+            reciprocal_presence: 'hosted_both_sides',
+            identity_rule: 'one portal = one stable connection between two places; '
+                + 'the same edge_id is hosted by BOTH endpoint worlds and each '
+                + 'side\'s target_portal_id names the other side',
+            validation: {
+                shared_edge_standard_conformance: false,
                 application_level: true,
             },
         };
@@ -1072,7 +1129,7 @@ function createRuntime(opts) {
         }, fabricRegionBoundary()));
     }
     const FABRIC_REGION_MIN_RADIUS_M = 1.0;
-    const FABRIC_REGION_MAX_RADIUS_M = 12.0;
+    const FABRIC_REGION_MAX_RADIUS_M = authoredFabricRegionMaxRadius(AUTHORED_WOW_GRAPH);
     function fabricRegionScan(anchorPortalId, radiusM) {
         const portal = state.portals.find(entry => entry.portal_id === String(anchorPortalId || ''));
         if (!portal)
@@ -2091,6 +2148,7 @@ function createRuntime(opts) {
             trigger_depth_m: FABRIC_PORTAL_TRIGGER_DEPTH_M,
             target_location_id: portal.target_location_id || null,
             target_world_id: portal.target_world_id || null,
+            shared_edge: portalSharedEdge(portal),
         };
     }
     function demoExtensionBoundary() {
@@ -2305,6 +2363,7 @@ function createRuntime(opts) {
         }, demoExtensionBoundary()));
     }
     function reset() {
+        const resetPresenceEntries = Array.from(presenceRegistry.values());
         state.scene_objects = clone(DEMO_DEFAULT_SCENE_OBJECTS);
         state.portals.forEach((portal, i) => {
             if (DEMO_DEFAULT_PORTAL_TRIGGERS[i])
@@ -2312,11 +2371,13 @@ function createRuntime(opts) {
         });
         demoBumpAttachPoint('reset');
         spatialStore.resetToSeed();
-        state.republish_rate_ms = 0;
-        stopRepublishTimer();
+        state.republish_rate_ms = DEMO_REPUBLISH_RATE_DEFAULT_MS;
+        startRepublishTimer();
         state.session.arrival_count = 0;
         state.session.handoff_bootstrap = null;
         presenceRegistry.clear();
+        presenceTombstones.clear();
+        presenceResurrectionsBlocked = 0;
         stopPresenceSweeper();
         state.session.connected_clients = [];
         state.avatar.avatar_id = 'avatar-local-001';
@@ -2330,15 +2391,18 @@ function createRuntime(opts) {
         state.debug.handoff = { last_handoff_id: null, last_exit_intent: null, last_arrival: null };
         bumpRevision();
         notifySubscribers();
+        for (const entry of resetPresenceEntries)
+            emitWowEvent(wowUserEvent('user_left', entry));
         return getDebugState();
     }
     function tick() {
         state.server_tick += 1;
     }
+    const DEMO_REPUBLISH_RATE_DEFAULT_MS = 100;
     const DEMO_REPUBLISH_RATE_MIN_MS = 100;
     const DEMO_REPUBLISH_RATE_MAX_MS = 60000;
     const DEMO_REPUBLISH_DRIFT_AMPLITUDE_M = 0.35;
-    state.republish_rate_ms = 0;
+    state.republish_rate_ms = DEMO_REPUBLISH_RATE_DEFAULT_MS;
     let republishTimer = null;
     let republishTickCount = 0;
     const republishDriftSeeds = state.scene_objects.map((o, i) => ({
@@ -2408,12 +2472,13 @@ function createRuntime(opts) {
             model_note: 'When > 0, the server applies a small bounded ambient drift to the '
                 + 'hosted scene objects at this cadence and bumps the attach-point version. '
                 + 'Clients PULL (re-read) the hosted point on their own reload cadence; the '
-                + 'server does NOT push/stream this to clients. Default 0 = disabled = pre-runtime '
-                + 'behavior (no ambient change).',
+                + 'server does NOT push/stream this to clients. Boot/reset default to 100 ms; '
+                + 'an explicit 0 disables ambient change and restores pre-runtime behavior.',
             drift_amplitude_m: DEMO_REPUBLISH_DRIFT_AMPLITUDE_M,
             reloadable_not_streaming: true,
         }, demoExtensionBoundary()));
     }
+    startRepublishTimer();
     return {
         LOCATION_ID, WORLD_ID, SESSION_ID, HTTP_PORT, NODE_ROLE,
         getState, getDebugState, subscribe, subscriberCount,

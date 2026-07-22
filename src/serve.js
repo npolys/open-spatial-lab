@@ -22,6 +22,8 @@ const MIME = Object.freeze({
     '.png': 'image/png',
     '.svg': 'image/svg+xml',
     '.vrm': 'model/gltf-binary',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
 });
 function safeJoin(root, urlPath) {
     let decoded;

@@ -5,6 +5,7 @@ const { createRuntime } = require('./runtime-state');
 const { makeConfig } = require('./config');
 const wowAsset = require('./wow-asset');
 const wowMediaTypes = require('./wow-media-types');
+const FRESH_DEMO_RESET_CONTRACT_VERSION = 1;
 function createServer(role, extraOpts) {
     const cfg = makeConfig(role, extraOpts);
     const runtime = createRuntime(cfg);
@@ -210,6 +211,7 @@ function createServer(role, extraOpts) {
                 world_id: runtime.WORLD_ID,
                 node_role: runtime.NODE_ROLE,
                 port: bindPort,
+                fresh_demo_reset_contract_version: FRESH_DEMO_RESET_CONTRACT_VERSION,
             });
         if (method === 'GET' && path === '/wow/world')
             return sendJson(res, 200, wowValidate(res, 'world', runtime.getWowWorld()));
@@ -538,7 +540,18 @@ function createServer(role, extraOpts) {
         }
         if (method === 'POST' && path === '/reset') {
             const out = runtime.reset();
-            return sendJson(res, 200, { ok: true, reset: true, debug_state: out });
+            return sendJson(res, 200, {
+                ok: true,
+                reset: true,
+                fresh_demo_reset_contract_version: FRESH_DEMO_RESET_CONTRACT_VERSION,
+                debug_state: out,
+                reset_snapshot: {
+                    presence: runtime.getFabricPresence(),
+                    scene_objects: runtime.getSceneObjects(),
+                    attach_point: runtime.getUmAttachPoint(),
+                    republish: runtime.getRepublishRate(),
+                },
+            });
         }
         return sendJson(res, 404, { ok: false, error: 'not_found', path });
     });
