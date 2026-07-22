@@ -17,13 +17,36 @@ Open Spatial Lab is a local Web of Worlds and spatial-computing demo. From the p
 
 The tested setup is macOS 13 or newer with:
 
-- Git 2.39 or newer
+- Git; the public workflow has been verified with Git 2.33.0
 - Node.js 22.x
 - npm 10.x
 - Bash, `curl`, and `lsof`
 - A current Google Chrome, Chromium, Brave, or Microsoft Edge browser
 
+Check the required command-line tools before cloning:
+
+```bash
+git --version
+node --version
+npm --version
+command -v curl
+command -v lsof
+```
+
+If Node.js 22.x and npm 10.x are not installed, select the 22.x release from the [official Node.js download page](https://nodejs.org/en/download).
+
+## Repository layout
+
+- `src/` — local frontend server and topology orchestration
+- `runtime/` — local world-server and Three.js scene runtime
+- `web/` — browser demo, authored worlds, and included runtime assets
+- `wow-spec/` — Web of Worlds schema and validation code
+- `tools/` — launcher helpers and public verification scripts
+- `licenses/` — third-party asset and library license texts
+
 ## Quick start
+
+Use the following commands as the required first-run path; there is no separate build or preflight step.
 
 ```bash
 git clone https://github.com/grigb/open-spatial-lab.git
@@ -67,13 +90,13 @@ Open the launcher URL in a supported browser.
 
 ## Verification
 
-Run the complete public check from the repository root:
+Optional but recommended: run the complete public check from the repository root:
 
 ```bash
 npm run verify
 ```
 
-It verifies the packaged tree, starts the local topology, opens the launcher and world scenes in a local browser, checks included assets, and shuts everything down. A successful run ends with `PASS: Open Spatial Lab verification complete`.
+It verifies the packaged tree, starts the local topology, opens the launcher and world scenes in a local browser, checks included assets, and shuts everything down. A successful run ends with `PASS: Open Spatial Lab verification complete`. Run `npm start` afterward to resume the demo.
 
 ## Stop and clean up
 
@@ -82,6 +105,13 @@ npm stop
 ```
 
 The command stops the frontend and every local world server, removes runtime PID files, and releases ports `8143` and `18151`–`18154`.
+
+For a clean restart, including after a partial startup, run:
+
+```bash
+npm stop
+npm start
+```
 
 ## Troubleshooting
 
