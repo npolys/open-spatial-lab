@@ -40,7 +40,7 @@ async function openWorld(browser, route, expectedLocation, requestLog, errors) {
         if (message.type() === "error")
             errors.push(`console error: ${message.text()}`);
     });
-    await page.goto(`${BASE}/${route}`, { waitUntil: "networkidle0", timeout: 30000 });
+    await page.goto(`${BASE}/${route}`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForFunction(() => document.body.dataset.assemblyReady === "1" && window.__assembly?.debugState, { timeout: 30000 });
     await page.evaluate(() => document.querySelector('[data-testid="start-exploring"]')?.click());
     await page.waitForFunction(() => window.__assembly.equipmentReady?.() !== false, { timeout: 30000 });
@@ -172,46 +172,56 @@ async function assertEnabledWowContracts() {
     }
 }
 async function assertToolbarTargets(page) {
+    const controlIds = [
+        "btn-views-home", "btn-camera-toggle", "btn-switch-avatar",
+        "btn-refresh-settings", "btn-notifications", "btn-return-lobby", "btn-rail-toggle",
+    ];
     for (const width of [1280, 1024, 768, 620, 390]) {
         await page.setViewport({ width, height: 800 });
+        await page.evaluate(() => window.__assembly.viewport.forceSync());
         await page.waitForFunction((expected) => {
             const value = Number.parseFloat(getComputedStyle(document.documentElement)
                 .getPropertyValue("--osl-viewport-width"));
             return Math.abs(value - expected) < 2;
         }, { timeout: 5000 }, width);
-        const geometry = await page.evaluate(() => {
-            const view = document.getElementById("btn-views-home");
-            const destinations = document.getElementById("btn-semantic-destinations");
+        const geometry = await page.evaluate((ids) => {
+            const visible = (element) => {
+                const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                return !element.hidden && style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+            };
             const box = (element) => {
                 const rect = element.getBoundingClientRect();
                 const x = rect.left + rect.width / 2;
                 const y = rect.top + rect.height / 2;
                 return {
+                    id: element.id,
                     left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
                     width: rect.width, height: rect.height, x, y,
-                    hit: document.elementFromPoint(x, y)?.id || null,
+                    hit: document.elementFromPoint(x, y)?.closest?.("button")?.id || null,
                 };
             };
-            return { view: box(view), destinations: box(destinations) };
-        });
-        if (geometry.view.right > geometry.destinations.left ||
-            geometry.view.hit !== "btn-views-home" ||
-            geometry.destinations.hit !== "btn-semantic-destinations") {
+            return {
+                controls: ids.map((id) => document.getElementById(id)).filter(visible).map(box),
+                hidden: ["btn-semantic-destinations", "btn-runtime-tweaks"].map((id) => {
+                    const element = document.getElementById(id);
+                    return { id, display: getComputedStyle(element).display, ariaHidden: element.getAttribute("aria-hidden"), tabIndex: element.tabIndex };
+                }),
+                overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            };
+        }, controlIds);
+        const ordered = [...geometry.controls].sort((left, right) => left.left - right.left);
+        const hitSize = width <= 620 ? 30 : 40;
+        if (geometry.overflow !== 0 || ordered.length < 5 ||
+            !ordered.some((entry) => entry.id === "btn-views-home") ||
+            ordered.some((entry) => entry.hit !== entry.id || entry.width < hitSize || entry.height < hitSize) ||
+            ordered.some((entry, index) => index > 0 && ordered[index - 1].right > entry.left) ||
+            geometry.hidden.some((entry) => entry.display !== "none" || entry.ariaHidden !== "true" || entry.tabIndex !== -1)) {
             throw new Error(`toolbar geometry/hit failure at ${width}px: ${JSON.stringify(geometry)}`);
         }
+        const view = geometry.controls.find((entry) => entry.id === "btn-views-home");
         await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.click(), {
-            x: geometry.destinations.x, y: geometry.destinations.y,
-        });
-        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "true");
-        await page.keyboard.press("Escape");
-        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "false");
-        await page.focus("#btn-semantic-destinations");
-        await page.keyboard.press("Enter");
-        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "true");
-        await page.keyboard.press("Escape");
-        await page.waitForFunction(() => document.getElementById("btn-semantic-destinations")?.getAttribute("aria-expanded") === "false");
-        await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.click(), {
-            x: geometry.view.x, y: geometry.view.y,
+            x: view.x, y: view.y,
         });
         await page.waitForFunction(() => document.getElementById("btn-views-home")?.getAttribute("aria-expanded") === "true");
         await page.keyboard.press("Escape");
@@ -314,15 +324,15 @@ async function main() {
             const itemIds = state.avatar?.equippedItems?.map((item) => item.itemId) || [];
             return state.avatar?.avatar_variant === "cute-moth" && itemIds.includes("equip-hat") && itemIds.includes("equip-hammer");
         }, { timeout: 30000 });
-        await portalDrive(lobby, "lobby-portal-c", "world-airport-terminal", { browserDriven: true });
+        await portalDrive(lobby, "lobby-portal-c", "location-airport", { browserDriven: true });
         await lobby.waitForFunction(() => (document.body.dataset.airportTerminalReady === "1" &&
-            window.__assembly.adapter.world.portals.some((portal) => (portal.string_portal_id || portal.portal_id) === "reciprocal--lobby-portal-c--world-airport-terminal")), { timeout: 30000 });
+            window.__assembly.adapter.world.portals.some((portal) => (portal.string_portal_id || portal.portal_id) === "airport-portal-lobby")), { timeout: 30000 });
         const contractState = await lobby.evaluate(() => window.__assembly.debugState().wow_contract_validation);
         if (contractState?.status === "failed" || contractState?.failed || contractState?.errors)
             throw new Error(`visible WoW contract warning after Portal C: ${JSON.stringify(contractState)}`);
         await lobby.evaluate(() => window.__assembly.orbitCamera(Math.PI, 0, 0));
         await sleep(350);
-        await portalDrive(lobby, "reciprocal--lobby-portal-c--world-airport-terminal", "location-lobby", { browserDriven: true });
+        await portalDrive(lobby, "airport-portal-lobby", "location-lobby", { browserDriven: true });
         const locationA = await openWorld(browser, "index.html?role=player&active=source&intro=bypass", "location-a", requests, errors);
         await portalDrive(locationA, "location-a-portal", "location-b");
         await portalDrive(locationA, "location-b-portal", "location-a");
