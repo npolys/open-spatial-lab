@@ -201,8 +201,8 @@ export function mountDemoLauncher(root, options = {}) {
     const groupSections = new Map();
     for (const [group, titleText, instruction] of [
         ["player", null, null],
-        ["servers", "Servers", "Open a read-only observer view."],
         ["destinations", "Destinations", "Open a client destination or a supported direct-start view."],
+        ["servers", "Servers", "Open a read-only observer view."],
     ]) {
         const groupSection = doc.createElement("section");
         groupSection.className = `demo-launcher-group demo-launcher-group-${group}`;

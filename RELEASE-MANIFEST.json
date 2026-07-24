@@ -3,7 +3,7 @@
   "project": "Open Spatial Lab",
   "release_slug": "grigb/open-spatial-lab",
   "release_scope": "complete-local-web-of-worlds-demo",
-  "complete_tree_sha256": "1721b1b0e0637f99028152bc07604e6c09a19888318e845f930210b306c8e9f1",
+  "complete_tree_sha256": "7912cba016a835d04f5e21bd59cf7480c3ba4e054e547dc68e1bf09a8fe5637b",
   "files": [
     {
       "path": ".gitignore",
@@ -40,8 +40,8 @@
     {
       "path": "licenses/Avocado-README.md",
       "mode": "100644",
-      "size": 950,
-      "sha256": "b963ec47317b8edf378b73440457964a62f758e3ace77fb09f90c637535d19b1",
+      "size": 949,
+      "sha256": "8e687bb421a7cedfa14ae35e00ce722fb3076fc4008364d31ed26086a758bb2a",
       "classification": "third-party-license",
       "license": "notice-only"
     },
@@ -64,16 +64,16 @@
     {
       "path": "licenses/CC-BY-4.0.txt",
       "mode": "100644",
-      "size": 18657,
-      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "size": 18656,
+      "sha256": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
       "classification": "third-party-license",
       "license": "notice-only"
     },
     {
       "path": "licenses/CC-BY-NC-SA-4.0.txt",
       "mode": "100644",
-      "size": 20850,
-      "sha256": "e66c269d4819aaab34b49ef5220c4ddab6756f21bb5180761a4eb8561f2b7bbd",
+      "size": 20849,
+      "sha256": "1349a4b6148492b44f629e64eed676612e234fe9a839e4f3b277c1482c8849f1",
       "classification": "third-party-license",
       "license": "notice-only"
     },
@@ -120,8 +120,8 @@
     {
       "path": "licenses/OFL-1.1.txt",
       "mode": "100644",
-      "size": 4402,
-      "sha256": "c6dec685825f73b18c20926fddc65e8315642e12986f15db0699170940a09efc",
+      "size": 4401,
+      "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943",
       "classification": "third-party-license",
       "license": "notice-only"
     },
@@ -833,7 +833,7 @@
       "path": "web/demo-launcher.mjs",
       "mode": "100644",
       "size": 20236,
-      "sha256": "49f7ecd0cef7da286ad8a35e93cdcc2d07e8f6bbb0d149cff236a43af815de34",
+      "sha256": "be7511ba0a7a6fac9ae08a916a0ffb9fc8e1907ab468650fe2cf1fff4d6fddca",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -952,16 +952,16 @@
     {
       "path": "web/hud/glassline-hud.css",
       "mode": "100644",
-      "size": 1967,
-      "sha256": "0aac6738618ab615c4da8375e8dd682704d128e3fca2db2790136a92ebf9664c",
+      "size": 1966,
+      "sha256": "d6794e52c2cec553a471e42e020503c1b260e20e6fe3df8fc8cda52cc465208d",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "web/index.html",
       "mode": "100644",
-      "size": 122485,
-      "sha256": "0b256f0c0244e2ad32128a302b4ab753359c00e6593ce2ff2a010fd5254c8b0b",
+      "size": 122437,
+      "sha256": "92aab90c9ba872b88ab0ea5697003921a11fb7a37963a3a04eb4818d08c764f1",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
