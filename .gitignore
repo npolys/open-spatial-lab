@@ -7,3 +7,4 @@ coverage/
 *.log
 *.pem
 *.key
+.dev/ai/agent-state/
