@@ -1,5 +1,6 @@
 import { SpatialPortalPreviewManager } from "./portal-spatial-preview.mjs?v=meeting-critical-destination";
 import { disposeHostedSceneObjectMeshes, syncHostedSceneObjectMeshes, } from "./portal-render-controller.mjs";
+import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
 export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewManagerClass = SpatialPortalPreviewManager, AvatarLayerClass = null, buildWowScene, mountAirportTerminalContent, mountWowSceneAssets, mountCanonicalWorldContent, loadGltf, cloneScene, airportSceneContract, isPlayer, role, stageMode, sharedAvatarCompositing, motionPreference = null, getMount, documentTarget, windowTarget, locationHref, requestFrame, cancelFrame, getRuntime, getAvatarLayers, syncPeerAvatars, sceneRoleForDebug, alignPortalVisual, portalKey, setupNavigatorRender, onSceneChanged, onPortalAlignment, seedOrbitCamera, applyPlayerCamera, logLine, showToast, vec3Label, }) {
     let currentScene = null;
     let previewManager = null;
@@ -13,6 +14,11 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
     let sceneIdentity = 0;
     let detachedLegacyResizeOwners = 0;
     const destinationAssetCache = new Map();
+    // Shared, reused across every construction-only call site in this file (buildWowScene,
+    // mountCanonicalWorldContent) — this file isn't otherwise ported off THREE yet, so this is
+    // the same "throwaway adapter used only for its stateless construction methods" pattern
+    // used everywhere in this codebase, just shared once instead of re-instantiated per call.
+    const engineAdapter = new ThreeRenderAdapter(THREE);
     const runtime = () => (typeof getRuntime === "function" ? getRuntime() : null);
     const mount = () => (typeof getMount === "function" ? getMount() : null);
     const avatarLayers = () => {
@@ -163,8 +169,8 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
             composeDestinationContent: (content, context) => {
                 if (content?.kind === "legacy_world") {
                     const scene = new THREE.Scene();
-                    scene.background = new THREE.Color(0x0b1020);
-                    const inventory = mountCanonicalWorldContent(scene, THREE, content.world);
+                    scene.background = engineAdapter.createColor(0x0b1020);
+                    const inventory = mountCanonicalWorldContent(engineAdapter, scene, content.world);
                     const hostedMeshes = new Map();
                     const presentation = {
                         ...inventory,
@@ -237,7 +243,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
                 }
                 const width = Math.max(1, Number(context?.width) || 1);
                 const height = Math.max(1, Number(context?.height) || 1);
-                const built = buildWowScene(content.graph, THREE, {
+                const built = buildWowScene(content.graph, () => new ThreeRenderAdapter(THREE), {
                     width,
                     height,
                     source: "portal_canonical_authored_wow_graph",
@@ -252,7 +258,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
                 };
                 let disposed = false;
                 if (built.asset_nodes?.length) {
-                    void mountWowSceneAssets(built.asset_nodes, THREE, {
+                    void mountWowSceneAssets(built.asset_nodes, () => new ThreeRenderAdapter(THREE), {
                         loadGltf,
                         cloneScene,
                         cache: destinationAssetCache,
@@ -357,7 +363,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
         const host = mount();
         const width = (host && host.clientWidth) || 1100;
         const height = (host && host.clientHeight) || 660;
-        const built = buildWowScene(resolved.graph, THREE, {
+        const built = buildWowScene(resolved.graph, () => new ThreeRenderAdapter(THREE), {
             width,
             height,
             source: "live_backend_authored_wow_graph",
@@ -402,7 +408,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
         };
         let transferReadyPromise = null;
         if (assetNodes.length) {
-            void mountWowSceneAssets(assetNodes, THREE, {
+            void mountWowSceneAssets(assetNodes, () => new ThreeRenderAdapter(THREE), {
                 loadGltf,
                 cloneScene,
                 cache: destinationAssetCache,
@@ -525,7 +531,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
             const host = mount();
             const width = (host && host.clientWidth) || 1100;
             const height = (host && host.clientHeight) || 660;
-            const built = buildWowScene(activeClientSceneGraph.graph, THREE, {
+            const built = buildWowScene(activeClientSceneGraph.graph, () => new ThreeRenderAdapter(THREE), {
                 width,
                 height,
                 source: activeClientSceneGraph.source,
@@ -554,7 +560,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
             };
             const assetNodes = built.asset_nodes || [];
             if (assetNodes.length) {
-                void mountWowSceneAssets(assetNodes, THREE, {
+                void mountWowSceneAssets(assetNodes, () => new ThreeRenderAdapter(THREE), {
                     loadGltf,
                     cloneScene,
                     cache: destinationAssetCache,
@@ -796,7 +802,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
             const host = mount();
             const width = (host && host.clientWidth) || 1100;
             const height = (host && host.clientHeight) || 660;
-            const built = buildWowScene(resolved.graph, THREE, { width, height, source: resolved.source });
+            const built = buildWowScene(resolved.graph, () => new ThreeRenderAdapter(THREE), { width, height, source: resolved.source });
             const airportTerminal = mountAirportTerminalContent(resolved.graph, built, THREE, { document: documentTarget, motionPreference });
             if (!airportTerminal)
                 throw new Error("airport graph did not mount airport-terminal content");
@@ -887,7 +893,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
             };
             if (assetNodes.length) {
                 const assetBaseUrl = resolved.base_url || resolved.graph_url || locationHref;
-                void mountWowSceneAssets(assetNodes, THREE, {
+                void mountWowSceneAssets(assetNodes, () => new ThreeRenderAdapter(THREE), {
                     loadGltf,
                     cloneScene,
                     cache: destinationAssetCache,

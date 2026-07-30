@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 4/5: mountWowSceneAssets X3DOM path (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="420px">
+  <scene>
+    <viewpoint position="5 5 12"></viewpoint>
+    <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { buildWowScene, mountWowSceneAssets } from "/wow-scene.mjs";
+
+const log = document.getElementById('log');
+function append(l) { log.textContent += l + "\n"; console.log(l); }
+function translationMatrix(x, y, z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }
+
+const graph = {
+  root: 0,
+  nodes: [
+    { id: 0, label: 'root', localTransform: translationMatrix(0,0,0), children: [1, 2] },
+    { id: 1, label: 'good-asset', localTransform: translationMatrix(3,0,0), children: [],
+      spatialAssetURI: '/assets/worlds/Duck.glb' },
+    { id: 2, label: 'bad-asset', localTransform: translationMatrix(-3,0,0), children: [],
+      spatialAssetURI: '/assets/worlds/does-not-exist-404.glb' },
+  ],
+};
+
+async function run() {
+  const el = document.getElementById('main');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.attach(el);
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const built = buildWowScene(graph, () => adapter, { width: 640, height: 420 });
+  append('buildWowScene asset_nodes: ' + built.asset_nodes.map(n => n.label).join(', '));
+
+  const goodPlaceholderBoxCountBefore = built.asset_nodes[0].placeholder.querySelectorAll('box').length;
+  const summary = await mountWowSceneAssets(built.asset_nodes, () => adapter, {});
+  append('mountWowSceneAssets summary: ' + JSON.stringify(summary, null, 2));
+
+  const goodRec = built.asset_nodes.find(n => n.label === 'good-asset');
+  const badRec = built.asset_nodes.find(n => n.label === 'bad-asset');
+
+  const goodLoaded = goodRec.loaded === true;
+  const goodPlaceholderRemoved = !goodRec.placeholder.isConnected;
+  const goodGroupHasInline = !!goodRec.group.querySelector('inline');
+
+  const badFailed = badRec.loaded === false && badRec.asset_unavailable === true;
+  const badPlaceholderStillPresent = badRec.placeholder.isConnected;
+  const badPlaceholderName = badRec.placeholder.name;
+
+  // good-asset's localTransform is a pure translation to (3,0,0) with no ancestors but the
+  // (identity) root — its authored world position should land there, and a real Duck.glb has
+  // non-empty visible geometry, so bounds should come back non-null with positive size.
+  const goodEntry = summary.per_asset.find((e) => e.label === 'good-asset');
+  const authoredPos = goodEntry.authored_world_position;
+  const bounds = goodEntry.visible_bounds_world;
+  const authoredPositionCorrect = Array.isArray(authoredPos) &&
+    Math.abs(authoredPos[0] - 3) < 0.01 && Math.abs(authoredPos[1]) < 0.01 && Math.abs(authoredPos[2]) < 0.01;
+  const boundsPresent = !!bounds;
+  const boundsHavePositiveSize = boundsPresent && bounds.size.every((n) => n > 0);
+  const boundsNearAuthoredPosition = boundsPresent &&
+    Math.hypot(bounds.center[0] - authoredPos[0], bounds.center[1] - authoredPos[1], bounds.center[2] - authoredPos[2]) < 2;
+  const distanceIsFiniteNumber = Number.isFinite(goodEntry.bounds_center_distance_m);
+
+  append('good asset: loaded=' + goodLoaded + ', placeholder removed=' + goodPlaceholderRemoved + ', group has inline=' + goodGroupHasInline);
+  append('good asset bounds: authoredPos=' + JSON.stringify(authoredPos) + ', bounds=' + JSON.stringify(bounds) + ', distance_m=' + goodEntry.bounds_center_distance_m);
+  append('bad asset: failed correctly=' + badFailed + ', placeholder kept=' + badPlaceholderStillPresent + ', placeholder name=' + badPlaceholderName);
+
+  const ok = goodLoaded && goodPlaceholderRemoved && goodGroupHasInline &&
+    authoredPositionCorrect && boundsPresent && boundsHavePositiveSize && boundsNearAuthoredPosition && distanceIsFiniteNumber &&
+    badFailed && badPlaceholderStillPresent && badPlaceholderName && badPlaceholderName.startsWith('wow-asset-unavailable');
+
+  window.__testResult = {
+    ok, summary,
+    goodLoaded, goodPlaceholderRemoved, goodGroupHasInline,
+    authoredPositionCorrect, boundsPresent, boundsHavePositiveSize, boundsNearAuthoredPosition, distanceIsFiniteNumber,
+    badFailed, badPlaceholderStillPresent, badPlaceholderName,
+    backend: adapter.runtime.backendName(),
+  };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

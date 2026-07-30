@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 4: buildWowScene under X3DOMRenderAdapter (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 640px; height: 420px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<div id="log">(results appear here)</div>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { buildWowScene } from "/wow-scene.mjs";
+
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+// A small graph: root (group gizmo, no asset) -> child A (10m along +X, has a spatialAssetURI,
+// so it gets the wireframe-box placeholder) -> grandchild B (2m further along +X from A, via
+// composed local transforms, another group gizmo) — exercises both makeGroupGizmo (octahedron)
+// and makeAssetPlaceholder (box+edges wireframe+line material), and the world-position math
+// (grandchild's world X should be 12, composed through two levels of local transform).
+function translationMatrix(x, y, z) {
+  return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1];
+}
+const graph = {
+  root: 0,
+  nodes: [
+    { id: 0, label: 'root', localTransform: translationMatrix(0,0,0), children: [1] },
+    { id: 1, label: 'child-a', localTransform: translationMatrix(10,0,0), children: [2], spatialAssetURI: 'https://example.invalid/asset.glb' },
+    { id: 2, label: 'grandchild-b', localTransform: translationMatrix(2,0,0), children: [] },
+  ],
+};
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(mountEl, { width: 640, height: 420, camera: { fov: 50, near: 0.1, far: 2000 } });
+
+  const built = buildWowScene(graph, () => adapter, { width: 640, height: 420 });
+  append('render_summary.rendered: ' + JSON.stringify(built.render_summary.rendered));
+  append('placements: ' + JSON.stringify(built.render_summary.placements, null, 2));
+
+  const grandchild = built.render_summary.placements.find((p) => p.label === 'grandchild-b');
+  const expectedWorldX = 12; // 10 (child-a) + 2 (grandchild-b), composed
+  const worldPositionOk = grandchild && Math.abs(grandchild.world_position[0] - expectedWorldX) < 1e-6;
+  append('grandchild-b world_position: ' + JSON.stringify(grandchild && grandchild.world_position) + ' (expected x=' + expectedWorldX + ')');
+
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+  await new Promise((r) => setTimeout(r, 300));
+
+  const octahedronCount = adapter.sceneRoot.querySelectorAll('indexedfaceset').length;
+  const wireframeCount = adapter.sceneRoot.querySelectorAll('indexedlineset').length;
+  const boxCount = adapter.sceneRoot.querySelectorAll('box').length;
+  append('octahedron (group gizmo) count in DOM: ' + octahedronCount + ' (expect >=1 for root)');
+  append('wireframe (indexedlineset) count in DOM: ' + wireframeCount + ' (expect >=1 for child-a placeholder + grid)');
+  append('box count in DOM: ' + boxCount + ' (expect >=1 for child-a placeholder core)');
+
+  const ok = worldPositionOk && octahedronCount >= 1 && wireframeCount >= 1 && boxCount >= 1 &&
+    built.render_summary.rendered.rendered_nodes === 3 && built.render_summary.rendered.asset_placeholders === 1 &&
+    built.render_summary.rendered.group_gizmos === 2;
+
+  window.__testResult = {
+    ok,
+    rendered: built.render_summary.rendered,
+    grandchildWorldPosition: grandchild ? grandchild.world_position : null,
+    octahedronCount, wireframeCount, boxCount,
+    backend: adapter.runtime.backendName(),
+  };
+  status.textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  status.textContent = 'error';
+});
+</script>
+</body>
+</html>

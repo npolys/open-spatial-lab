@@ -11,6 +11,7 @@ import { initPortalLoadingOverlay as featureInitPortalLoadingOverlay, notePortal
 import { inventorySlots, equipmentCatalog, validateEquippedItems, resolveEquipmentItems, } from "./equipment-view.js";
 import { Scene } from "./vendor/scene-core/scene.js";
 import { mountCanonicalWorldContent } from "./vendor/scene-core/canonical-world-content.js";
+import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
 import { FRONTEND_CONTRACT, HANDOFF_PHASES, PROVENANCE, } from "./vendor/scene-core/frontend-contract.js";
 import * as THREE from "three";
 import { parseWorldUrl } from "./wow-url.mjs";
@@ -229,49 +230,46 @@ function makeFabricLabelSprite(lines, accentCss) {
     ctx.font = "38px ui-monospace, Menlo, monospace";
     ctx.fillStyle = accentCss;
     ctx.fillText(String(lines[1] || ""), canvas.width / 2, 172);
-    const texture = new THREE.CanvasTexture(canvas);
-    if ("SRGBColorSpace" in THREE)
-        texture.colorSpace = THREE.SRGBColorSpace;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+    const labelAdapter = new ThreeRenderAdapter(THREE);
+    const texture = labelAdapter.createCanvasTexture(canvas);
+    const sprite = labelAdapter.createSprite(labelAdapter.createMaterial({ type: "sprite", map: texture, transparent: true, depthWrite: false }));
     sprite.scale.set(2.6, 0.65, 1);
     return sprite;
 }
 function buildChildFabricGroup(manifest, opts = {}) {
     const accent = opts.accent ?? 0xff7a3a;
     const accentFill = opts.accentFill ?? 0xffb14d;
-    const group = new THREE.Group();
-    group.name = `fabric-child-${(manifest && manifest.container) || "unknown"}`;
+    const A = new ThreeRenderAdapter(THREE);
+    const group = A.createGroup(`fabric-child-${(manifest && manifest.container) || "unknown"}`);
     group.userData.fabric = {
         container: manifest && manifest.container,
         url: opts.url || null,
         attached_at_portal_node: opts.attachedAtNodeId || null,
         unsigned_plain_json: true,
     };
-    const roomColor = new THREE.Color(accent).multiplyScalar(0.35);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshStandardMaterial({ color: roomColor, roughness: 0.95 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.name = "child-fabric-floor";
-    group.add(floor);
-    const grid = new THREE.GridHelper(12, 12, 0xffffff, 0xd88f5a);
-    grid.material.opacity = 0.3;
-    grid.material.transparent = true;
-    group.add(grid);
-    const wallMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(accent).multiplyScalar(0.55),
+    const roomColor = A.multiplyColorScalar(A.createColor(accent), 0.35);
+    const floor = A.createMesh(A.createGeometry({ type: "plane", width: 12, height: 12 }), A.createMaterial({ type: "standard", color: roomColor, roughness: 0.95 }));
+    A.setRotationAxis(floor, "x", -Math.PI / 2);
+    A.setName(floor, "child-fabric-floor");
+    A.add(group, floor);
+    const grid = A.createGridHelper({ size: 12, divisions: 12, colorCenterLine: 0xffffff, colorGrid: 0xd88f5a, opacity: 0.3, transparent: true });
+    A.add(group, grid);
+    const wallMat = A.createMaterial({
+        type: "standard",
+        color: A.multiplyColorScalar(A.createColor(accent), 0.55),
         roughness: 0.9,
-        side: THREE.DoubleSide,
+        side: "double",
     });
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(12, 5), wallMat);
-    backWall.position.set(0, 2.5, -6);
-    group.add(backWall);
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(12, 5), wallMat);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.position.set(-6, 2.5, 0);
-    group.add(leftWall);
-    group.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const key = new THREE.DirectionalLight(0xffffff, 0.9);
-    key.position.set(4, 8, 6);
-    group.add(key);
+    const backWall = A.createMesh(A.createGeometry({ type: "plane", width: 12, height: 5 }), wallMat);
+    A.setPosition(backWall, 0, 2.5, -6);
+    A.add(group, backWall);
+    const leftWall = A.createMesh(A.createGeometry({ type: "plane", width: 12, height: 5 }), wallMat);
+    A.setRotationAxis(leftWall, "y", Math.PI / 2);
+    A.setPosition(leftWall, -6, 2.5, 0);
+    A.add(group, leftWall);
+    A.add(group, A.createAmbientLight({ color: 0xffffff, intensity: 0.85 }));
+    const key = A.createDirectionalLight({ color: 0xffffff, intensity: 0.9, position: [4, 8, 6] });
+    A.add(group, key);
     const nodes = manifest && manifest.data && Array.isArray(manifest.data.Children) ? manifest.data.Children : [];
     for (const node of nodes) {
         if (!node)
@@ -284,48 +282,47 @@ function buildChildFabricGroup(manifest, opts = {}) {
         const isPortalNode = node.Type && Number(node.Type.bSubtype) === 255;
         const ref = node.Resource && typeof node.Resource.sReference === "string" ? node.Resource.sReference : "";
         if (isPortalNode) {
-            const portal = new THREE.Group();
-            portal.name = `child-fabric-node-${(node.Head && node.Head.Self) || "portal"}`;
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.075, 18, 80), new THREE.MeshStandardMaterial({
+            const portal = A.createGroup(`child-fabric-node-${(node.Head && node.Head.Self) || "portal"}`);
+            const ring = A.createMesh(A.createGeometry({ type: "torus", radius: 1, tube: 0.075, radialSegments: 18, tubularSegments: 80 }), A.createMaterial({
+                type: "standard",
                 color: accent,
                 emissive: accent,
                 emissiveIntensity: 0.7,
                 roughness: 0.35,
                 metalness: 0.25,
             }));
-            portal.add(ring);
-            const disc = new THREE.Mesh(new THREE.CircleGeometry(0.92, 72), new THREE.MeshBasicMaterial({ color: accentFill, transparent: true, opacity: 0.2, side: THREE.DoubleSide }));
-            portal.add(disc);
-            portal.position.set(px, 1.35, pz);
-            portal.rotation.y = opts.portalYaw ?? 0;
+            A.add(portal, ring);
+            const disc = A.createMesh(A.createGeometry({ type: "circle", radius: 0.92, segments: 72 }), A.createMaterial({ type: "basic", color: accentFill, transparent: true, opacity: 0.2, side: "double" }));
+            A.add(portal, disc);
+            A.setPosition(portal, px, 1.35, pz);
+            A.setRotationAxis(portal, "y", opts.portalYaw ?? 0);
             portal.scale.set(0.9, 1.4, 1);
-            portal.visible = opts.suppressReturnPortal !== true;
+            A.setVisible(portal, opts.suppressReturnPortal !== true);
             portal.userData.secondaryRingSuppressed = opts.suppressReturnPortal === true;
-            group.add(portal);
+            A.add(group, portal);
         }
         else if (ref.startsWith("action:")) {
             continue;
         }
         else if (node.Transform) {
-            const pad = new THREE.Group();
-            pad.name = `child-fabric-node-${(node.Head && node.Head.Self) || "spawn"}`;
-            const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 40), new THREE.MeshStandardMaterial({ color: accentFill, emissive: accent, emissiveIntensity: 0.35 }));
-            disc.position.y = 0.03;
-            pad.add(disc);
-            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
-            post.position.y = 0.78;
-            pad.add(post);
-            pad.position.set(px, 0, pz);
-            group.add(pad);
+            const pad = A.createGroup(`child-fabric-node-${(node.Head && node.Head.Self) || "spawn"}`);
+            const disc = A.createMesh(A.createGeometry({ type: "cylinder", radiusTop: 0.45, radiusBottom: 0.45, height: 0.06, radialSegments: 40 }), A.createMaterial({ type: "standard", color: accentFill, emissive: accent, emissiveIntensity: 0.35 }));
+            A.setPosition(disc, 0, 0.03, 0);
+            A.add(pad, disc);
+            const post = A.createMesh(A.createGeometry({ type: "cylinder", radiusTop: 0.035, radiusBottom: 0.035, height: 1.5, radialSegments: 10 }), A.createMaterial({ type: "standard", color: 0xffffff, roughness: 0.6 }));
+            A.setPosition(post, 0, 0.78, 0);
+            A.add(pad, post);
+            A.setPosition(pad, px, 0, pz);
+            A.add(group, pad);
         }
     }
     const label = makeFabricLabelSprite([
         String((manifest && manifest.container) || "child fabric").toUpperCase(),
         "child fabric · plain-JSON (unsigned)",
     ], opts.accentCss || "#ffb14d");
-    label.position.set(opts.labelPosition ? opts.labelPosition[0] : 0.8, 2.35, opts.labelPosition ? opts.labelPosition[2] : -2.8);
-    label.name = "child-fabric-container-label";
-    group.add(label);
+    A.setPosition(label, opts.labelPosition ? opts.labelPosition[0] : 0.8, 2.35, opts.labelPosition ? opts.labelPosition[2] : -2.8);
+    A.setName(label, "child-fabric-container-label");
+    A.add(group, label);
     setLayerRecursive(group, CHILD_FABRIC_LAYER);
     return group;
 }
@@ -962,17 +959,18 @@ function ensureFabricPrefetchZoneRing(dbg) {
         ring = null;
     }
     if (!ring) {
+        const A = new ThreeRenderAdapter(THREE);
         const segments = 96;
         const points = [];
         for (let i = 0; i <= segments; i += 1) {
             const a = (i / segments) * Math.PI * 2;
-            points.push(new THREE.Vector3(Math.cos(a) * radius, 0.03, Math.sin(a) * radius));
+            points.push([Math.cos(a) * radius, 0.03, Math.sin(a) * radius]);
         }
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        ring = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x59c8ff, transparent: true, opacity: 0.55 }));
-        ring.name = "fabric-prefetch-zone-ring";
+        const geometry = A.createGeometry({ type: "points", points });
+        ring = A.createLine(geometry, A.createMaterial({ type: "line", color: 0x59c8ff, transparent: true, opacity: 0.55 }));
+        A.setName(ring, "fabric-prefetch-zone-ring");
         ring.userData.radius_m = radius;
-        impl.scene.add(ring);
+        A.add(impl.scene, ring);
     }
     ring.position.set(center[0], 0, center[2]);
     ring.visible = true;
@@ -1007,16 +1005,17 @@ function ensureAdditionalFabricPrefetchZoneRings(impl, dbg) {
             ring = null;
         }
         if (!ring) {
+            const A = new ThreeRenderAdapter(THREE);
             const segments = 96;
             const points = [];
             for (let i = 0; i <= segments; i += 1) {
                 const a = (i / segments) * Math.PI * 2;
-                points.push(new THREE.Vector3(Math.cos(a) * ringRadius, 0.03, Math.sin(a) * ringRadius));
+                points.push([Math.cos(a) * ringRadius, 0.03, Math.sin(a) * ringRadius]);
             }
-            ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: 0x59c8ff, transparent: true, opacity: 0.55 }));
-            ring.name = `fabric-prefetch-zone-ring--${key}`;
+            ring = A.createLine(A.createGeometry({ type: "points", points }), A.createMaterial({ type: "line", color: 0x59c8ff, transparent: true, opacity: 0.55 }));
+            A.setName(ring, `fabric-prefetch-zone-ring--${key}`);
             ring.userData.radius_m = ringRadius;
-            impl.scene.add(ring);
+            A.add(impl.scene, ring);
             impl.additionalFabricZoneRings[key] = ring;
         }
         ring.position.set(ringCenter[0], 0, ringCenter[2]);
@@ -2956,7 +2955,7 @@ async function mainWowRead() {
     try {
         if (!resolved || !resolved.graph)
             throw new Error(loadErr || "no graph resolved");
-        built = buildWowScene(resolved.graph, THREE, { width, height, source: resolved.source });
+        built = buildWowScene(resolved.graph, () => new ThreeRenderAdapter(THREE), { width, height, source: resolved.source });
         const airportTerminal = mountAirportTerminalContent(resolved.graph, built, THREE, { document, motionPreference });
         if (airportTerminal) {
             document.body.setAttribute("data-airport-terminal-ready", "1");
@@ -2972,7 +2971,7 @@ async function mainWowRead() {
         document.body.setAttribute("data-wow-asset-nodes", String(assetNodes.length));
         if (assetNodes.length) {
             const assetBaseUrl = resolved.base_url || resolved.graph_url || location.href;
-            mountWowSceneAssets(assetNodes, THREE, {
+            mountWowSceneAssets(assetNodes, () => new ThreeRenderAdapter(THREE), {
                 loadGltf: loadGltfSceneAsset,
                 cloneScene: cloneGltfSceneAsset,
                 cache: sceneRuntimeController.destinationAssetCache(),

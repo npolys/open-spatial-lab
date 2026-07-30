@@ -1634,6 +1634,32 @@ function createRuntime(opts) {
             };
         }
     }
+    // DELETE /wow/user/{userId} (OpenSpatialWorld spec: 200 "User deleted", 400 "Invalid user
+    // value", no documented 404 — this repo adds 404 for a genuinely unknown id, matching
+    // deleteNode()'s own not-found convention in spatial-graph.js, the codebase's other DELETE
+    // endpoint). There is no persistent user database to delete FROM here — a userId resolves
+    // either to this location's own hosted embodied identity (getWowUser's local-alias branch) or
+    // to a live entry in the server-side presence registry (getWowPresenceUser). Deleting the
+    // hosted local identity has no safe interpretation for a stateless HTTP DELETE (it IS this
+    // location's own live session, not a removable record) — the spec's own 400 is the honest fit
+    // for that case, not a fabricated 200 or 404. A real presence-registry user is removed via
+    // departPresence() — the exact same removal path a self-initiated departure already uses, not
+    // a second, parallel implementation.
+    function deleteWowUser(userId) {
+        const a = state.avatar;
+        const localAliases = [String(WOW_LOCAL_USER_ID), a.avatar_id, a.continuity_id, 'me']
+            .filter((alias, index, all) => all.indexOf(alias) === index);
+        const key = String(userId == null ? '' : userId);
+        if (!key || localAliases.indexOf(key) !== -1) {
+            return { ok: false, status: 400, error: 'invalid_user_value', reason: 'cannot_delete_local_hosted_identity', userId };
+        }
+        const entry = livePresenceEntries(Date.now())
+            .find(e => String(e.wow_user_id) === key || e.player_id === key);
+        if (!entry)
+            return { ok: false, status: 404, error: 'user_not_found', userId };
+        const departResult = departPresence({ player_id: entry.player_id, reason: 'deleted_via_DELETE_/wow/user/' + key });
+        return { ok: true, status: 200, value: { ok: true, deleted: true, userId, ...departResult } };
+    }
     function getWowView(viewId) {
         const accepted = [String(WOW_PLAYER_VIEW_ID), 'player', 'player-camera'];
         if (viewId && accepted.indexOf(String(viewId)) === -1)
@@ -2485,7 +2511,7 @@ function createRuntime(opts) {
         subscribeEvents, eventSubscriberCount, getWowEventsHello,
         getWowWorld, getWowLocation, getWowGraph,
         getWowPortal, getWowPortalResource, getWowUser, getWowView,
-        getWowUserSigned,
+        getWowUserSigned, deleteWowUser,
         getWowProofBoundary,
         wowGeoPoseFromLocal,
         getSpatialGraphRoot, getSpatialNode,

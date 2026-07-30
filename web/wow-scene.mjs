@@ -1,3 +1,9 @@
+import { multiplyMat4 } from "./vendor/scene-core/render-adapter/spatial-math.mjs";
+// mountWowSceneAssets stays THREE-only for now (deferred — see Phase 1 notes): it operates on
+// already-loaded glTF scenes via GLTFLoader, which is inherently a three.js/glTF-ecosystem
+// concern, not something X3DOM consumes the same way. It only needs ThreeRenderAdapter for the
+// one shared helper (markPlaceholderUnavailable) it calls alongside buildWowScene.
+import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
 const IDENTITY_4X4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const MAX_NODES = 20000;
 export const FABRIC_UP_AXES = Object.freeze(["z", "y"]);
@@ -121,33 +127,33 @@ function normalizeGraph(graph) {
     }
     return { spatialID, rootId, nodes };
 }
-export function buildWowScene(graph, THREE, opts = {}) {
+// createAdapter is a zero-arg factory (`() => new ThreeRenderAdapter(THREE)` /
+// `() => new X3DOMRenderAdapter(x3dom)`), not an adapter instance — this function builds an
+// independent, detached scene graph on every call and must get its own fresh adapter/sceneRoot
+// each time (unlike mountCanonicalWorldContent, which mounts into a caller-owned scene and can
+// safely reuse one adapter across calls).
+export function buildWowScene(graph, createAdapter, opts = {}) {
     const width = opts.width || 1100;
     const height = opts.height || 660;
     const { spatialID, rootId, nodes } = normalizeGraph(graph);
-    const scene = new THREE.Scene();
+    // A local, unmounted adapter instance used purely for its scene-construction methods —
+    // this function builds a detached scene graph and hands it back; it never owns a
+    // renderer/canvas/render loop, so adapter.mount()/onEnterFrame() are never called.
+    const A = createAdapter();
+    const scene = A.sceneRoot;
     const bgHex = typeof opts.background === "number" ? opts.background : 0x0b1020;
-    scene.background = new THREE.Color(bgHex);
-    const root = new THREE.Group();
-    root.name = "wow-composition-root";
-    scene.add(root);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ color: 0x161d31, roughness: 0.95, metalness: 0.05 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.name = "wow-floor";
-    root.add(floor);
-    const grid = new THREE.GridHelper(24, 24, 0x4f7fc4, 0x263250);
-    if (grid.material) {
-        grid.material.transparent = true;
-        grid.material.opacity = 0.4;
-    }
-    root.add(grid);
-    root.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const key = new THREE.DirectionalLight(0xffffff, 0.85);
-    key.position.set(5, 9, 6);
-    root.add(key);
-    const rim = new THREE.DirectionalLight(0x88aaff, 0.4);
-    rim.position.set(-6, 5, -7);
-    root.add(rim);
+    A.setBackgroundColor(A.createColor(bgHex));
+    const root = A.createGroup("wow-composition-root");
+    A.add(scene, root);
+    const floor = A.createMesh(A.createGeometry({ type: "plane", width: 24, height: 24 }), A.createMaterial({ type: "standard", color: 0x161d31, roughness: 0.95, metalness: 0.05 }));
+    A.setRotationAxis(floor, "x", -Math.PI / 2);
+    A.setName(floor, "wow-floor");
+    A.add(root, floor);
+    const grid = A.createGridHelper({ size: 24, divisions: 24, colorCenterLine: 0x4f7fc4, colorGrid: 0x263250, transparent: true, opacity: 0.4 });
+    A.add(root, grid);
+    A.add(root, A.createAmbientLight({ color: 0xffffff, intensity: 0.6 }));
+    A.add(root, A.createDirectionalLight({ color: 0xffffff, intensity: 0.85, position: [5, 9, 6] }));
+    A.add(root, A.createDirectionalLight({ color: 0x88aaff, intensity: 0.4, position: [-6, 5, -7] }));
     const counts = {
         graph_nodes: nodes.size,
         rendered_nodes: 0,
@@ -165,13 +171,14 @@ export function buildWowScene(graph, THREE, opts = {}) {
     const fabricNodes = [];
     const unspecifiedContractWarnings = [];
     function makeAssetPlaceholder(node, isRoot) {
-        const group = new THREE.Group();
-        group.name = `wow-asset-placeholder:${node.label || node.id}`;
+        const group = A.createGroup(`wow-asset-placeholder:${node.label || node.id}`);
         const edge = isRoot ? COL_ROOT : COL_ASSET_EDGE;
-        const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.9, 0.9, 0.9)), new THREE.LineBasicMaterial({ color: edge, transparent: true, opacity: 0.9 }));
-        wire.position.y = 0.45;
-        group.add(wire);
-        const core = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshStandardMaterial({
+        const boxGeom = A.createGeometry({ type: "box", width: 0.9, height: 0.9, depth: 0.9 });
+        const wire = A.createLineSegments(A.createGeometry({ type: "edges", from: boxGeom }), A.createMaterial({ type: "line", color: edge, transparent: true, opacity: 0.9 }));
+        A.setPosition(wire, 0, 0.45, 0);
+        A.add(group, wire);
+        const core = A.createMesh(A.createGeometry({ type: "box", width: 0.5, height: 0.5, depth: 0.5 }), A.createMaterial({
+            type: "standard",
             color: COL_ASSET_FILL,
             emissive: COL_ASSET_FILL,
             emissiveIntensity: 0.25,
@@ -179,24 +186,29 @@ export function buildWowScene(graph, THREE, opts = {}) {
             opacity: 0.55,
             roughness: 0.5,
         }));
-        core.position.y = 0.45;
-        group.add(core);
+        A.setPosition(core, 0, 0.45, 0);
+        A.add(group, core);
         counts.meshes += 2;
         return group;
     }
     function makeGroupGizmo(node, isRoot) {
-        const octa = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshStandardMaterial({
+        const octa = A.createMesh(A.createGeometry({ type: "octahedron", radius: 0.16, detail: 0 }), A.createMaterial({
+            type: "standard",
             color: isRoot ? COL_ROOT : COL_GROUP,
             emissive: isRoot ? COL_ROOT : COL_GROUP,
             emissiveIntensity: 0.4,
             roughness: 0.4,
         }));
-        octa.name = `wow-group-gizmo:${node.label || node.id}`;
+        A.setName(octa, `wow-group-gizmo:${node.label || node.id}`);
         counts.meshes += 1;
         return octa;
     }
     let visited = 0;
-    function walk(nodeId, parentObj, seen) {
+    // World matrices are composed inline during the walk (parentWorldMatrix * local, via the
+    // engine-agnostic spatial-math utility) instead of relying on a live scene graph's
+    // updateMatrixWorld()/getWorldPosition() — this computation must work identically, and
+    // before anything is ever mounted, regardless of which render adapter is active.
+    function walk(nodeId, parentObj, parentWorldMatrix, seen) {
         if (visited >= MAX_NODES)
             return;
         const node = nodes.get(Number(nodeId));
@@ -211,14 +223,13 @@ export function buildWowScene(graph, THREE, opts = {}) {
         seen.add(Number(nodeId));
         visited += 1;
         const isRoot = Number(nodeId) === Number(rootId);
-        const obj = new THREE.Group();
-        obj.name = `wow:${node.label != null ? node.label : node.id}`;
+        const obj = A.createGroup(`wow:${node.label != null ? node.label : node.id}`);
         const lt = Array.isArray(node.localTransform) && node.localTransform.length === 16
             ? node.localTransform.map(Number)
             : IDENTITY_4X4;
-        obj.matrixAutoUpdate = false;
-        obj.matrix.fromArray(lt);
-        parentObj.add(obj);
+        A.setLocalMatrix(obj, lt);
+        A.add(parentObj, obj);
+        const worldMatrix = multiplyMat4(parentWorldMatrix, lt);
         counts.rendered_nodes += 1;
         const label = node.label != null ? String(node.label) : String(node.id);
         const hasAsset = typeof node.spatialAssetURI === "string" && node.spatialAssetURI.length > 0;
@@ -228,13 +239,13 @@ export function buildWowScene(graph, THREE, opts = {}) {
         if (isFabric) {
             const contract = validateFabricSubtreeContract(subtree, { node_id: Number(nodeId) });
             const placeholder = makeAssetPlaceholder(node, isRoot);
-            placeholder.name = `wow-fabric-placeholder:${label}`;
-            obj.add(placeholder);
+            A.setName(placeholder, `wow-fabric-placeholder:${label}`);
+            A.add(obj, placeholder);
             counts.fabric_placeholders += 1;
             if (!contract.ok) {
                 counts.fabric_contract_refused += 1;
-                markPlaceholderUnavailable(placeholder, THREE, "wow-fabric-refused");
-                placeholder.userData.fabricRefusal = contract;
+                markPlaceholderUnavailable(A, placeholder, "wow-fabric-refused");
+                A.setUserData(placeholder, "fabricRefusal", contract);
             }
             fabricNodes.push({
                 node_id: Number(nodeId),
@@ -248,12 +259,12 @@ export function buildWowScene(graph, THREE, opts = {}) {
                 group: obj,
                 placeholder,
                 is_root: isRoot,
-                world_matrix: null,
+                world_matrix: worldMatrix,
             });
         }
         else if (hasAsset) {
             const placeholder = makeAssetPlaceholder(node, isRoot);
-            obj.add(placeholder);
+            A.add(obj, placeholder);
             counts.asset_placeholders += 1;
             assetNodes.push({
                 id: Number(nodeId),
@@ -277,7 +288,7 @@ export function buildWowScene(graph, THREE, opts = {}) {
             }
         }
         else {
-            obj.add(makeGroupGizmo(node, isRoot));
+            A.add(obj, makeGroupGizmo(node, isRoot));
             counts.group_gizmos += 1;
         }
         nodeObjs.push({
@@ -288,20 +299,18 @@ export function buildWowScene(graph, THREE, opts = {}) {
             is_fabric_subtree: isFabric,
             local_translation: [lt[12], lt[13], lt[14]],
             obj,
+            world_matrix: worldMatrix,
         });
         const children = Array.isArray(node.children) ? node.children : [];
         for (const childId of children)
-            walk(childId, obj, seen);
+            walk(childId, obj, worldMatrix, seen);
     }
     if (rootId != null)
-        walk(rootId, root, new Set());
-    root.updateMatrixWorld(true);
-    const v = new THREE.Vector3();
+        walk(rootId, root, IDENTITY_4X4, new Set());
     const bbMin = [Infinity, Infinity, Infinity];
     const bbMax = [-Infinity, -Infinity, -Infinity];
     for (const rec of nodeObjs) {
-        rec.obj.getWorldPosition(v);
-        const wp = [round4(v.x), round4(v.y), round4(v.z)];
+        const wp = [round4(rec.world_matrix[12]), round4(rec.world_matrix[13]), round4(rec.world_matrix[14])];
         placements.push({
             id: rec.id,
             label: rec.label,
@@ -316,8 +325,6 @@ export function buildWowScene(graph, THREE, opts = {}) {
             bbMax[i] = Math.max(bbMax[i], wp[i]);
         }
     }
-    for (const rec of fabricNodes)
-        rec.world_matrix = rec.group.matrixWorld.toArray();
     const WALK_PAD_M = 2.5;
     let walkable = { minX: -12, maxX: 12, minZ: -12, maxZ: 12 };
     let spawn = [0, 0, 0, 0];
@@ -335,19 +342,19 @@ export function buildWowScene(graph, THREE, opts = {}) {
     const wkSpanZ = Math.max(2, walkable.maxZ - walkable.minZ);
     const wkCx = (walkable.minX + walkable.maxX) / 2;
     const wkCz = (walkable.minZ + walkable.maxZ) / 2;
-    floor.geometry.dispose();
-    floor.geometry = new THREE.PlaneGeometry(wkSpanX, wkSpanZ);
-    floor.position.set(wkCx, 0, wkCz);
-    root.remove(grid);
+    A.disposeGeometry(floor.geometry);
+    A.setGeometry(floor, A.createGeometry({ type: "plane", width: wkSpanX, height: wkSpanZ }));
+    A.setPosition(floor, wkCx, 0, wkCz);
+    A.remove(root, grid);
     const wkGridSpan = Math.max(wkSpanX, wkSpanZ);
-    const wkGrid = new THREE.GridHelper(wkGridSpan, Math.max(4, Math.round(wkGridSpan)), 0x4f7fc4, 0x263250);
-    wkGrid.position.set(wkCx, 0, wkCz);
-    if (wkGrid.material) {
-        wkGrid.material.transparent = true;
-        wkGrid.material.opacity = 0.4;
-    }
-    root.add(wkGrid);
-    root.updateMatrixWorld(true);
+    const wkGrid = A.createGridHelper({ size: wkGridSpan, divisions: Math.max(4, Math.round(wkGridSpan)), colorCenterLine: 0x4f7fc4, colorGrid: 0x263250, transparent: true, opacity: 0.4 });
+    A.setPosition(wkGrid, wkCx, 0, wkCz);
+    A.add(root, wkGrid);
+    // THREE-only defensive refresh (kept for parity with pre-adapter behavior) — X3D nodes have
+    // no equivalent explicit "recompute world matrix now" call; X3DOM resolves transforms as
+    // part of its own render pipeline, so there's nothing to call instead here.
+    if (typeof root.updateMatrixWorld === "function")
+        root.updateMatrixWorld(true);
     let cx = 0, cy = 0, cz = 0, spread = 4;
     if (placements.length) {
         cx = (bbMin[0] + bbMax[0]) / 2;
@@ -359,10 +366,13 @@ export function buildWowScene(graph, THREE, opts = {}) {
         spread = Math.max(4, Math.hypot(dx, dy, dz) + 3);
     }
     const dist = spread * 1.6 + 3;
-    const camera = new THREE.PerspectiveCamera(50, width / Math.max(1, height), 0.1, 2000);
-    camera.position.set(cx + dist * 0.85, cy + spread * 0.9 + 3.0, cz + dist);
-    camera.lookAt(cx, Math.max(0.4, cy), cz);
-    camera.updateMatrixWorld(true);
+    const camera = A.createPerspectiveCamera({ fov: 50, aspect: width / Math.max(1, height), near: 0.1, far: 2000 });
+    A.setCameraPose(camera, {
+        position: [cx + dist * 0.85, cy + spread * 0.9 + 3.0, cz + dist],
+        lookAt: [cx, Math.max(0.4, cy), cz],
+    });
+    if (typeof camera.updateMatrixWorld === "function")
+        camera.updateMatrixWorld(true);
     return {
         scene,
         camera,
@@ -448,7 +458,25 @@ export function resolveAssetUri(uri, baseUrl) {
         return uri;
     }
 }
-export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
+// createAdapter is a zero-arg factory, matching buildWowScene — this function is called
+// separately/later, so it can't reuse buildWowScene's own adapter instance, but createInlineAsset/
+// add/disposeNode etc. don't depend on adapter instance state, so a fresh one is fine (same
+// "throwaway adapter for its stateless construction methods" pattern used throughout this
+// codebase's render-adapter work).
+export async function mountWowSceneAssets(assetNodes, createAdapter, opts = {}) {
+    const A = createAdapter();
+    if (A.kind === "x3dom")
+        return mountWowSceneAssetsX3dom(assetNodes, A, opts);
+    return mountWowSceneAssetsThree(assetNodes, A, opts);
+}
+// The three.js path keeps its original, separately-tested logic exactly as it was before this
+// function became engine-agnostic (manual per-URI template caching + cloning, full bounds
+// measurement) — only the raw THREE calls that had adapter equivalents were swapped, to avoid
+// touching working, already-verified behavior. THREE is read off the adapter's raw escape hatch
+// since this branch still needs THREE.Vector3/Box3 directly for the bounds/caching logic that
+// hasn't been generalized (see measureVisibleWorldBounds).
+async function mountWowSceneAssetsThree(assetNodes, A, opts = {}) {
+    const THREE = A.raw;
     const nodes = Array.isArray(assetNodes) ? assetNodes : [];
     const loadGltf = typeof opts.loadGltf === "function" ? opts.loadGltf : null;
     const cloneScene = typeof opts.cloneScene === "function"
@@ -537,7 +565,7 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
             mountedModel = model;
             model.name = `wow-asset:${rec.label}`;
             entry.mesh_count = countObject3DMeshes(model);
-            rec.group.add(model);
+            A.add(rec.group, model);
             rec.group.updateWorldMatrix(true, true);
             const authored = rec.group.getWorldPosition(new THREE.Vector3());
             const visibleBounds = measureVisibleWorldBounds(model, THREE);
@@ -557,7 +585,7 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
         catch (err) {
             entry.status = "failed";
             entry.error = (err && err.message) || String(err);
-            markPlaceholderUnavailable(rec.placeholder, THREE);
+            markPlaceholderUnavailable(A, rec.placeholder);
             rec.loaded = false;
             rec.asset_unavailable = true;
             summary.failed += 1;
@@ -566,6 +594,108 @@ export async function mountWowSceneAssets(assetNodes, THREE, opts = {}) {
         if (onAsset) {
             try {
                 onAsset(entry, mountedModel, rec);
+            }
+            catch { }
+        }
+        return entry;
+    }));
+    summary.per_asset.sort((a, b) => a.id - b.id);
+    return summary;
+}
+// The X3DOM path is simpler than the three.js one: createInlineAsset() already handles loading
+// (via the Inline slot pool — see x3dom-inline-pool.js) without needing a manual template-cache-
+// then-clone dance, since X3D's Inline node doesn't have a JS-level "clone a loaded scene" concept
+// the way three.js does. Bounds/distance measurement uses X3DOMRenderAdapter.measureWorldBounds()/
+// getWorldPosition() (see the README's Render-engine adapter section for how those work) — kept
+// non-fatal (null + no error) if a measurement is ever unavailable, unlike the three.js path's
+// hard failure, since this path is newer and a missing measurement shouldn't turn an otherwise-
+// successful asset load into a reported failure.
+async function mountWowSceneAssetsX3dom(assetNodes, A, opts = {}) {
+    const nodes = Array.isArray(assetNodes) ? assetNodes : [];
+    const baseUrl = opts.baseUrl;
+    const shouldMount = typeof opts.shouldMount === "function" ? opts.shouldMount : null;
+    const onAsset = typeof opts.onAsset === "function" ? opts.onAsset : null;
+    const summary = {
+        requested: nodes.length,
+        loaded: 0,
+        failed: 0,
+        cancelled: 0,
+        network_loads: nodes.length,
+        cache_hits: 0,
+        unique_uris: new Set(nodes.map((r) => resolveAssetUri(r.uri, baseUrl))).size,
+        loader_present: true,
+        per_asset: [],
+        note: "X3DOM path: real glTF `spatialAssetURI` ingest via the Inline slot pool (see x3dom-inline-pool.js); " +
+            "no per-URI template cache (X3D Inline has no clone-a-loaded-scene concept) — each request is a " +
+            "fresh pool-slot claim. World-space bounds are measured via X3DOMRenderAdapter.measureWorldBounds().",
+    };
+    await Promise.all(nodes.map(async (rec) => {
+        const resolved = resolveAssetUri(rec.uri, baseUrl);
+        const entry = {
+            id: rec.id,
+            label: rec.label,
+            uri: rec.uri,
+            resolved_uri: resolved,
+            status: "pending",
+            mesh_count: 0,
+            visible_bounds_world: null,
+            authored_world_position: null,
+            bounds_center_distance_m: null,
+            clone_strategy: "not-applicable-x3dom-inline",
+            from_cache: false,
+            error: null,
+        };
+        let mountedNode = null;
+        try {
+            if (shouldMount && !shouldMount(rec)) {
+                entry.status = "cancelled";
+                summary.cancelled += 1;
+                summary.per_asset.push(entry);
+                return entry;
+            }
+            const { node, ready } = A.createInlineAsset(resolved);
+            mountedNode = node;
+            A.add(rec.group, node);
+            await ready;
+            entry.mesh_count = node.querySelectorAll("shape").length;
+            const authoredPosition = typeof A.getWorldPosition === "function" ? A.getWorldPosition(rec.group) : null;
+            const visibleBounds = typeof A.measureWorldBounds === "function" ? A.measureWorldBounds(node) : null;
+            if (visibleBounds) {
+                entry.visible_bounds_world = {
+                    min: visibleBounds.min.map((n) => round4(n)),
+                    max: visibleBounds.max.map((n) => round4(n)),
+                    center: visibleBounds.center.map((n) => round4(n)),
+                    size: visibleBounds.size.map((n) => round4(n)),
+                    visible_meshes: entry.mesh_count,
+                    skinned_meshes: null, // not measured on the X3DOM path — no DOM-queryable "skinned mesh" concept in X3D the way three.js has SkinnedMesh
+                };
+            }
+            if (authoredPosition) {
+                entry.authored_world_position = authoredPosition.map((n) => round4(n));
+                if (visibleBounds) {
+                    entry.bounds_center_distance_m = round4(Math.hypot(visibleBounds.center[0] - authoredPosition[0], visibleBounds.center[1] - authoredPosition[1], visibleBounds.center[2] - authoredPosition[2]));
+                }
+            }
+            if (rec.placeholder)
+                A.disposeNode(rec.placeholder);
+            rec.loaded = true;
+            entry.status = "loaded";
+            summary.loaded += 1;
+        }
+        catch (err) {
+            entry.status = "failed";
+            entry.error = (err && err.message) || String(err);
+            if (mountedNode)
+                A.disposeNode(mountedNode);
+            markPlaceholderUnavailable(A, rec.placeholder);
+            rec.loaded = false;
+            rec.asset_unavailable = true;
+            summary.failed += 1;
+        }
+        summary.per_asset.push(entry);
+        if (onAsset) {
+            try {
+                onAsset(entry, mountedNode, rec);
             }
             catch { }
         }
@@ -638,24 +768,13 @@ function disposeObject3D(root) {
                 m.dispose();
     });
 }
-function markPlaceholderUnavailable(placeholder, THREE, namePrefix = "wow-asset-unavailable") {
-    if (!placeholder || typeof placeholder.traverse !== "function")
+function markPlaceholderUnavailable(A, placeholder, namePrefix = "wow-asset-unavailable") {
+    if (!placeholder)
         return;
-    placeholder.userData = placeholder.userData || {};
-    placeholder.userData.assetUnavailable = true;
+    A.setUserData(placeholder, "assetUnavailable", true);
     const suffix = String(placeholder.name || "").split(":").slice(1).join(":");
-    placeholder.name = `${namePrefix}:${suffix}`;
-    placeholder.traverse((o) => {
-        const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
-        for (const m of mats) {
-            if (!m)
-                continue;
-            if (m.color && typeof m.color.setHex === "function")
-                m.color.setHex(COL_ASSET_UNAVAILABLE);
-            if (m.emissive && typeof m.emissive.setHex === "function")
-                m.emissive.setHex(COL_ASSET_UNAVAILABLE);
-        }
-    });
+    A.setName(placeholder, `${namePrefix}:${suffix}`);
+    A.recolorSubtreeMaterials(placeholder, COL_ASSET_UNAVAILABLE);
 }
 export default {
     buildWowScene,

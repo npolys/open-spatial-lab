@@ -1,4 +1,5 @@
 import { crossingYawDeltaRad, mapCameraAcrossCrossing, normalizeYawRad, } from "./live-adapter-portal-geometry.mjs";
+import { stepOrbitCamera as stepOrbitCameraPure, seedOrbitCamera as seedOrbitCameraPure, computeOrbitCameraPose, } from "./orbit-camera-controller.mjs";
 export { crossingYawDeltaRad, normalizeYawRad } from "./live-adapter-portal-geometry.mjs";
 const CONTROL_KEY_MAP = Object.freeze({
     KeyW: "forward",
@@ -435,10 +436,17 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
                 : null;
             return { position, target, quaternions, lookYaw };
         }
-        const target = orbitCamera.focus.clone();
-        const cosPolar = Math.cos(orbitCamera.polar);
-        const offset = new THREE.Vector3(Math.sin(orbitCamera.azimuth) * cosPolar, Math.sin(orbitCamera.polar), Math.cos(orbitCamera.azimuth) * cosPolar).multiplyScalar(orbitCamera.distance);
-        const position = target.clone().add(offset);
+        // orbitCamera.focus is guaranteed non-null here (lazily created at the top of this
+        // function), so computeOrbitCameraPose (which only returns null when focus is absent)
+        // cannot fail on this path — same guarantee the original inline math relied on implicitly.
+        const pose = computeOrbitCameraPose({
+            azimuth: orbitCamera.azimuth,
+            polar: orbitCamera.polar,
+            distance: orbitCamera.distance,
+            focus: [orbitCamera.focus.x, orbitCamera.focus.y, orbitCamera.focus.z],
+        });
+        const target = new THREE.Vector3(pose.lookAt[0], pose.lookAt[1], pose.lookAt[2]);
+        const position = new THREE.Vector3(pose.position[0], pose.position[1], pose.position[2]);
         const quaternions = [];
         if (layers.local && layers.local.camera) {
             const value = setCameraTransform(layers.local.camera, position, target);
@@ -454,8 +462,7 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
         portalOcclusionDebug = typeof applyPortalOcclusion === "function"
             ? applyPortalOcclusion(position, target, "player_third_person")
             : null;
-        const lookDirection = target.clone().sub(position);
-        return { position, target, quaternions, lookYaw: Math.atan2(lookDirection.x, lookDirection.z) };
+        return { position, target, quaternions, lookYaw: pose.lookYaw };
     }
     function wallMaterialState(mesh) {
         const materials = Array.isArray(mesh && mesh.material) ? mesh.material : mesh && mesh.material ? [mesh.material] : [];
@@ -724,47 +731,62 @@ export function createMovementCameraController({ THREE, isPlayer, role, windowTa
             surfaces,
         };
     }
+    // Delegates the actual advance-toward-target math to orbit-camera-controller.mjs (verified
+    // numerically identical against a live X3D Viewpoint — see the README's Render-engine adapter
+    // section), via a value-conversion shim: that module's state uses a plain [x,y,z] focus array,
+    // while `orbitCamera.focus` here stays a THREE.Vector3 (occlusion/session/first-person code
+    // elsewhere in this file reads it as one) — converting at this boundary keeps every other use
+    // of `orbitCamera` completely untouched, rather than changing its shape throughout the file.
     function stepOrbitCamera(deltaSeconds) {
-        const gain = cameraMotionGain(deltaSeconds, PLAYER_CAMERA_DEFAULT.damping_per_s);
-        orbitCamera.azimuth += (orbitCamera.targetAzimuth - orbitCamera.azimuth) * gain;
-        orbitCamera.polar += (orbitCamera.targetPolar - orbitCamera.polar) * gain;
-        orbitCamera.distance += (orbitCamera.targetDistance - orbitCamera.distance) * gain;
         const capabilities = runtime();
         const avatar = capabilities && capabilities.state ? capabilities.state.avatar : null;
         const position = avatar && Array.isArray(avatar.position) ? avatar.position : null;
-        if (!position || !orbitCamera.focus)
-            return;
-        const x = Number(position[0]) || 0;
-        const y = (Number(position[1]) || 0) + PLAYER_CAMERA_DEFAULT.look_target_height_m;
-        const z = Number(position[2]) || 0;
-        if (!orbitCamera.focusInitialized) {
-            orbitCamera.focus.set(x, y, z);
-            orbitCamera.focusInitialized = true;
-        }
-        else {
-            orbitCamera.focus.x += (x - orbitCamera.focus.x) * gain;
-            orbitCamera.focus.y += (y - orbitCamera.focus.y) * gain;
-            orbitCamera.focus.z += (z - orbitCamera.focus.z) * gain;
+        const motionReduced = motionPreference?.isReduced?.() === true;
+        const pureState = {
+            azimuth: orbitCamera.azimuth,
+            polar: orbitCamera.polar,
+            distance: orbitCamera.distance,
+            targetAzimuth: orbitCamera.targetAzimuth,
+            targetPolar: orbitCamera.targetPolar,
+            targetDistance: orbitCamera.targetDistance,
+            focus: orbitCamera.focus ? [orbitCamera.focus.x, orbitCamera.focus.y, orbitCamera.focus.z] : null,
+            focusInitialized: orbitCamera.focusInitialized,
+        };
+        // Matches the original combined guard (`if (!position || !orbitCamera.focus) return`)
+        // exactly: a null orbitCamera.focus means applyPlayerCamera() hasn't lazily created it yet
+        // (it always runs right after this in the same frame and will) — passing null here instead
+        // of `position` stops the pure function from fabricating a focus array we'd have nowhere
+        // to copy back into, which would otherwise desync focusInitialized=true from a still-null
+        // orbitCamera.focus and crash the next `.clone()`/`.x` read.
+        stepOrbitCameraPure(pureState, PLAYER_CAMERA_DEFAULT, orbitCamera.focus ? position : null, deltaSeconds, motionReduced);
+        orbitCamera.azimuth = pureState.azimuth;
+        orbitCamera.polar = pureState.polar;
+        orbitCamera.distance = pureState.distance;
+        if (orbitCamera.focus) {
+            orbitCamera.focusInitialized = pureState.focusInitialized;
+            orbitCamera.focus.set(pureState.focus[0], pureState.focus[1], pureState.focus[2]);
         }
     }
+    // `avatarPosition` (raw position — the pure module height-adjusts it) is accepted for
+    // interface parity but no call site in this file actually passes it; `focus` (pre-computed,
+    // NOT height-adjusted — e.g. portal-crossing camera-mapping targets) is the only path actually
+    // exercised, and stays local since the pure module's seedOrbitCamera only knows the
+    // always-height-adjusted `focusPosition` semantic, not this one.
     function seedOrbitCamera({ azimuth, polar, distance, focus, avatarPosition } = {}) {
-        if (Number.isFinite(azimuth))
-            orbitCamera.azimuth = orbitCamera.targetAzimuth = azimuth;
-        if (Number.isFinite(polar)) {
-            const value = Math.min(PLAYER_CAMERA_DEFAULT.max_polar_rad, Math.max(PLAYER_CAMERA_DEFAULT.min_polar_rad, polar));
-            orbitCamera.polar = orbitCamera.targetPolar = value;
-        }
-        if (Number.isFinite(distance)) {
-            const value = Math.min(PLAYER_CAMERA_DEFAULT.max_distance_m, Math.max(PLAYER_CAMERA_DEFAULT.min_distance_m, distance));
-            orbitCamera.distance = orbitCamera.targetDistance = value;
-        }
-        const seededFocus = Array.isArray(avatarPosition)
-            ? [
-                Number(avatarPosition[0]) || 0,
-                (Number(avatarPosition[1]) || 0) + PLAYER_CAMERA_DEFAULT.look_target_height_m,
-                Number(avatarPosition[2]) || 0,
-            ]
-            : focus;
+        const pureState = {
+            azimuth: orbitCamera.azimuth, targetAzimuth: orbitCamera.targetAzimuth,
+            polar: orbitCamera.polar, targetPolar: orbitCamera.targetPolar,
+            distance: orbitCamera.distance, targetDistance: orbitCamera.targetDistance,
+            focus: null, focusInitialized: orbitCamera.focusInitialized,
+        };
+        seedOrbitCameraPure(pureState, PLAYER_CAMERA_DEFAULT, { azimuth, polar, distance, focusPosition: avatarPosition });
+        orbitCamera.azimuth = pureState.azimuth;
+        orbitCamera.targetAzimuth = pureState.targetAzimuth;
+        orbitCamera.polar = pureState.polar;
+        orbitCamera.targetPolar = pureState.targetPolar;
+        orbitCamera.distance = pureState.distance;
+        orbitCamera.targetDistance = pureState.targetDistance;
+        const seededFocus = Array.isArray(avatarPosition) ? pureState.focus : focus;
         if (seededFocus && orbitCamera.focus) {
             orbitCamera.focus.set(seededFocus[0], seededFocus[1], seededFocus[2]);
             orbitCamera.focusInitialized = true;

@@ -1,3 +1,4 @@
+import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
 const HOSTED_POINT_RELOAD_MS = 100;
 const CLIENT_READ_INTERVAL_MIN_MS = 100;
 const CLIENT_READ_INTERVAL_MAX_MS = 10000;
@@ -17,6 +18,7 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
     if (!parent || !(meshes instanceof Map)) {
         return { object_ids: [], created: 0, removed: 0, geometry_updated: 0, structure_changed: false };
     }
+    const A = new ThreeRenderAdapter(THREE);
     const seen = new Set();
     let created = 0;
     let removed = 0;
@@ -27,47 +29,49 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
         const objectId = String(definition.object_id);
         const shape = definition.shape === "sphere" ? "sphere" : "box";
         const sizeM = Math.max(0.15, Number(definition.size_m) || 0.5);
-        const color = new THREE.Color(String(definition.color || "#8899aa"));
+        const color = A.createColor(String(definition.color || "#8899aa"));
         seen.add(objectId);
         let mesh = meshes.get(objectId);
         if (!mesh) {
             const geometry = shape === "sphere"
-                ? new THREE.SphereGeometry(sizeM / 2, 24, 18)
-                : new THREE.BoxGeometry(sizeM, sizeM, sizeM);
-            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+                ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
+                : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM });
+            mesh = A.createMesh(geometry, A.createMaterial({
+                type: "standard",
                 color,
                 roughness: 0.55,
                 metalness: 0.1,
-                emissive: color.clone().multiplyScalar(0.18),
+                emissive: A.multiplyColorScalar(color, 0.18),
             }));
-            mesh.name = `demo-scene-object-${objectId}`;
+            A.setName(mesh, `demo-scene-object-${objectId}`);
             mesh.userData.demoDrag = { kind: "scene-object", object_id: objectId };
             mesh.userData.portalDynamicBounds = true;
             if (layer != null && typeof setLayerRecursive === "function")
                 setLayerRecursive(mesh, layer);
-            parent.add(mesh);
+            A.add(parent, mesh);
             meshes.set(objectId, mesh);
             created += 1;
         }
         else if (mesh.userData.hostedSceneObject?.shape !== shape ||
             mesh.userData.hostedSceneObject?.size_m !== sizeM) {
-            mesh.geometry?.dispose?.();
-            mesh.geometry = shape === "sphere"
-                ? new THREE.SphereGeometry(sizeM / 2, 24, 18)
-                : new THREE.BoxGeometry(sizeM, sizeM, sizeM);
+            if (mesh.geometry)
+                A.disposeGeometry(mesh.geometry);
+            A.setGeometry(mesh, shape === "sphere"
+                ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
+                : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM }));
             geometryUpdated += 1;
         }
         mesh.material?.color?.copy?.(color);
         mesh.material?.emissive?.copy?.(color)?.multiplyScalar?.(0.18);
         if (preservePositionForId !== objectId) {
             const position = Array.isArray(definition.position) ? definition.position : [0, 0, 0];
-            mesh.position.set(Number(position[0]) || 0, Number(position[1]) || 0, Number(position[2]) || 0);
+            A.setPosition(mesh, Number(position[0]) || 0, Number(position[1]) || 0, Number(position[2]) || 0);
         }
         mesh.userData.hostedSceneObject = {
             object_id: objectId,
             shape,
             size_m: sizeM,
-            color: `#${color.getHexString()}`,
+            color: `#${A.colorToHexString(color)}`,
             version,
             projection_authority: "shared_hosted_scene_object_projection_v1",
             geometry_type: mesh.geometry?.type || null,
@@ -102,6 +106,7 @@ export function disposeHostedSceneObjectMeshes(meshes) {
     return count;
 }
 export function createPortalRenderController({ THREE, isPlayer, getPortalHost, getScene, getServerViewMode, alignPortalVisualToTrigger, setPortalVisualAlignment, setLayerRecursive, childFabricLayer, lookup, documentTarget, windowTarget, nowMs, nowIso, logLine, writeDebugText, vec3Label, fixed3, isTypingTarget, }) {
+    const A = new ThreeRenderAdapter(THREE);
     const state = {
         started: false,
         cache: { a: null, b: null },
@@ -189,14 +194,15 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
             return;
         if (!state.portalHandle || state.portalHandle.parent !== impl.scene) {
             const sourceColored = !live.world || live.world.location_id !== "location-b";
-            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.06, 40), new THREE.MeshBasicMaterial({
+            const handle = A.createMesh(A.createGeometry({ type: "cylinder", radiusTop: 0.95, radiusBottom: 0.95, height: 0.06, radialSegments: 40 }), A.createMaterial({
+                type: "basic",
                 color: sourceColored ? 0x66e0ff : 0xffc266,
                 transparent: true,
                 opacity: 0.32,
             }));
-            handle.name = "demo-portal-drag-handle";
+            A.setName(handle, "demo-portal-drag-handle");
             handle.userData.demoDrag = { kind: "portal" };
-            impl.scene.add(handle);
+            A.add(impl.scene, handle);
             state.portalHandle = handle;
         }
         state.portalHandle.position.set(frame.position[0], 0.04, frame.position[2]);

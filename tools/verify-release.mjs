@@ -11,7 +11,11 @@ function sha256(bytes) {
 function walk(current = ROOT) {
     const files = [];
     for (const name of readdirSync(current).sort()) {
-        if ([".git", ".runtime", "node_modules", "RELEASE-MANIFEST.json"].includes(name))
+        // .claude is local Claude Code tooling/session config, not release content (same category
+        // as .git/node_modules/.runtime). NNotes.txt is the repo owner's own working notes,
+        // confirmed never part of any release snapshot — excluded from release scope on purpose,
+        // not an oversight.
+        if ([".git", ".runtime", "node_modules", "RELEASE-MANIFEST.json", ".claude", "NNotes.txt"].includes(name))
             continue;
         const absolute = join(current, name);
         const stat = lstatSync(absolute);
@@ -261,7 +265,17 @@ function verifyLocalClosure() {
         if (closureVisited.has(item.key))
             continue;
         closureVisited.add(item.key);
-        if (item.absolute.includes(`${sep}node_modules${sep}`))
+        // Vendored third-party bundles (item.absolute is already the real, resolved filesystem
+        // path here — never the web/vendor/scene-core/... alias specifier — so this only ever
+        // matches genuine vendor/ directories, never first-party code reached through the alias,
+        // e.g. runtime/scene-core/public/render-adapter/) are confirmed REACHABLE (enqueueReference
+        // already required the file to exist before getting here) but not deep-scanned for their
+        // own internal require()/import() text, same as node_modules below: a large, non-ES-module
+        // UMD bundle like x3dom-full.js can contain benign feature-detection code (e.g. a
+        // try/catch'd require("vertx") from a bundled promise-scheduling shim, checking for a
+        // Vert.x JS runtime — real, present in the file, expected to throw everywhere else) that
+        // isn't a real import needing local resolution.
+        if (item.absolute.includes(`${sep}node_modules${sep}`) || item.absolute.includes(`${sep}vendor${sep}`))
             continue;
         const extension = extname(item.absolute).toLowerCase();
         if (![".css", ".html", ".js", ".json", ".mjs"].includes(extension))

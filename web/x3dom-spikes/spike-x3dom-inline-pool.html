@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 5: pool-based createInlineAsset (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="420px">
+  <scene>
+    <viewpoint position="0 1 6"></viewpoint>
+    <!-- classic script, runs synchronously during parse — see x3dom-inline-pool.js -->
+    <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(l) { log.textContent += l + "\n"; console.log(l); }
+
+async function run() {
+  const el = document.getElementById('main');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  // Bind to the already-live, statically-declared <x3d>/<scene> (not adapter.mount(), which
+  // would create a NEW x3d element — we want to exercise the pool already in this page's markup).
+  adapter.attach(el);
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const poolSlotsTotal = document.querySelectorAll('[id^="x3dom-inline-slot-"]').length;
+  append('pool slots declared: ' + poolSlotsTotal + ' (expect 32)');
+
+  // 1) Claim a slot, load a real avatar-ish asset, position it, confirm load.
+  const { node: crownNode, ready: crownReady } = adapter.createInlineAsset('/assets/equip-hat.glb');
+  adapter.setPosition(crownNode, 1.5, 0, 0);
+  await crownReady;
+  const crownLoaded = crownNode.querySelector('inline').children.length > 0;
+  append('claim+load equip-hat.glb: loaded=' + crownLoaded + ', position=' + crownNode.getAttribute('translation'));
+
+  // 2) Claim a second, different slot concurrently, confirm they're independent.
+  const { node: hammerNode, ready: hammerReady } = adapter.createInlineAsset('/assets/equip-hammer.glb');
+  adapter.setPosition(hammerNode, -1.5, 0, 0);
+  await hammerReady;
+  const distinctSlots = crownNode.querySelector('inline').id !== hammerNode.querySelector('inline').id;
+  append('second claim is a distinct slot: ' + distinctSlots);
+
+  // 3) Release the first, confirm it resets to the placeholder and is marked free again.
+  adapter.disposeNode(crownNode);
+  const releasedSlot = crownNode.querySelector('inline');
+  const releasedCorrectly = releasedSlot.getAttribute('data-x3dom-inline-pool-slot') === 'free' &&
+    releasedSlot.getAttribute('url') === '/assets/equip-crown.glb';
+  append('release resets to free+placeholder: ' + releasedCorrectly + ' (url=' + releasedSlot.getAttribute('url') + ')');
+
+  // 4) Re-claim: should be able to get a free slot again (pool didn't shrink) and load something new.
+  const { node: mugNode, ready: mugReady } = adapter.createInlineAsset('/assets/equip-mug.glb');
+  await mugReady;
+  const reclaimWorked = mugNode.querySelector('inline').children.length > 0;
+  append('re-claim after release works: ' + reclaimWorked);
+
+  // 5) Exhaust the pool (already used 2 slots: hammer + mug are claimed, crown was released),
+  //    claim the remaining 30, then confirm the next one throws.
+  const claimed = [];
+  for (let i = 0; i < 30; i += 1) {
+    const { node } = adapter.createInlineAsset('/assets/equip-shield.glb');
+    claimed.push(node);
+  }
+  let exhaustionThrew = false;
+  try {
+    adapter.createInlineAsset('/assets/equip-torch.glb');
+  } catch (e) {
+    exhaustionThrew = true;
+    append('pool exhaustion error (expected): ' + e.message);
+  }
+
+  const ok = poolSlotsTotal === 32 && crownLoaded && distinctSlots && releasedCorrectly && reclaimWorked && exhaustionThrew;
+  window.__testResult = { ok, poolSlotsTotal, crownLoaded, distinctSlots, releasedCorrectly, reclaimWorked, exhaustionThrew };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

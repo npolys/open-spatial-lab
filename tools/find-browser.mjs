@@ -29,6 +29,26 @@ export function findBrowser() {
     for (const p of system)
         if (existsSync(p))
             return p;
+    // Linux/WSL: `puppeteer browsers install chrome` (the setup this repo's own X3DOM spike
+    // tooling documents for WSL) lands under ~/.cache/puppeteer-browsers/chrome/linux-<rev>/.
+    const cachePuppeteerBrowsers = path.join(os.homedir(), ".cache", "puppeteer-browsers", "chrome");
+    if (existsSync(cachePuppeteerBrowsers)) {
+        const builds = readdirSync(cachePuppeteerBrowsers).filter((d) => d.startsWith("linux-")).sort().reverse();
+        for (const b of builds) {
+            const candidate = path.join(cachePuppeteerBrowsers, b, "chrome-linux64", "chrome");
+            if (existsSync(candidate))
+                return candidate;
+        }
+    }
+    const linuxSystem = [
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+    ];
+    for (const p of linuxSystem)
+        if (existsSync(p))
+            return p;
     return null;
 }
 if (import.meta.url === `file://${process.argv[1]}`) {

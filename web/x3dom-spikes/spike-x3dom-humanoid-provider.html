@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 5: X3domGltfHumanoidProvider with a real avatar GLB (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="480px">
+  <scene>
+    <viewpoint position="0 1.4 4"></viewpoint>
+    <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { X3domGltfHumanoidProvider } from "/x3dom-gltf-humanoid-provider.mjs";
+
+const log = document.getElementById('log');
+function append(l) { log.textContent += l + "\n"; console.log(l); }
+
+async function run() {
+  const el = document.getElementById('main');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.attach(el);
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const provider = new X3domGltfHumanoidProvider(adapter);
+  append('provider kind: ' + provider.kind);
+
+  const avatarUrl = '/assets/avatars/glb/rpm_female_character.glb';
+  const t0 = performance.now();
+  const { handle, ready } = provider.spawnAvatar({ url: avatarUrl, position: [0, 0, 0] });
+  const handleAvailableImmediately = !!handle;
+  append('spawnAvatar handle available synchronously: ' + handleAvailableImmediately);
+
+  let loadError = null;
+  try {
+    await ready;
+  } catch (e) {
+    loadError = String(e && e.message || e);
+  }
+  const loadMs = performance.now() - t0;
+  const inlineEl = handle.querySelector('inline');
+  const childCount = inlineEl ? inlineEl.children.length : 0;
+  append('avatar load: ' + (loadError ? ('FAILED: ' + loadError) : ('ok in ' + loadMs.toFixed(0) + 'ms')) + ', children=' + childCount);
+
+  // Reposition, then check the world-space bounding info via the runtime, as a sanity check that
+  // real (non-trivial) geometry actually came through, not an empty/failed import.
+  provider.setPosition(handle, 2, 0, -1);
+  const translationAfterMove = handle.getAttribute('translation');
+
+  // Count actual shapes imported (a real avatar should have several, unlike the 1-shape equip items).
+  const shapeCount = inlineEl ? inlineEl.querySelectorAll('shape').length : 0;
+  append('imported <shape> count: ' + shapeCount + ' (a real avatar mesh should have >1)');
+
+  provider.dispose(handle);
+  const releasedOk = inlineEl.getAttribute('data-x3dom-inline-pool-slot') === 'free';
+  append('dispose releases pool slot: ' + releasedOk);
+
+  const ok = handleAvailableImmediately && !loadError && childCount > 0 && shapeCount > 0 &&
+    translationAfterMove === '2 0 -1' && releasedOk;
+
+  window.__testResult = { ok, loadError, loadMs, childCount, shapeCount, translationAfterMove, releasedOk, backend: adapter.runtime.backendName() };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

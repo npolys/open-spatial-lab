@@ -1,5 +1,6 @@
 import { HANDOFF_PHASES } from "./frontend-contract.js";
 import { mountCanonicalWorldContent } from "./canonical-world-content.js";
+import { ThreeRenderAdapter } from "./render-adapter/three-render-adapter.mjs";
 export class Scene {
     constructor(mount, role, world) {
         this.mount = mount;
@@ -39,91 +40,92 @@ class WebGLScene {
         this.role = role;
         this.world = world;
         this.THREE = THREE;
-        this.roomColor = new THREE.Color(world.color || "#3aa0ff");
-        const w = mount.clientWidth || 640;
-        const h = mount.clientHeight || 420;
-        this.renderer = new THREE.WebGLRenderer({
-            antialias: true, alpha: true, preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false,
+        this.adapter = new ThreeRenderAdapter(THREE);
+        this.roomColor = this.adapter.createColor(world.color || "#3aa0ff");
+        this.adapter.mount(mount, {
+            antialias: true, alpha: true, preserveDrawingBuffer: true,
+            camera: { fov: 50, near: 0.1, far: 100 },
         });
-        if (!this.renderer.getContext())
-            throw new Error("no webgl context");
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        this.renderer.setSize(w, h);
-        mount.appendChild(this.renderer.domElement);
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
-        this.camera.position.set(0, 6.2, 8.4);
-        this.camera.lookAt(0, 0, 0);
+        // Exposed for external readers that still reach into the raw THREE objects
+        // (app.js, portal-render-controller.mjs, scene-runtime-controller.mjs) — these
+        // are the same THREE.Scene/PerspectiveCamera/WebGLRenderer instances the adapter
+        // owns internally, not copies, so both views stay in sync.
+        this.scene = this.adapter.sceneRoot;
+        this.camera = this.adapter.camera;
+        this.renderer = this.adapter.renderer;
+        this.adapter.setCameraPose(this.camera, { position: [0, 6.2, 8.4], lookAt: [0, 0, 0] });
         this._buildRoom();
         this._buildPortal();
         this._buildAvatar();
         this.phase = role === "source" ? HANDOFF_PHASES.IDLE : HANDOFF_PHASES.WAITING;
         this._t0 = performance.now();
-        this._loop = this._loop.bind(this);
-        this._raf = requestAnimationFrame(this._loop);
+        this._unregisterFrame = this.adapter.onEnterFrame(() => this._tick());
         this._onResize = () => this.resize();
         window.addEventListener("resize", this._onResize);
     }
     _buildRoom() {
-        this.canonicalContent = mountCanonicalWorldContent(this.scene, this.THREE, this.world, { includeDebugGrid: true });
+        this.canonicalContent = mountCanonicalWorldContent(this.adapter, this.scene, this.world);
     }
     _buildPortal() {
-        const T = this.THREE;
+        const A = this.adapter;
         const isSource = this.role === "source";
         const pos = isSource ? [2.8, 0, -2.8] : [0, 0, 3.6];
-        this.portalGroup = new T.Group();
-        this.portalGroup.position.set(pos[0], 0.02, pos[2]);
-        this.portalRingMat = new T.MeshStandardMaterial({
+        this.portalGroup = A.createGroup();
+        A.setPosition(this.portalGroup, pos[0], 0.02, pos[2]);
+        this.portalRingMat = A.createMaterial({
+            type: "standard",
             color: isSource ? 0x66e0ff : 0xffc266, emissive: isSource ? 0x1b6f8a : 0x8a5a1b,
-            emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.3
+            emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.3,
         });
-        const ring = new T.Mesh(new T.TorusGeometry(1.15, 0.12, 16, 48), this.portalRingMat);
-        ring.rotation.x = -Math.PI / 2;
-        ring.position.y = 1.15;
-        this.portalGroup.add(ring);
-        this.portalDiscMat = new T.MeshBasicMaterial({ color: isSource ? 0x2bd4ff : 0xffb14d, transparent: true, opacity: 0.18, side: T.DoubleSide });
-        const disc = new T.Mesh(new T.CircleGeometry(1.05, 40), this.portalDiscMat);
-        disc.rotation.x = -Math.PI / 2;
-        disc.position.y = 0.03;
-        this.portalGroup.add(disc);
-        this.scene.add(this.portalGroup);
+        const ring = A.createMesh(A.createGeometry({ type: "torus", radius: 1.15, tube: 0.12, radialSegments: 16, tubularSegments: 48 }), this.portalRingMat);
+        A.setRotationAxis(ring, "x", -Math.PI / 2);
+        A.setPosition(ring, 0, 1.15, 0);
+        A.add(this.portalGroup, ring);
+        this.portalDiscMat = A.createMaterial({ type: "basic", color: isSource ? 0x2bd4ff : 0xffb14d, transparent: true, opacity: 0.18, side: "double" });
+        const disc = A.createMesh(A.createGeometry({ type: "circle", radius: 1.05, segments: 40 }), this.portalDiscMat);
+        A.setRotationAxis(disc, "x", -Math.PI / 2);
+        A.setPosition(disc, 0, 0.03, 0);
+        A.add(this.portalGroup, disc);
+        A.add(A.sceneRoot, this.portalGroup);
     }
     _buildAvatar() {
-        const T = this.THREE;
-        this.avatarGroup = new T.Group();
-        this.avatarBodyMat = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222233, roughness: 0.5 });
-        const body = new T.Mesh(new T.CapsuleGeometry(0.32, 0.7, 6, 14), this.avatarBodyMat);
-        body.position.y = 0.8;
-        this.avatarGroup.add(body);
-        const head = new T.Mesh(new T.SphereGeometry(0.26, 20, 20), this.avatarBodyMat);
-        head.position.y = 1.5;
-        this.avatarGroup.add(head);
-        const nose = new T.Mesh(new T.ConeGeometry(0.1, 0.28, 12), new T.MeshStandardMaterial({ color: 0xff4466 }));
-        nose.rotation.x = Math.PI / 2;
-        nose.position.set(0, 1.5, 0.28);
-        this.avatarGroup.add(nose);
+        const A = this.adapter;
+        this.avatarGroup = A.createGroup();
+        this.avatarBodyMat = A.createMaterial({ type: "standard", color: 0xffffff, emissive: 0x222233, roughness: 0.5 });
+        const body = A.createMesh(A.createGeometry({ type: "capsule", radius: 0.32, length: 0.7, capSegments: 6, radialSegments: 14 }), this.avatarBodyMat);
+        A.setPosition(body, 0, 0.8, 0);
+        A.add(this.avatarGroup, body);
+        const head = A.createMesh(A.createGeometry({ type: "sphere", radius: 0.26, widthSegments: 20, heightSegments: 20 }), this.avatarBodyMat);
+        A.setPosition(head, 0, 1.5, 0);
+        A.add(this.avatarGroup, head);
+        const nose = A.createMesh(A.createGeometry({ type: "cone", radius: 0.1, height: 0.28, radialSegments: 12 }), A.createMaterial({ type: "standard", color: 0xff4466 }));
+        A.setRotationAxis(nose, "x", Math.PI / 2);
+        A.setPosition(nose, 0, 1.5, 0.28);
+        A.add(this.avatarGroup, nose);
         if (this.role === "source") {
             const sp = (this.world.avatar && this.world.avatar.spawn_position) || [0, 0, 3.2];
-            this.avatarGroup.position.set(sp[0], 0, sp[2]);
-            this.avatarGroup.visible = true;
+            A.setPosition(this.avatarGroup, sp[0], 0, sp[2]);
+            A.setVisible(this.avatarGroup, true);
         }
         else {
-            this.avatarGroup.visible = false;
+            A.setVisible(this.avatarGroup, false);
         }
-        this.scene.add(this.avatarGroup);
+        A.add(A.sceneRoot, this.avatarGroup);
     }
     setAvatar(avatar) {
+        const A = this.adapter;
         if (!avatar) {
-            this.avatarGroup.visible = false;
+            A.setVisible(this.avatarGroup, false);
             return;
         }
-        this.avatarGroup.visible = true;
+        A.setVisible(this.avatarGroup, true);
         const p = avatar.position || [0, 0, 0];
-        this.avatarGroup.position.set(p[0], 0, p[2]);
-        this.avatarGroup.rotation.y = avatar.rotation_y || 0;
+        A.setPosition(this.avatarGroup, p[0], 0, p[2]);
+        A.setRotationAxis(this.avatarGroup, "y", avatar.rotation_y || 0);
     }
     setPhase(phase) { this.phase = phase; }
-    _loop() {
+    _tick() {
+        const A = this.adapter;
         const t = (performance.now() - this._t0) / 1000;
         let base = 0.5;
         if (this.phase === HANDOFF_PHASES.PORTAL_ACTIVE)
@@ -135,33 +137,27 @@ class WebGLScene {
         if (this.phase === HANDOFF_PHASES.ARRIVED)
             base = 1.6;
         const pulse = base + Math.sin(t * 3) * 0.25;
-        this.portalRingMat.emissiveIntensity = Math.max(0.15, pulse);
-        this.portalDiscMat.opacity = 0.14 + Math.max(0, pulse - 0.5) * 0.22;
-        this.portalGroup.rotation.y = t * 0.4;
+        A.setMaterialProperty(this.portalRingMat, "emissiveIntensity", Math.max(0.15, pulse));
+        A.setMaterialProperty(this.portalDiscMat, "opacity", 0.14 + Math.max(0, pulse - 0.5) * 0.22);
+        A.setRotationAxis(this.portalGroup, "y", t * 0.4);
         if (this.role === "source" && this.phase === HANDOFF_PHASES.DEPARTED) {
-            this.avatarBodyMat.transparent = true;
-            this.avatarBodyMat.opacity = Math.max(0.05, 0.9 - (t % 1.0));
-            this.avatarGroup.scale.setScalar(0.6 + Math.max(0.05, 1 - ((t * 0.6) % 1.0)) * 0.4);
+            A.setMaterialProperty(this.avatarBodyMat, "transparent", true);
+            A.setMaterialProperty(this.avatarBodyMat, "opacity", Math.max(0.05, 0.9 - (t % 1.0)));
+            A.setScaleScalar(this.avatarGroup, 0.6 + Math.max(0.05, 1 - ((t * 0.6) % 1.0)) * 0.4);
         }
         else if (this.role === "source") {
-            this.avatarBodyMat.opacity = 1;
-            this.avatarGroup.scale.setScalar(1);
+            A.setMaterialProperty(this.avatarBodyMat, "opacity", 1);
+            A.setScaleScalar(this.avatarGroup, 1);
         }
-        this.renderer.render(this.scene, this.camera);
-        this._raf = requestAnimationFrame(this._loop);
     }
     resize() {
-        const w = this.mount.clientWidth || 640, h = this.mount.clientHeight || 420;
-        this.camera.aspect = w / h;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h);
+        this.adapter.resize();
     }
     dispose() {
-        cancelAnimationFrame(this._raf);
+        if (this._unregisterFrame)
+            this._unregisterFrame();
         window.removeEventListener("resize", this._onResize);
-        this.renderer.dispose();
-        if (this.renderer.domElement.parentNode)
-            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+        this.adapter.dispose();
     }
 }
 WebGLScene._three = null;

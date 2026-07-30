@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Probe: runtime.viewMatrix() shape/API</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="420px">
+  <scene>
+    <viewpoint position="0 0 5" orientation="0 1 0 0"></viewpoint>
+    <shape><appearance><material diffuseColor="0.8 0.2 0.2"></material></appearance><box size="1 1 1"></box></shape>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+function waitReady(el, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const t0 = performance.now();
+    (function poll() {
+      if (el.runtime) return resolve(el.runtime);
+      if (performance.now() - t0 > timeoutMs) return reject(new Error('timeout'));
+      setTimeout(poll, 30);
+    })();
+  });
+}
+async function run() {
+  const el = document.getElementById('main');
+  const rt = await waitReady(el);
+  await new Promise(r => setTimeout(r, 300));
+  const vm = rt.viewMatrix();
+  const info = {
+    typeofVm: typeof vm,
+    constructorName: vm && vm.constructor && vm.constructor.name,
+    ownProps: vm ? Object.keys(vm) : null,
+    protoMethods: vm ? Object.getOwnPropertyNames(Object.getPrototypeOf(vm)) : null,
+    stringified: vm ? String(vm) : null,
+  };
+  // Try to find a way to get a flat array and a way to transform a point.
+  let flatArray = null;
+  try { flatArray = vm.toGL ? Array.from(vm.toGL()) : null; } catch (e) { info.toGLError = String(e); }
+  let transformedOrigin = null;
+  try {
+    if (vm.multMatrixPnt && window.x3dom.fields.SFVec3f) {
+      const p = new window.x3dom.fields.SFVec3f(0, 0, 0);
+      const out = vm.multMatrixPnt(p);
+      transformedOrigin = { x: out.x, y: out.y, z: out.z };
+    }
+  } catch (e) { info.multMatrixPntError = String(e); }
+  info.flatArray = flatArray;
+  info.transformedOrigin_shouldBeViewSpaceZneg5 = transformedOrigin;
+  document.getElementById('log').textContent = JSON.stringify(info, null, 2);
+  window.__testResult = info;
+  document.getElementById('status').textContent = 'done';
+}
+run().catch(e => { document.getElementById('status').textContent = 'error: ' + e; window.__testResult = { error: String(e && e.stack || e) }; });
+</script>
+</body>
+</html>

@@ -247,6 +247,13 @@ function createServer(role, extraOpts) {
             });
             return;
         }
+        if (method === 'DELETE' && path.startsWith('/wow/user/')) {
+            const userId = decodeURIComponent(path.slice('/wow/user/'.length));
+            const result = runtime.deleteWowUser(userId);
+            if (!result.ok)
+                return sendJson(res, result.status, { ok: false, error: result.error, userId, reason: result.reason });
+            return sendJson(res, 200, result.value);
+        }
         if (method === 'GET' && path.startsWith('/wow/view/')) {
             const viewId = decodeURIComponent(path.slice('/wow/view/'.length));
             const proj = runtime.getWowView(viewId);

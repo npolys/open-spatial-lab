@@ -1,6 +1,7 @@
 import { createAirportWalkableSurfaceContract, resolveAirportGroundSurface, } from "./airport-walkable-surface.mjs";
 import { createAirportEntityRuntime } from "./airport-entity-runtime.mjs";
 import { initAirportHudOverlay } from "./hud/airport-hud-overlay.mjs";
+import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
 function terminalNodeList(graph) {
     const raw = graph && graph.nodes;
     return Array.isArray(raw) ? raw : raw && typeof raw === "object" ? Object.values(raw) : [];
@@ -338,8 +339,11 @@ export function mountAirportTerminalContent(graph, built, THREE, opts = {}) {
     };
     built.render_summary.airport_terminal = summary;
     if (opts.hudOverlay !== false) {
+        // Throwaway adapter for its stateless worldToScreen()/cameraDistanceTo() methods only —
+        // same pattern used throughout render-adapter/ call sites; this file otherwise stays
+        // THREE-only (terminalBoxMesh/terminalSignMesh etc. are not adapter-ported).
         built.airport_hud_overlay = initAirportHudOverlay({
-            THREE,
+            adapter: new ThreeRenderAdapter(THREE),
             camera: built.camera,
             scene: built.scene,
             document: opts.document,

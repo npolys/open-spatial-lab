@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 6: ThreePortalRenderer capture-and-display loop (throwaway test harness)</title>
+<script type="importmap">
+{ "imports": { "three": "/vendor/scene-core/vendor/three/three.module.js" } }
+</script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 480px; height: 360px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import * as THREE from "three";
+import { ThreeRenderAdapter } from "/vendor/scene-core/render-adapter/three-render-adapter.mjs";
+import { ThreePortalRenderer } from "/three-portal-renderer.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+function readCenterPixel(renderer, renderTarget) {
+  const buffer = new Uint8Array(4);
+  renderer.readRenderTargetPixels(renderTarget, Math.floor(renderTarget.width / 2), Math.floor(renderTarget.height / 2), 1, 1, buffer);
+  return Array.from(buffer);
+}
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const mainAdapter = new ThreeRenderAdapter(THREE);
+  mainAdapter.mount(mountEl, { camera: { fov: 50, near: 0.1, far: 100 } });
+  mainAdapter.setCameraPose(mainAdapter.camera, { position: [0, 1.6, 3], lookAt: [0, 1, 0] });
+  await mainAdapter.ready();
+  append('main adapter ready, kind: ' + mainAdapter.kind);
+
+  const portalRenderer = new ThreePortalRenderer(mainAdapter);
+  const destinationAdapter = portalRenderer.createDestinationAdapter();
+  append('destination adapter created, sceneRoot is THREE.Scene: ' + destinationAdapter.sceneRoot.isScene);
+
+  const destCamera = destinationAdapter.createPerspectiveCamera({ fov: 50, aspect: 1, near: 0.1, far: 50 });
+  destinationAdapter.setCameraPose(destCamera, { position: [0, 1, 4], lookAt: [0, 0.5, 0] });
+
+  // Solid red fill so the captured render-target pixel is unambiguous.
+  const backdrop = destinationAdapter.createMesh(
+    destinationAdapter.createGeometry({ type: 'plane', width: 20, height: 20 }),
+    destinationAdapter.createMaterial({ type: 'basic', color: 0xff2222 }),
+  );
+  destinationAdapter.setPosition(backdrop, 0, 1, -2);
+  destinationAdapter.add(destinationAdapter.sceneRoot, backdrop);
+
+  const aperture = mainAdapter.createMesh(
+    mainAdapter.createGeometry({ type: 'plane', width: 1.6, height: 1.6 }),
+    mainAdapter.createMaterial({ type: 'basic', color: 0xffffff }),
+  );
+  mainAdapter.setPosition(aperture, 0, 1, 0);
+  mainAdapter.add(mainAdapter.sceneRoot, aperture);
+
+  const first = await portalRenderer.capture(destinationAdapter, destCamera, 64, 64);
+  const rtAfterFirst = destinationAdapter.__portalRenderTarget;
+  const firstPixel = readCenterPixel(mainAdapter.renderer, rtAfterFirst);
+
+  // Change destination content, capture again at the same size: same render target reused, new pixels.
+  destinationAdapter.setMaterialProperty(backdrop.material, 'color', new THREE.Color(0x22ff22));
+  const second = await portalRenderer.capture(destinationAdapter, destCamera, 64, 64);
+  const rtAfterSecond = destinationAdapter.__portalRenderTarget;
+  const secondPixel = readCenterPixel(mainAdapter.renderer, rtAfterSecond);
+
+  // Resize: a different render target should be allocated.
+  const third = await portalRenderer.capture(destinationAdapter, destCamera, 32, 32);
+  const rtAfterResize = destinationAdapter.__portalRenderTarget;
+
+  const isTexture = (t) => !!t && t.isTexture === true;
+  const sameTargetReusedAtSameSize = rtAfterFirst === rtAfterSecond;
+  const targetReallocatedOnResize = rtAfterResize !== rtAfterSecond && rtAfterResize.width === 32;
+  const pixelReflectsRedFill = firstPixel[0] > 150 && firstPixel[1] < 100;
+  const pixelReflectsGreenFill = secondPixel[1] > 150 && secondPixel[0] < 100;
+
+  append('firstPixel(rgba): ' + JSON.stringify(firstPixel));
+  append('secondPixel(rgba): ' + JSON.stringify(secondPixel));
+  append('first/second/third texture.isTexture: ' + [first, second, third].map((r) => isTexture(r.texture)).join(','));
+  append('sameTargetReusedAtSameSize: ' + sameTargetReusedAtSameSize);
+  append('targetReallocatedOnResize: ' + targetReallocatedOnResize + ' (width=' + rtAfterResize.width + ')');
+  append('pixelReflectsRedFill: ' + pixelReflectsRedFill);
+  append('pixelReflectsGreenFill (liveness): ' + pixelReflectsGreenFill);
+
+  portalRenderer.dispose(destinationAdapter);
+  const disposedCleanly = destinationAdapter.__portalRenderTarget === null;
+  append('disposedCleanly: ' + disposedCleanly);
+
+  const ok = isTexture(first.texture) && isTexture(second.texture) && isTexture(third.texture) &&
+    sameTargetReusedAtSameSize && targetReallocatedOnResize &&
+    pixelReflectsRedFill && pixelReflectsGreenFill && disposedCleanly;
+
+  window.__testResult = {
+    ok, firstPixel, secondPixel,
+    sameTargetReusedAtSameSize, targetReallocatedOnResize,
+    pixelReflectsRedFill, pixelReflectsGreenFill, disposedCleanly,
+  };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

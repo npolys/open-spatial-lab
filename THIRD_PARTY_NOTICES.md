@@ -6,6 +6,7 @@ Open Spatial Lab source code is licensed under Apache-2.0. Media and dependency 
 
 - [Three.js](https://github.com/mrdoob/three.js), Copyright 2010–2023 Three.js Authors, MIT License. The checked-in browser module is revision 160; the npm runtime package is version 0.173.0.
 - [three-vrm](https://github.com/pixiv/three-vrm), Copyright 2019–2024 pixiv Inc., MIT License.
+- [X3DOM](https://www.x3dom.org/), Copyright 2009–2020 X3DOM, dual MIT/GPLv3 License. Checked-in build is the 1.8.3 stable release (from the `x3dom` npm package) under `runtime/scene-core/public/vendor/x3dom/`, used only by the in-progress render-engine adapter work (see the README's "Render-engine adapter" section) — not loaded by the shipped demo. (An earlier pass of this work vendored the 1.8.4-dev nightly; switched to the stable release during the Inline-loading investigation described in the README — the behavior in question turned out to reproduce identically on both, but stable is the right default absent a reason to track dev.)
 - Ajv, ajv-formats, js-yaml, and Puppeteer Core are used by local verification and retain their published package licenses.
 
 ## Fonts and interface icon

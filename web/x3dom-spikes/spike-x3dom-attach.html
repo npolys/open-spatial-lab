@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 7: X3DOMRenderAdapter.attach() to a static X3D host (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 480px; height: 360px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Genuinely static markup — no document.createElement() involved for the <x3d> host itself,
+     the <viewpoint>, or the Inline pool. This is exactly the shape a live app's index.html would
+     need for X3DOM mode: the host + pool declared up front, adapter attach()ed to it afterward. -->
+<div id="mount">
+  <x3d id="static-host" width="480px" height="360px">
+    <scene>
+      <viewpoint DEF="authored-viewpoint" position="1 2 6" fieldOfView="0.9"></viewpoint>
+      <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+    </scene>
+  </x3d>
+</div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const x3dEl = document.getElementById('static-host');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+
+  const t0 = performance.now();
+  adapter.attach(x3dEl);
+  append('attach() returned synchronously');
+
+  // No x3dom.reload() call here on purpose — the whole point of attach() vs. the
+  // X3DOMPortalRenderer hidden-host case is that this element was already in the static markup
+  // X3DOM's own one-time discovery scans, so ready() should resolve without it.
+  await adapter.ready();
+  const readyMs = performance.now() - t0;
+  append('ready() resolved in ' + readyMs.toFixed(0) + 'ms without calling x3dom.reload()');
+  append('backend: ' + adapter.runtime.backendName());
+
+  const usedAuthoredViewpoint = adapter.camera.getAttribute('DEF') === 'authored-viewpoint';
+  append('reused the authored <viewpoint DEF="authored-viewpoint">: ' + usedAuthoredViewpoint);
+
+  const sceneChildrenBefore = adapter.sceneRoot.children.length;
+
+  const box = adapter.createMesh(
+    adapter.createGeometry({ type: 'box', width: 1, height: 1, depth: 1 }),
+    adapter.createMaterial({ type: 'standard', color: '#33cc66' }),
+  );
+  adapter.setPosition(box, 0, 0.5, 0);
+  adapter.add(adapter.sceneRoot, box);
+  const sceneChildrenAfterBox = adapter.sceneRoot.children.length;
+
+  // Exercise the Inline pool through the attach()-bound adapter — the actual motivating use case:
+  // an adapter that's attach()ed (not mount()ed) still needs to load real glTF content via the pool.
+  const { node: inlineWrapper, ready: inlineReady } = adapter.createInlineAsset('/assets/worlds/Duck.glb');
+  adapter.add(adapter.sceneRoot, inlineWrapper);
+  await inlineReady; // resolves only once the pool slot's content has actually swapped in
+  const inlineEl = inlineWrapper.querySelector('inline');
+  const inlineLoadedShapes = !!inlineEl && inlineEl.children.length > 0;
+
+  await new Promise((r) => setTimeout(r, 300));
+  const hasCanvas = !!document.getElementById('mount').querySelector('canvas');
+
+  append('sceneChildrenBefore=' + sceneChildrenBefore + ' afterBox=' + sceneChildrenAfterBox);
+  append('inline asset loaded via pool through attach()ed adapter: ' + inlineLoadedShapes);
+  append('canvas present: ' + hasCanvas);
+
+  const ok = readyMs < 5000 && usedAuthoredViewpoint &&
+    sceneChildrenAfterBox === sceneChildrenBefore + 1 &&
+    inlineLoadedShapes && hasCanvas;
+
+  window.__testResult = {
+    ok, readyMs, usedAuthoredViewpoint, sceneChildrenBefore, sceneChildrenAfterBox,
+    inlineLoadedShapes, hasCanvas, backend: adapter.runtime.backendName(),
+  };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

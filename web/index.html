@@ -195,6 +195,9 @@
        CSS-only stretch. */
     #scene-mount > canvas { display: block; width: 100% !important; height: 100% !important;
       max-width: none; max-height: none; }
+    /* X3DOM preview mode (?renderer=x3dom) — same full-fill contract as the three.js canvas
+       above; X3DOM's own x3dom.css sizes its internal canvas to fill this element. */
+    #scene-mount > x3d { display: block; width: 100% !important; height: 100% !important; }
     .state-overlay { position: absolute; inset: 0; display: flex; align-items: center;
       justify-content: center; pointer-events: none; }
     .state-overlay { z-index: 4; }
@@ -1057,6 +1060,30 @@
 
     <main>
       <div id="scene-mount" tabindex="-1" aria-label="Interactive spatial world">
+        <script>
+        // X3DOM preview mode (?renderer=x3dom): the <x3d> host + Inline slot pool MUST be part of
+        // the page's original static-parse markup stream (see the README's Render-engine adapter
+        // section — a dynamically document.createElement()'d Inline node never completes its
+        // first load). A classic (non-module) script executing synchronously during the initial
+        // HTML parse is the only point document.write() can still inject real static markup —
+        // demo-shell-bootstrap.mjs (a module script) runs too late for this. Default (no param)
+        // page load: this block is a no-op, nothing extra is written or loaded.
+        (function () {
+          if (new URLSearchParams(location.search).get("renderer") !== "x3dom") return;
+          var w = window.innerWidth || 1280;
+          var h = window.innerHeight || 800;
+          document.write(
+            '<link rel="stylesheet" href="./vendor/scene-core/vendor/x3dom/x3dom.css">' +
+            '<script src="./vendor/scene-core/vendor/x3dom/x3dom-full.js"><' + '/script>' +
+            '<x3d id="x3dom-host" width="' + w + 'px" height="' + h + 'px">' +
+              '<scene>' +
+                '<viewpoint id="x3dom-viewpoint" position="0 6 10" orientation="1 0 0 -0.35"></viewpoint>' +
+                '<script src="./vendor/scene-core/render-adapter/x3dom-inline-pool.js"><' + '/script>' +
+              '</scene>' +
+            '</x3d>'
+          );
+        })();
+        </script>
         <div class="state-overlay" id="state-overlay"></div>
         <button class="boarding-journey-affordance" id="boarding-journey-affordance"
                 type="button" data-testid="boarding-journey-affordance"

@@ -1,0 +1,46 @@
+Review this codebase from an architectural point of view and describe it as you are a senior IT expert. Evaluate for any bugs or security issues and report them along with suggested fixes. Then make a plan about how to port this code so that X3DOM.org is the render engine used in the frint end html client (not three.js).
+
+Update Todos
+
+Install npm dependencies, confirm app boots, capture baseline verify-demo.mjs result
+
+Phase 1: Define render-adapter interface (web/render-adapter/render-adapter.mjs)
+
+Phase 1: Implement ThreeRenderAdapter wrapping existing three.js scene/camera/tick code
+
+Phase 1: Refactor call sites (canonical-world-content.js, scene.js, wow-scene.mjs, movement-camera-controller.mjs, portal-render-controller.mjs, app.js) to use the adapter instead of importing THREE directly
+
+Phase 1: Re-run verify-demo.mjs, confirm zero behavior change vs baseline
+
+Phase 0: Spike X3DOM portal fallback (getScreenshot-polling vs CSS-composited overlay), measure refresh rate, pick approach
+
+Phase 2: Vendor X3DOM, stand up X3DOMRenderAdapter for canonical/static scene, verify against verify-demo.mjs
+
+Phase 3: Port camera/movement to adapter viewpoint API + runtime picking, disable X3DOM built-in navigation
+
+Phase 4: Port remaining scene graph (wow-scene.mjs, portal-render-controller.mjs) and HUD anchoring (calcCanvasPos/calcClientPos)
+
+Phase 5: Define HumanoidProvider interface; keep ThreeVrmHumanoidProvider, scope HAnimHumanoidProvider separately
+
+Phase 6: Implement PortalRenderer interface + chosen X3DOM fallback from Phase 0 spike
+
+Phase 7: Wire renderer selection (query param / localStorage / env default) into serve.js and demo-shell-bootstrap.mjs
+
+Phase 8: Add Accept-header content negotiation (prefer model/x3d+xml) to the asset-mount path
+
+Phase 9: Extend verify-demo.mjs/verify-release.mjs to test both adapters
+
+
+Phase 1 complete
+What shipped: render-adapter.mjs (the engine-agnostic interface), three-render-adapter.mjs (the concrete three.js implementation), and spatial-math.mjs (pure matrix math, no engine dependency). Five files' scene-construction code now runs through the adapter instead of importing THREE directly — scene.js, wow-scene.mjs (including the matrix-decomposition fix we designed together), canonical-world-content.js, portal-render-controller.mjs's mesh-sync functions, and app.js's fabric-transclusion/debug-ring builders. Every step was verified against the real verify-demo.mjs E2E suite (lobby, avatar equip, two portal crossings, toolbar responsiveness, WoW contract validation) in the Ubuntu WSL environment — all passing, zero behavior change.
+
+What Phase 1 correctly left alone, and why — this is the more important outcome of this session: three separate categories of code turned out not to belong in a "mechanically extract construction code" pass at all, and forcing them in would have been the wrong abstraction:
+
+movement-camera-controller.mjs → camera control and raycasting are engine-native concerns (confirmed via tracing: real THREE.Raycaster needs real meshes, camera.lookAt() needs real Vector3). Belongs to Phase 3, against each engine's own viewpoint/picking API.
+portal-spatial-preview.mjs and the aperture-preview code in app.js/portal-render-controller.mjs → the render-target/shader/clipping-plane subsystem. Belongs to Phase 0's spike and Phase 6's PortalRenderer interface.
+Avatar files → per your decision to keep them decoupled toward H-Anim, they become ThreeVrmHumanoidProvider's unchanged internals in Phase 5, not RenderAdapter consumers.
+That's a materially better-scoped Phase 1 than the one I sketched at the start of this session, and it exists because we checked assumptions at each boundary instead of pushing through.
+
+Next up per the todo list: Phase 0, the portal-rendering fallback spike (getScreenshot()-polling vs. CSS-composited overlay) — the one open feasibility question left before the X3DOM adapter itself gets built. 
+
+
