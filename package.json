@@ -12,6 +12,7 @@
   },
   "scripts": {
     "start": "bash ./launchOpenSpatialLab.sh",
+    "start:ubuntu": "bash ./tools/ubuntu/run-with-recovery.sh",
     "stop": "bash ./stopOpenSpatialLab.sh",
     "demo-check": "node tools/verify-demo.mjs",
     "release-check": "node tools/verify-release.mjs",

@@ -35,7 +35,10 @@ const BACKEND_PORTS = {
 const BASE_A = `http://127.0.0.1:${BACKEND_PORTS.a}`;
 
 function run(script, args = []) {
-    const result = spawnSync("bash", [join(ROOT, script), ...args], { cwd: ROOT, encoding: "utf8" });
+    const repoRoot = ROOT;
+    const bashPath = process.env.OSL_BASH_PATH || (process.platform === "win32" ? "C:/Users/NPolys/Documents/MobaXterm/slash/bin/bash.exe" : "/usr/bin/bash");
+    const scriptPath = join(repoRoot, script);
+    const result = spawnSync(bashPath, [scriptPath, ...args], { cwd: repoRoot, encoding: "utf8" });
     if (result.status !== 0)
         throw new Error(`${script} failed\n${result.stdout}\n${result.stderr}`);
     return result.stdout;

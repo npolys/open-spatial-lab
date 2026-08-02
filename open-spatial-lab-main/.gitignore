@@ -1,9 +1,0 @@
-node_modules/
-.runtime/
-coverage/
-.DS_Store
-.env
-.env.*
-*.log
-*.pem
-*.key
