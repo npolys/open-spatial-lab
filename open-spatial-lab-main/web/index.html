@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Spatial Lab — Integration Assembly</title>
+  <link rel="stylesheet" href="./demo-launcher.css" />
+  <link rel="stylesheet" href="./presentation-json-viewer.css" />
+  <style>
+    :root {
+      --bg: #0C0D11;
+      --panel: #16171C;
+      --panel-2: #1E1F26;
+      --ink: #F5F5F7;
+      --ink-dim: #8A8A93;
+      --line: rgba(255,255,255,.08);
+      --source: #A3E635;
+      --target: #ff7a3a;
+      --ok: #46d18a;
+      --warn: #ffcc55;
+      --bad: #ff5d6c;
+      --sim: #b98bff;
+      --osl-bg: #0C0D11;
+      --osl-surface: #16171C;
+      --osl-surface-raised: #1E1F26;
+      --osl-accent: #A3E635;
+      --osl-pending: #D6A94A;
+      --osl-gap: #E5484D;
+      --osl-viewport-width: 100vw;
+      --osl-viewport-height: 100dvh;
+      --osl-viewport-left: 0px;
+      --osl-viewport-top: 0px;
+      --osl-shell-header-height: 56px;
+      --osl-shell-footer-height: 44px;
+      --osl-glass-edge: 12px;
+      --osl-glass-gap: 12px;
+      --osl-panel-top: calc(var(--osl-glass-edge) + var(--osl-shell-header-height) + var(--osl-glass-gap));
+      --osl-glass-fill: rgba(13, 19, 35, .72);
+      --osl-glass-fill-solid: #141a2a;
+      --osl-glass-highlight: rgba(255, 255, 255, .16);
+      --osl-glass-border: rgba(224, 236, 255, .24);
+      --osl-glass-radius-menu: 20px;
+      --osl-glass-radius-panel: 22px;
+      --osl-glass-shadow: 0 18px 48px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .1);
+      --osl-glass-blur: 20px;
+      --osl-glass-focus: #d7ff78;
+      --osl-glass-selected: rgba(163, 230, 53, .18);
+      --osl-glass-space: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: var(--osl-viewport-width); height: var(--osl-viewport-height);
+      min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { position: fixed; left: var(--osl-viewport-left); top: var(--osl-viewport-top); }
+    #app { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden;
+      --osl-camera-control-right: calc(var(--rail-w) + var(--osl-glass-edge) + 10px); }
+    #app.rail-collapsed { --osl-camera-control-right: 10px; }
+    #app[hidden], #demo-launcher-mount[hidden] { display: none !important; }
+
+    /* runtime (#16): the header is a FIXED-height bar. Long labels
+       must NOT grow it — every text child truncates with an ellipsis instead
+       (see .loc-title / .loc-meta). height + overflow:hidden pin the height. */
+    header.role-banner { position: absolute; z-index: 20; top: var(--osl-glass-edge);
+      left: var(--osl-glass-edge); right: var(--osl-glass-edge);
+      height: var(--osl-shell-header-height); min-height: var(--osl-shell-header-height);
+      padding: 0 max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left)); display: flex;
+      align-items: center; gap: 12px; border: 1px solid var(--osl-glass-border);
+      border-radius: var(--osl-glass-radius-menu); background: var(--osl-glass-fill-solid);
+      box-shadow: var(--osl-glass-shadow); overflow: hidden; pointer-events: auto; }
+    .role-chip { font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 6px; font-size: 11px; flex: none; white-space: nowrap; }
+    .role-source .role-chip { background: rgba(58,160,255,.18); color: var(--source);
+      border: 1px solid var(--source); }
+    .role-target .role-chip { background: rgba(255,122,58,.18); color: var(--target);
+      border: 1px solid var(--target); }
+    .role-player .role-chip { background: rgba(70,209,138,.16); color: var(--ok);
+      border: 1px solid var(--ok); }
+    /* runtime (#16): loc-title flexes and ellipsis-truncates so a long location
+       name never grows or wraps the fixed-height header. */
+    .loc-title { font-size: 14px; font-weight: 700; min-width: 0; flex: 1 1 auto;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* runtime (#17): the redundant location-meta line is hidden in the header
+       (location/world/session ids still live in the debug rail). Kept in the DOM
+       for any downstream reader but removed from the header's visible chrome. */
+    .loc-meta { display: none; }
+    .live-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 7px;
+      border-radius: 5px; background: rgba(255,204,85,.12); color: var(--warn);
+      border: 1px solid var(--warn); flex: none; white-space: nowrap; }
+    .live-tag.connection-live { background: rgba(70,209,138,.16); color: var(--ok); border-color: var(--ok); }
+    .live-tag.connection-disconnected, .live-tag.connection-error {
+      background: rgba(255,93,108,.12); color: var(--bad); border-color: var(--bad); }
+    /* runtime (#17): the idle/waiting/arrived state text no longer renders in the
+       header — the phase-pill is hidden (phase stays in the rail + toasts). */
+    .phase-pill { display: none; }
+    .header-actions { flex: 0 0 auto; min-width: max-content; margin-left: auto;
+      display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+      position: relative; z-index: 1; isolation: isolate; }
+    .header-icon-button { flex: 0 0 40px; display: inline-flex; align-items: center;
+      justify-content: center; position: relative; width: 40px; height: 40px; min-width: 40px; padding: 0;
+      border-radius: 12px; font: 800 14px ui-monospace, Menlo, monospace;
+      border: 1px solid var(--line); background: var(--panel-2); color: var(--ink-dim);
+      cursor: pointer; z-index: 0; }
+    .header-actions > .header-icon-button:focus-visible { z-index: 1; }
+    .header-action-icon { display: block; flex: none; width: 20px; height: 20px;
+      pointer-events: none; }
+    .lobby-return-label { display: block; flex: none; font: 800 15px/1 ui-monospace, Menlo, monospace;
+      pointer-events: none; }
+    /* runtime: compact header avatar-switch glyph — same treatment as
+       .lobby-return-label ("L"), just a different letter. */
+    .avatar-switch-label { display: block; flex: none; font: 800 15px/1 ui-monospace, Menlo, monospace;
+      pointer-events: none; }
+    /* .header-icon-button's explicit display overrides the UA [hidden] rule. Keep the
+       role/location-controlled controls truly hidden when their controllers set hidden,
+       and keep the two owner-removed compatibility controls hidden even when Runtime
+       Tweaks clears its hidden property during mount. Their DOM/controller seams remain. */
+    #btn-camera-toggle[hidden], #btn-switch-avatar[hidden], #btn-return-lobby[hidden] { display: none; }
+    #btn-semantic-destinations, #btn-runtime-tweaks { display: none; }
+    .header-icon-button:hover, .header-icon-button[aria-expanded="true"], .header-icon-button[aria-pressed="true"] {
+      border-color: var(--warn); color: var(--ink); }
+    .header-actions .views-toggle { border-color: transparent; border-radius: 0;
+      background: transparent; box-shadow: none; }
+    .header-actions .views-toggle:hover:not(:disabled),
+    .header-actions .views-toggle:active:not(:disabled),
+    .header-actions .views-toggle[aria-expanded="true"] {
+      border-color: transparent; background: transparent; color: var(--ink);
+      box-shadow: inset 0 -2px 0 var(--warn); }
+    .refresh-toggle .refresh-icon { font-size: 16px; line-height: 1; transform: translateY(-1px); }
+    .notification-badge { position: absolute; right: -5px; top: -5px; min-width: 16px; height: 16px;
+      padding: 0 4px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+      background: var(--warn); color: #201600; font: 800 9px ui-monospace, Menlo, monospace;
+      border: 1px solid var(--bg); }
+    body:not([data-notification-count]), body[data-notification-count="0"] {
+      --notification-badge-display: none;
+    }
+    .notification-badge { display: var(--notification-badge-display, inline-flex); }
+    /* runtime (#6): collapse toggle for the whole right rail, docked in the header. */
+    .rail-icon { position: relative; width: 18px; height: 14px; border: 1.5px solid currentColor;
+      border-radius: 2px; display: inline-block; }
+    .rail-icon::after { content: ""; position: absolute; top: 0; right: 0; width: 5px; height: 100%;
+      background: currentColor; opacity: .45; }
+    #app.rail-collapsed .rail-icon::after { opacity: .16; }
+
+    /* The canonical panel geometry lives in CSS. Dragged width, height, and
+       position override these values only for the current open cycle. */
+    :root {
+      --rail-w: clamp(280px, 30vw, 420px);
+      --rail-h: min(640px, calc(var(--osl-viewport-height) - var(--osl-panel-top) - var(--osl-shell-footer-height) - var(--osl-glass-edge)));
+    }
+    main { position: absolute; inset: 0; min-height: 0; min-width: 0; overflow: hidden; }
+    /* runtime (#6): when collapsed the rail column goes to zero width and the
+       scene takes the full row. The rail itself is display:none so it can't
+       intercept scroll/pointer events while hidden. */
+    #app.rail-collapsed aside.rail { display: none; }
+    /* The drag handle sits on the rail's left edge. It is absolutely positioned
+       (so it creates no grid track) and lives in <main>, which does not scroll —
+       putting it inside the scrolling rail would make it scroll away. */
+    .rail-resizer { position: absolute; top: var(--rail-top, var(--osl-panel-top)); height: var(--rail-h);
+      right: calc(var(--rail-right, var(--osl-glass-edge)) + var(--rail-w) - 4px);
+      left: calc(var(--rail-left, auto) - 4px); width: 9px;
+      z-index: 12; cursor: col-resize; background: transparent;
+      border: 0; padding: 0; touch-action: none; }
+    .rail-resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 3px;
+      background: var(--source); opacity: 0; transition: opacity .12s ease; }
+    .rail-resizer:hover::after, .rail-resizer:focus-visible::after,
+    .rail-resizer[data-dragging="1"]::after { opacity: .75; }
+    .rail-resizer:focus-visible { outline: none; }
+    .panel-height-resizer { position: absolute; z-index: 12;
+      top: calc(var(--rail-top, var(--osl-panel-top)) + var(--rail-h) - 4px);
+      right: var(--rail-right, var(--osl-glass-edge)); left: var(--rail-left, auto);
+      width: var(--rail-w); height: 9px; cursor: row-resize; background: transparent;
+      border: 0; padding: 0; touch-action: none; }
+    .panel-height-resizer::after { content: ""; position: absolute; left: 20%; right: 20%; top: 3px;
+      height: 3px; border-radius: 999px; background: var(--source); opacity: 0; transition: opacity .12s ease; }
+    .panel-height-resizer:hover::after, .panel-height-resizer:focus-visible::after,
+    .panel-height-resizer[data-dragging="1"]::after { opacity: .75; }
+    .panel-height-resizer:focus-visible { outline: none; }
+    #app.rail-collapsed .rail-resizer, #app.rail-collapsed .panel-height-resizer { display: none; }
+    body[data-rail-dragging="width"] { cursor: col-resize; user-select: none; }
+    body[data-rail-dragging="height"] { cursor: row-resize; user-select: none; }
+    body[data-panel-dragging="true"] { cursor: grabbing; user-select: none; }
+    #scene-mount { position: absolute; inset: 0; width: 100%; height: 100%;
+      min-height: 0; min-width: 0; overflow: hidden; background:
+      radial-gradient(120% 120% at 50% 10%, #16213f 0%, #0b1020 70%); }
+    #scene-mount canvas.avatar-equipment-layer {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* runtime: CSS and the renderer's drawing buffer consume the same
+       canonical live visual-viewport dimensions. The explicit renderer resize in
+       app.js/scene-runtime-controller.mjs prevents this from becoming a stale
+       CSS-only stretch. */
+    #scene-mount > canvas { display: block; width: 100% !important; height: 100% !important;
+      max-width: none; max-height: none; }
+    /* X3DOM preview mode (?renderer=x3dom) — same full-fill contract as the three.js canvas
+       above; X3DOM's own x3dom.css sizes its internal canvas to fill this element. */
+    #scene-mount > x3d { display: block; width: 100% !important; height: 100% !important; }
+    .state-overlay { position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; pointer-events: none; }
+    .state-overlay { z-index: 4; }
+    .player-first-frame { width: min(520px, calc(100% - 32px)); padding: 22px;
+      border: 1px solid rgba(255,255,255,.14); border-radius: 20px;
+      background: rgba(12,13,17,.9); box-shadow: 0 18px 54px rgba(0,0,0,.48);
+      backdrop-filter: blur(12px); pointer-events: auto; text-align: left; }
+    .player-first-frame .eyebrow { color: var(--source); font: 800 10px ui-monospace, Menlo, monospace;
+      letter-spacing: .12em; text-transform: uppercase; }
+    .player-first-frame h1 { margin: 7px 0 8px; font-size: clamp(24px, 3.4vw, 40px);
+      line-height: 1.05; letter-spacing: -.025em; }
+    .player-first-frame p { margin: 0; color: var(--ink-dim); font-size: 13px; line-height: 1.55; }
+    .player-first-frame .player-first-frame-controls { margin-top: 10px; color: var(--ink);
+      font: 700 11px ui-monospace, Menlo, monospace; }
+    .player-first-frame .player-first-frame-actions { display: flex; align-items: center;
+      gap: 12px; margin-top: 18px; }
+    .player-first-frame .player-first-frame-actions button { min-height: 44px; }
+    .player-first-frame .recovery-note { font-size: 10px; line-height: 1.4; }
+    .player-first-frame[data-connection-state="disconnected"],
+    .player-first-frame[data-connection-state="error"] { border-color: rgba(255,93,108,.62); }
+    .player-first-frame[data-connection-state="disconnected"] .eyebrow,
+    .player-first-frame[data-connection-state="error"] .eyebrow { color: var(--bad); }
+    .state-card { background: rgba(8,12,26,.82); border: 1px solid var(--line);
+      border-radius: 12px; padding: 16px 22px; text-align: center; max-width: 74%; }
+    .state-card .big { font-size: 20px; font-weight: 800; }
+    .state-card .sub { color: var(--ink-dim); margin-top: 6px; font-size: 12px;
+      font-family: ui-monospace, Menlo, monospace; }
+    .waiting .state-card { border-color: var(--target); }
+    .arrived .state-card { border-color: var(--ok); }
+    .departed .state-card { border-color: var(--source); }
+    /* runtime: transient auto-dismissing toasts for crossing/departed/
+       arrival EVENT notices (replaces the former persistent state-card use for
+       those phases). runtime (#15): the idle/waiting START-STATE
+       cards ("Location A", "Waiting for arrival at …") are removed entirely —
+       only the transient portal-active card still uses .state-card above. */
+    .toast-stack {
+      position: absolute;
+      z-index: 6;
+      left: 50%;
+      top: var(--osl-panel-top);
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      width: min(360px, 84%);
+    }
+    .toast {
+      background: rgba(8,12,26,.9);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 16px;
+      text-align: center;
+      width: 100%;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast[data-notification-id] { pointer-events: auto; cursor: pointer; }
+    .toast.toast-visible { opacity: 1; transform: translateY(0); }
+    .toast .big { font-size: 16px; font-weight: 800; }
+    .toast .sub { color: var(--ink-dim); margin-top: 4px; font-size: 11px;
+      font-family: ui-monospace, Menlo, monospace; }
+    .toast.toast-departed { border-color: var(--source); }
+    .toast.toast-arrived { border-color: var(--ok); }
+    .toast.toast-arrived .big { font-size: clamp(26px, 3vw, 46px); line-height: 1.08;
+      letter-spacing: .02em; text-transform: uppercase; }
+    .toast.toast-arrived .sub { font-size: clamp(13px, 1.35vw, 20px); line-height: 1.25;
+      color: var(--ink); text-transform: uppercase; }
+
+    .storefront-shopping-affordance { position: fixed; z-index: 40; left: 50%; bottom: 68px;
+      transform: translateX(-50%); min-height: 42px; max-width: min(520px, calc(100vw - 24px));
+      padding: 9px 16px; border-color: var(--ok); border-radius: 999px;
+      background: rgba(8,18,30,.94); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.42);
+      font: 800 12px/1.35 ui-monospace, Menlo, monospace; pointer-events: auto;
+      transition: transform .16s ease, border-color .16s ease; }
+    .storefront-shopping-affordance:hover { transform: translateX(-50%) translateY(-2px); }
+    .storefront-shopping-affordance[hidden] { display: none; }
+    .storefront-shopping-affordance:focus-visible, .storefront-shopping-panel :focus-visible {
+      outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
+    .storefront-shopping-panel { position: fixed; z-index: 43; left: 50%; bottom: 60px;
+      transform: translateX(-50%); width: min(840px, calc(100vw - 24px));
+      max-height: calc(100vh - 126px); overflow: auto; pointer-events: auto;
+      background: rgba(10,17,29,.98); border: 1px solid var(--ok);
+      box-shadow: 0 22px 58px rgba(0,0,0,.58); border-radius: 12px; }
+    .storefront-shopping-panel[hidden] { display: none; }
+    .storefront-shopping-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .storefront-shopping-title { margin: 0; font-size: 15px; }
+    .storefront-shopping-meta { color: var(--ink-dim); font: 10.5px/1.35 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-close { margin-left: auto; width: 30px; height: 28px; padding: 0; }
+    .storefront-shopping-body { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.2fr) minmax(210px, .9fr);
+      gap: 0; min-height: 250px; }
+    .storefront-shopping-column { min-width: 0; padding: 12px; border-right: 1px solid var(--line); }
+    .storefront-shopping-column:last-child { border-right: 0; }
+    .storefront-shopping-column h3, .storefront-shopping-column h4 { margin: 0 0 8px; }
+    .storefront-shopping-column-label { color: var(--ink-dim); font: 800 10px ui-monospace, Menlo, monospace;
+      text-transform: uppercase; letter-spacing: .08em; }
+    .storefront-shopping-catalog { display: grid; gap: 6px; margin-top: 8px; }
+    .storefront-catalog-item { width: 100%; display: grid; gap: 3px; padding: 8px 9px;
+      border-radius: 7px; text-align: left; }
+    .storefront-catalog-item strong { color: var(--ink); font-size: 12px; }
+    .storefront-catalog-item span { color: var(--ink-dim); font-size: 10.5px; line-height: 1.35; }
+    .storefront-catalog-item.active { border-color: var(--ok); background: rgba(70,209,138,.12); }
+    .storefront-shopping-detail p { margin: 7px 0; color: var(--ink-dim); font-size: 11px; line-height: 1.45; }
+    .storefront-shopping-detail .storefront-shopping-pickup-note { color: var(--ink); }
+    .storefront-shopping-detail button { margin-top: 8px; }
+    .storefront-shopping-message { color: var(--ink-dim); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+    .storefront-shopping-basket-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .storefront-shopping-basket-count { color: var(--ok); font: 800 10px ui-monospace, Menlo, monospace; }
+    .storefront-shopping-basket { display: grid; gap: 6px; margin-top: 8px; }
+    .storefront-basket-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
+    .storefront-basket-row span { min-width: 0; display: grid; gap: 2px; }
+    .storefront-basket-row strong { font-size: 11px; overflow-wrap: anywhere; }
+    .storefront-basket-row small { color: var(--ink-dim); font-size: 9.5px; overflow-wrap: anywhere; }
+    .storefront-basket-row button { padding: 4px 7px; font-size: 10px; }
+    .storefront-shopping-boundary { margin: 10px 0 0; color: var(--warn); font: 9.5px/1.4 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-status { margin: 0; padding: 9px 12px; border-top: 1px solid var(--line);
+      color: var(--ink-dim); font: 10.5px/1.4 ui-monospace, Menlo, monospace; }
+    .storefront-shopping-status[data-state="success"] { color: var(--ok); }
+    .storefront-shopping-status[data-state="warning"] { color: var(--warn); }
+    .storefront-shopping-status[data-state="error"] { color: var(--bad); }
+
+    .boarding-journey-affordance { position: fixed; z-index: 41; left: 50%; bottom: 68px;
+      transform: translateX(-50%); min-height: 42px; max-width: min(620px, calc(100vw - 24px));
+      padding: 9px 16px; border-color: var(--warn); border-radius: 999px;
+      background: rgba(8,18,30,.95); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.42);
+      font: 800 12px/1.35 ui-monospace, Menlo, monospace; pointer-events: auto;
+      transition: transform .16s ease, border-color .16s ease; }
+    .boarding-journey-affordance:hover { transform: translateX(-50%) translateY(-2px); }
+    .boarding-journey-affordance[hidden], .boarding-journey-panel[hidden] { display: none; }
+    .boarding-journey-affordance:focus-visible, .boarding-journey-panel :focus-visible {
+      outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
+    .boarding-journey-panel { position: fixed; z-index: 44; left: 50%; bottom: 60px;
+      transform: translateX(-50%); width: min(680px, calc(100vw - 24px));
+      max-height: calc(100vh - 126px); overflow: auto; pointer-events: auto;
+      background: rgba(10,17,29,.98); border: 1px solid var(--warn);
+      box-shadow: 0 22px 58px rgba(0,0,0,.58); border-radius: 12px; }
+    .boarding-journey-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .boarding-journey-title { margin: 0; font-size: 15px; }
+    .boarding-journey-meta { color: var(--ink-dim); font: 10.5px/1.35 ui-monospace, Menlo, monospace; }
+    .boarding-journey-close { margin-left: auto; width: 30px; height: 28px; padding: 0; }
+    .boarding-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px; list-style: none; margin: 0; padding: 12px 12px 0; }
+    .boarding-progress li { padding: 7px 5px; border: 1px solid var(--line); border-radius: 7px;
+      color: var(--ink-dim); text-align: center; font: 800 9.5px/1.3 ui-monospace, Menlo, monospace;
+      text-transform: uppercase; letter-spacing: .04em; }
+    .boarding-progress li[data-state="done"] { color: var(--ok); border-color: var(--ok); background: rgba(70,209,138,.1); }
+    .boarding-progress li[data-state="error"] { color: var(--bad); border-color: var(--bad); background: rgba(255,102,126,.1); }
+    .boarding-credential-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: end; padding: 12px; }
+    .boarding-credential-field { display: grid; gap: 6px; min-width: 0; }
+    .boarding-credential-field label { color: var(--ink); font-size: 11px; font-weight: 800; }
+    .boarding-credential-field input { min-width: 0; width: 100%; padding: 9px 10px; color: var(--ink);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+      font: 12px ui-monospace, Menlo, monospace; text-transform: uppercase; }
+    .boarding-credential-field input[aria-invalid="true"] { border-color: var(--bad); }
+    .boarding-credential-hint { color: var(--ink-dim); font: 10px/1.4 ui-monospace, Menlo, monospace; }
+    .boarding-journey-actions { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 12px 12px; }
+    .boarding-journey-boundary { margin: 0; padding: 0 12px 12px; color: var(--warn);
+      font: 9.5px/1.45 ui-monospace, Menlo, monospace; }
+    .boarding-journey-status { margin: 0; padding: 9px 12px; border-top: 1px solid var(--line);
+      color: var(--ink-dim); font: 10.5px/1.4 ui-monospace, Menlo, monospace; }
+    .boarding-journey-status[data-state="success"] { color: var(--ok); }
+    .boarding-journey-status[data-state="warning"] { color: var(--warn); }
+    .boarding-journey-status[data-state="error"] { color: var(--bad); }
+    @media (max-width: 720px) {
+      .storefront-shopping-panel { bottom: 54px; max-height: calc(100vh - 112px); }
+      .storefront-shopping-body { grid-template-columns: 1fr; }
+      .storefront-shopping-column { border-right: 0; border-bottom: 1px solid var(--line); }
+      .storefront-shopping-column:last-child { border-bottom: 0; }
+      .boarding-journey-panel { bottom: 54px; max-height: calc(100vh - 112px); }
+      .boarding-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .boarding-credential-form { grid-template-columns: 1fr; }
+    }
+
+    .notification-center { position: fixed; z-index: 7; top: 56px; right: 12px;
+      width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 72px);
+      background: rgba(12,17,33,.96); border: 1px solid var(--line); box-shadow: 0 16px 38px rgba(0,0,0,.42);
+      display: flex; flex-direction: column; pointer-events: auto; }
+    .notification-center[hidden] { display: none; }
+    .notification-center-head { flex: none; display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .notification-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .notification-summary { font: 10px ui-monospace, Menlo, monospace; color: var(--ink-dim); }
+    .notification-close { margin-left: auto; width: 26px; height: 24px; padding: 0; border-radius: 5px; }
+    .notification-list { overflow: auto; min-height: 92px; max-height: 260px; }
+    .notification-row { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
+      background: transparent; color: var(--ink); padding: 8px 12px; text-align: left; display: grid;
+      grid-template-columns: 1fr auto; gap: 4px 10px; cursor: pointer; }
+    .notification-row:hover, .notification-row.active { background: rgba(58,160,255,.12); }
+    .notification-row .kind { color: var(--warn); font: 800 10px ui-monospace, Menlo, monospace; text-transform: uppercase; }
+    .notification-row .time { color: var(--ink-dim); font: 10px ui-monospace, Menlo, monospace; }
+    .notification-row .summary { grid-column: 1 / -1; color: var(--ink-dim); font-size: 11px; overflow-wrap: anywhere; }
+    .notification-empty { padding: 18px 12px; color: var(--ink-dim); font: 11px ui-monospace, Menlo, monospace; }
+    .notification-detail { flex: 1 1 auto; min-height: 120px; overflow: auto; border-top: 1px solid var(--line);
+      padding: 10px 12px; background: rgba(8,12,26,.62); }
+    .notification-detail h4 { margin: 0 0 8px; font-size: 12px; }
+    .notification-detail .kv { border-bottom: 0; padding: 2px 0; }
+    .notification-detail .kv .k { font-size: 10.5px; }
+    .notification-detail .kv .v { text-align: right; white-space: normal; overflow-wrap: anywhere; }
+    .notification-detail .steps { margin: 8px 0 0; padding: 0; list-style: none; }
+    .notification-detail .steps li { font: 10.5px ui-monospace, Menlo, monospace; color: var(--ink-dim);
+      padding: 2px 0; overflow-wrap: anywhere; }
+    .notification-detail .steps li.done { color: var(--ok); }
+
+    .semantic-destinations-panel { position: fixed; z-index: 41; top: 56px; left: 12px;
+      width: min(390px, calc(100vw - 24px)); max-height: calc(100vh - 72px); overflow: auto;
+      background: rgba(12,17,33,.97); border: 1px solid var(--line);
+      box-shadow: 0 16px 38px rgba(0,0,0,.42); padding: 10px 12px; }
+    .semantic-destinations-panel[hidden] { display: none; }
+    .semantic-destinations-head { display: flex; align-items: center; gap: 10px; }
+    .semantic-destinations-title { margin: 0; font-size: 12px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .5px; }
+    .semantic-destinations-close { margin-left: auto; width: 26px; height: 24px; padding: 0;
+      border-radius: 5px; }
+    .semantic-current-world { margin: 8px 0; color: var(--ink-dim);
+      font: 10.5px ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+    .semantic-destinations-list { display: grid; gap: 6px; }
+    .semantic-destination { width: 100%; display: grid; gap: 3px; text-align: left;
+      padding: 8px 10px; border-radius: 7px; }
+    .semantic-destination strong { font-size: 12px; }
+    .semantic-destination span { color: var(--ink-dim); font: 10.5px/1.4 ui-monospace, Menlo, monospace;
+      overflow-wrap: anywhere; }
+    .semantic-destination-ready { border-color: var(--ok); }
+    .semantic-destination-refused { border-color: var(--bad); }
+    .semantic-destination-unavailable { border-color: var(--warn); }
+    .semantic-destination-empty, .semantic-destinations-status { margin: 8px 0 0; color: var(--ink-dim);
+      font: 10.5px/1.4 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+
+    .refresh-settings-modal { position: fixed; z-index: 41; top: 56px; right: 56px;
+      width: min(330px, calc(100vw - 24px)); background: rgba(12,17,33,.97);
+      border: 1px solid var(--line); box-shadow: 0 16px 38px rgba(0,0,0,.42);
+      padding: 10px 12px; }
+    .refresh-settings-modal[hidden] { display: none; }
+    .refresh-settings-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .refresh-settings-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .refresh-settings-close { margin-left: auto; width: 26px; height: 24px; padding: 0; border-radius: 5px; }
+    .refresh-settings-modal .segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+    .refresh-settings-modal .segmented button { padding: 5px 8px; border-radius: 6px; font-size: 11px; }
+    .refresh-settings-modal .segmented button[aria-pressed="true"] {
+      border-color: var(--ok); color: var(--ok); background: rgba(70,209,138,.12); }
+    .refresh-settings-modal .refresh-row { display: grid; grid-template-columns: 1fr auto; gap: 8px;
+      align-items: center; font: 11px ui-monospace, Menlo, monospace; padding: 4px 0; }
+    .refresh-settings-modal .refresh-row label { color: var(--ink-dim); overflow-wrap: anywhere; }
+    .refresh-settings-modal .refresh-line { color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace;
+      margin-top: 8px; overflow-wrap: anywhere; }
+
+    /* runtime: compact session-local tuning surface. It floats independently
+       of the rail so the player can tune while the inspector stays collapsed. */
+    .runtime-tweak-palette { position: fixed; z-index: 42; top: 80px; right: 8px;
+      width: 430px; height: 390px; min-width: min(360px, calc(100vw - 16px));
+      min-height: min(280px, calc(100dvh - 88px)); max-width: min(720px, calc(100vw - 16px));
+      max-height: min(720px, calc(100dvh - 88px)); display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden;
+      border: 1px solid var(--osl-glass-border); border-radius: 16px;
+      background: rgba(12,17,33,.97); color: var(--ink); box-shadow: var(--osl-glass-shadow);
+      pointer-events: auto; }
+    .runtime-tweak-palette[hidden] { display: none; }
+    .runtime-tweak-head { display: flex; align-items: center; gap: 6px; padding: 9px 10px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .runtime-tweak-title { margin: 0 auto 0 0; font-size: 12px; font-weight: 800;
+      letter-spacing: .5px; text-transform: uppercase; }
+    .runtime-tweak-head button, .runtime-tweak-output button { min-height: 28px; padding: 4px 7px;
+      border-radius: 6px; font-size: 10.5px; white-space: nowrap; }
+    .runtime-tweak-close { width: 28px; padding: 0 !important; font-size: 15px !important; }
+    .runtime-tweak-rows { min-height: 0; overflow: auto; padding: 8px 10px 2px; }
+    .runtime-tweak-row { padding: 7px 0 9px; border-bottom: 1px solid var(--line); }
+    .runtime-tweak-row:last-child { border-bottom: 0; }
+    .runtime-tweak-row-head { display: flex; align-items: baseline; gap: 8px; }
+    .runtime-tweak-row-head label { font-size: 12px; font-weight: 750; }
+    .runtime-tweak-default { margin-left: auto; color: var(--ok);
+      font: 9.5px ui-monospace, Menlo, monospace; white-space: nowrap; }
+    .runtime-tweak-description { margin: 2px 0 6px; color: var(--ink-dim); font-size: 10.5px; }
+    .runtime-tweak-inputs { display: grid; grid-template-columns: minmax(100px, 1fr) 86px auto;
+      align-items: center; gap: 7px; }
+    .runtime-tweak-inputs input[type="range"] { width: 100%; accent-color: var(--source); }
+    .runtime-tweak-number { width: 86px; min-width: 0; padding: 5px 6px;
+      color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+      font: 10.5px ui-monospace, Menlo, monospace; }
+    .runtime-tweak-units { color: var(--ink-dim); font: 9.5px ui-monospace, Menlo, monospace; }
+    .runtime-tweak-output { display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center; gap: 6px; margin-top: 6px; }
+    .runtime-tweak-output code { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+      color: var(--warn); font: 10.5px ui-monospace, Menlo, monospace; white-space: nowrap; }
+    .runtime-tweak-status { min-height: 28px; margin: 0; padding: 6px 10px;
+      border-top: 1px solid var(--line); color: var(--ink-dim);
+      font: 10px/1.35 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+    .runtime-tweak-status[data-state="success"] { color: var(--ok); }
+    .runtime-tweak-status[data-state="error"] { color: var(--bad); }
+    .runtime-tweak-copy-fallback { width: calc(100% - 20px); min-height: 48px; margin: 0 10px 8px;
+      resize: vertical; color: var(--ink); background: var(--panel); border: 1px solid var(--bad);
+      border-radius: 5px; font: 10px/1.4 ui-monospace, Menlo, monospace; }
+    .runtime-tweak-resizer { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px;
+      padding: 0; border: 0; border-radius: 0; background: transparent; cursor: nwse-resize;
+      touch-action: none; }
+    .runtime-tweak-resizer::after { content: ""; position: absolute; right: 4px; bottom: 4px;
+      width: 9px; height: 9px; border-right: 2px solid var(--source);
+      border-bottom: 2px solid var(--source); opacity: .7; }
+    .runtime-tweak-resizer:hover::after, .runtime-tweak-resizer:focus-visible::after,
+    .runtime-tweak-resizer[data-dragging="1"]::after { opacity: 1; }
+    .runtime-tweak-palette :focus-visible { outline: 2px solid var(--osl-glass-focus); outline-offset: 2px; }
+
+    .avatar-selector-modal { position: fixed; z-index: 8; inset: 54px 12px 60px;
+      display: grid; place-items: center; pointer-events: auto; }
+    .avatar-selector-modal[hidden] { display: none; }
+    .avatar-selector-scrim { position: absolute; inset: 0; background: rgba(13,19,36,.42);
+      backdrop-filter: blur(2px); }
+    .avatar-selector-panel { position: relative; width: min(980px, calc(100vw - 24px));
+      max-height: calc(100vh - 128px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+      background: rgba(17,24,43,.98); border: 1px solid var(--line); border-radius: 8px;
+      box-shadow: 0 18px 44px rgba(0,0,0,.42); overflow: hidden; }
+    .avatar-selector-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-bottom: 1px solid var(--line); background: var(--panel-2); }
+    .avatar-selector-title { font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    .avatar-selector-meta { color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace; }
+    .avatar-selector-close { margin-left: auto; width: 28px; height: 26px; padding: 0; border-radius: 6px; }
+    .avatar-selector-body { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 330px);
+      gap: 0; overflow: auto; }
+    .avatar-selector-preview-column { min-width: 0; padding: 12px; border-right: 1px solid var(--line); }
+    .avatar-selector-preview { position: relative; min-height: 390px; aspect-ratio: 4 / 3; width: 100%;
+      overflow: hidden; border: 1px solid var(--line); border-radius: 8px;
+      background: radial-gradient(80% 80% at 50% 20%, rgba(58,160,255,.18), rgba(11,16,32,.12) 48%, rgba(11,16,32,.76) 100%),
+        linear-gradient(180deg, rgba(232,238,252,.05), rgba(11,16,32,.38)); }
+    .avatar-selector-preview:focus { outline: 2px solid var(--source); outline-offset: 2px; }
+    #avatar-selector-preview-mount { position: absolute; inset: 0; min-height: 260px; }
+    #avatar-selector-preview-mount canvas.avatar-equipment-layer { z-index: 1; }
+    .avatar-selector-arrow { position: absolute; z-index: 3; top: 50%; transform: translateY(-50%);
+      width: 42px; height: 64px; padding: 0; border-radius: 8px; font-size: 24px;
+      background: rgba(26,35,64,.78); }
+    .avatar-selector-arrow.prev { left: 10px; }
+    .avatar-selector-arrow.next { right: 10px; }
+    .avatar-selector-preview-data { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
+      margin-top: 10px; font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--ink-dim); }
+    .avatar-selector-preview-data strong { color: var(--ink); font-family: inherit; font-size: 12px; }
+    .avatar-selector-motion { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; }
+    .avatar-selector-motion button { padding: 5px 10px; border-radius: 6px; font-size: 11px; }
+    .avatar-selector-motion button[aria-pressed="true"] { border-color: var(--ok); color: var(--ok);
+      background: rgba(70,209,138,.12); }
+    .avatar-selector-side { min-width: 0; padding: 12px; overflow: auto; }
+    .avatar-selector-section { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+    .avatar-selector-section:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+    .avatar-selector-section-title { font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+      color: var(--ink-dim); margin-bottom: 6px; }
+    .avatar-selector-options { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .avatar-selector-chip { font: 700 10.5px ui-monospace, Menlo, monospace; padding: 4px 8px;
+      border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+      cursor: pointer; }
+    .avatar-selector-chip:hover { border-color: var(--source); color: var(--source); }
+    .avatar-selector-chip.active { border-color: var(--ok); color: var(--ok); background: rgba(70,209,138,.12); }
+    .avatar-selector-chip.unsupported { border-color: rgba(255,204,85,.55); color: var(--warn); }
+    .avatar-selector-slot-label { color: var(--ink-dim); font-size: 10px; text-transform: uppercase;
+      margin: 8px 0 4px; }
+    .avatar-selector-support { color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace;
+      overflow-wrap: anywhere; margin-top: 8px; }
+    .avatar-selector-support .warn { color: var(--warn); }
+    .avatar-selector-footer { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-top: 1px solid var(--line); background: rgba(13,19,36,.98); }
+    .avatar-selector-status { color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace;
+      min-width: 0; overflow-wrap: anywhere; }
+    .avatar-selector-footer .actions { margin-left: auto; display: inline-flex; gap: 8px; }
+    .avatar-selector-none-choice { width: 100%; min-height: 58px; margin: 0 0 10px; padding: 10px 12px;
+      display: grid; gap: 3px; text-align: left; border-radius: 10px; border: 1px solid var(--line);
+      background: rgba(163,230,53,.06); color: var(--ink); }
+    .avatar-selector-none-choice strong { font-size: 13px; }
+    .avatar-selector-none-choice span { color: var(--ink-dim); font-size: 11px; font-weight: 500; }
+    .avatar-selector-none-choice.active { border-color: var(--source); box-shadow: inset 3px 0 0 var(--source); }
+    @media (max-width: 760px) {
+      .avatar-selector-modal { inset: 50px 8px 56px; }
+      .avatar-selector-body { grid-template-columns: 1fr; }
+      .avatar-selector-preview-column { border-right: 0; border-bottom: 1px solid var(--line); }
+      .avatar-selector-preview { min-height: 300px; }
+      .avatar-selector-footer { align-items: stretch; flex-direction: column; }
+      .avatar-selector-footer .actions { margin-left: 0; justify-content: flex-end; }
+    }
+
+    /* runtime (#8), refreshed by runtime: preserve the dense editor
+       accordion content inside a rounded, frosted, right-docked floating panel. */
+    aside.rail { position: absolute; z-index: 10; top: var(--rail-top, var(--osl-panel-top));
+      right: var(--rail-right, var(--osl-glass-edge)); left: var(--rail-left, auto);
+      width: var(--rail-w); height: var(--rail-h);
+      min-width: 0; min-height: 0; max-width: calc(100% - (2 * var(--osl-glass-edge)));
+      max-height: calc(100% - var(--osl-panel-top) - var(--osl-shell-footer-height) - var(--osl-glass-edge));
+      border: 1px solid var(--osl-glass-border); border-radius: var(--osl-glass-radius-panel);
+      background: var(--osl-glass-fill-solid); box-shadow: var(--osl-glass-shadow);
+      overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+      padding: 0; display: flex; flex-direction: column; gap: 0; pointer-events: auto; }
+    .panel-control-strip { position: sticky; top: 0; z-index: 3; display: flex; align-items: center;
+      gap: 6px; padding: 8px 10px; background: rgba(19,26,46,.94); border-bottom: 1px solid var(--line);
+      box-shadow: 0 4px 12px rgba(0,0,0,.2); cursor: move; touch-action: none; user-select: none; }
+    .panel-control-strip[data-dragging="1"] { cursor: grabbing; }
+    .panel-control-title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; color: var(--ink); font: 800 10.5px ui-monospace, Menlo, monospace;
+      letter-spacing: .5px; text-transform: uppercase; }
+    .panel-control-strip button { padding: 5px 9px; border-radius: 6px; font: 700 10.5px ui-monospace, Menlo, monospace; }
+    .panel-control-strip .panel-close-button { min-width: 36px; min-height: 36px; padding: 0; cursor: pointer; }
+    .panel-control-strip button[aria-pressed="true"] { color: var(--ok); border-color: var(--ok);
+      background: rgba(70,209,138,.12); }
+    /* Each .card is now a docked accordion section. runtime (#7): the <h3> is the
+       clickable header, and everything after it is the collapsible body. */
+    .card { background: var(--panel); border: 0; border-bottom: 1px solid var(--line);
+      border-radius: 0; padding: 0; }
+    .card > h3 { margin: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px;
+      color: var(--ink-dim); font-weight: 700; padding: 7px 12px 7px 26px; cursor: pointer;
+      position: relative; user-select: none; background: var(--panel-2);
+      border-bottom: 1px solid transparent; display: flex; align-items: center; }
+    .card > h3:hover { color: var(--ink); background: #202a4a; }
+    /* accordion caret — rotates when the section collapses */
+    .card > h3::before { content: ""; position: absolute; left: 11px; top: 50%;
+      width: 0; height: 0; border-left: 5px solid currentColor; border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent; transform: translateY(-50%) rotate(90deg);
+      transition: transform .12s ease; opacity: .8; }
+    .card.section-collapsed > h3 { border-bottom-color: var(--line); }
+    .card.section-collapsed > h3::before { transform: translateY(-50%) rotate(0deg); }
+    /* the body wrapper holds every non-h3 child of a card (added by app.js at boot) */
+    .section-body { padding: 8px 12px 10px; display: block; }
+    .card.section-collapsed .section-body { display: none; }
+    /* cards WITHOUT a header (rare) keep their own inner padding */
+    .card:not(:has(> h3)) { padding: 8px 12px 10px; }
+    .kv { display: flex; justify-content: space-between; gap: 8px; font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px; padding: 2px 0; align-items: baseline; }
+    aside.rail .kv { display: grid; grid-template-columns: 1fr; gap: 1px; align-items: start; padding: 4px 0; }
+    .kv .k { color: var(--ink-dim); min-width: 0; overflow-wrap: anywhere; }
+    .kv .v { color: var(--ink); text-align: right; white-space: nowrap; flex: none; }
+    aside.rail .kv .v { text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+    aside.rail .movement-debug .kv,
+    aside.rail #geopose-card .kv,
+    aside.rail #portal-info-card .kv,
+    aside.rail #fabric-prefetch-card .kv {
+      grid-template-columns: minmax(96px, 44%) minmax(0, 1fr);
+      gap: 8px;
+      align-items: baseline;
+    }
+    aside.rail .movement-debug .kv .v,
+    aside.rail #geopose-card .kv .v,
+    aside.rail #portal-info-card .kv .v,
+    aside.rail #fabric-prefetch-card .kv .v {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .kv .v#c-preview, .kv .v#c-marker, .kv .v#c-camera, .kv .v#c-validation,
+    .kv .v#pr-target, .kv .v#pr-fallback, .kv .v#pr-source-camera,
+    .kv .v#pr-target-camera, .kv .v#pr-projection,
+    .kv .v#n-context, .kv .v#n-status, .kv .v#n-root, .kv .v#n-child,
+    .kv .v#n-fabrics, .kv .v#n-portal-node, .kv .v#n-spawn,
+    .kv .v#n-child-render, .kv .v#n-trust, .kv .v#n-promotion {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      flex: 1;
+    }
+    .flags .kv .k { font-size: 10.5px; }
+
+    .prov { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+      padding: 1px 6px; border-radius: 4px; letter-spacing: .4px; }
+    .prov-live { background: rgba(70,209,138,.16); color: var(--ok); border: 1px solid var(--ok); }
+    .prov-loading { background: rgba(255,204,85,.16); color: var(--warn); border: 1px solid var(--warn); }
+    .prov-disconnected, .prov-error { background: rgba(255,93,108,.12); color: var(--bad);
+      border: 1px solid var(--bad); }
+    .prov-fixture { background: rgba(255,204,85,.16); color: var(--warn); border: 1px solid var(--warn); }
+    .prov-simulated { background: rgba(185,139,255,.16); color: var(--sim); border: 1px solid var(--sim); }
+
+    .flags .kv .v.true { color: var(--ok); }
+    .flags .kv .v.false { color: var(--bad); }
+    .boundary-ok { color: var(--ok); }
+    .boundary-bad { color: var(--bad); }
+    .movement-debug .v { font-variant-numeric: tabular-nums; }
+    .movement-debug .v.debug-true { color: var(--ok); }
+    .movement-debug .v.debug-false { color: var(--bad); }
+    /* runtime: colour the GeoPose Basic-SDU bools + scoped-true verdict.
+       schema-valid:true is a REAL true (green); georeferenced:false is a real
+       false (red) — the two are deliberately different properties. */
+    #geopose-card .v.debug-true { color: var(--ok); }
+    #geopose-card .v.debug-false { color: var(--bad); }
+    .std-scoped-true { color: var(--ok); font-weight: 700; }
+    #geopose-card .v.std-scoped-true { color: var(--ok); font-weight: 700; }
+
+    footer.controls { position: absolute; z-index: 20; left: 0; right: 0; bottom: 0;
+      min-height: var(--osl-shell-footer-height); max-height: min(96px, 35vh); overflow: auto;
+      border-top: 1px solid var(--line);
+      padding: 8px max(16px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left)); display: flex;
+      align-items: center; justify-content: stretch; background: var(--panel); }
+    /* The hosted destination is the sole in-world footer link. It uses the same inherited
+       system-sans family as .loc-title while retaining the launcher's cyan/focus tokens. */
+    .footer-links { width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; }
+    .footer-link { display: inline-flex; max-width: 100%; align-items: center; justify-content: center;
+      color: var(--launcher-cyan, #63d8ff); font-family: inherit;
+      font-size: clamp(17px, 5vw, 21px); font-weight: 600; line-height: 1.2;
+      overflow-wrap: anywhere; text-align: center; text-decoration: none; }
+    .footer-link:hover { color: #9fe8ff; }
+    .footer-link:focus-visible { outline: 3px solid var(--launcher-focus, #fff);
+      outline-offset: 3px; border-radius: 6px; }
+    /* runtime / runtime: the player compatibility branch
+       may still create the legacy in-canvas camera pill, while server views now
+       reuse the header icon. Keep the legacy pill hidden in either case. */
+    #btn-camera-mode { display: none; }
+    /* runtime: #avatar-runtime-status / #connection-footer-status carry the
+       "hidden" attribute (see footer markup) to keep them out of the visible bottom bar,
+       but .legend / .legend.spacer below both set an explicit "display", which — same
+       specificity, author origin — beats the UA [hidden] rule the moment either element
+       gets text (confirmed live: connection-footer-status renders its static initial
+       text on load; avatar-runtime-status would too as soon as
+       avatar-selector-controller.mjs writes "selector canceled" etc. into it). ID selectors
+       here outrank the .legend class, so this rule wins regardless of textContent. */
+    #avatar-runtime-status, #connection-footer-status { display: none; }
+    /* runtime: #connection-status ("Live Backend" pill) — setConnectionPresentation()
+       in app.js reassigns this element's className wholesale on every state change
+       (header.className = `live-tag connection-${state}`), which would wipe any sr-only
+       CLASS added here (confirmed live). Keying the sr-only treatment to the ID instead
+       makes it immune to that reassignment: the pill is invisible in the top bar in every
+       view/state, while staying a real, updated role="status" aria-live="polite" region so
+       screen readers still hear connection-state changes. */
+    #connection-status { position: fixed; width: 1px; height: 1px; padding: 0;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 8px;
+      border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; }
+    button:hover:not(:disabled) { border-color: var(--source); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary { background: var(--source); color: #041225; border-color: var(--source); }
+    .role-target button.primary { background: var(--target); color: #24110a; border-color: var(--target); }
+    .role-player button.primary { background: var(--ok); color: #062015; border-color: var(--ok); }
+    .spacer { margin-left: auto; }
+    .legend { font-size: 11px; color: var(--ink-dim); display: flex; gap: 10px; flex-wrap: wrap; }
+    .console { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--ink-dim);
+      white-space: pre-wrap; max-height: 130px; overflow-y: auto; }
+    .equipment-row { border-top: 1px solid var(--line); padding: 6px 0; font-family: ui-monospace, Menlo, monospace;
+      font-size: 11px; overflow-wrap: anywhere; }
+    .equipment-row:first-child { border-top: 0; }
+    .equipment-ok { color: var(--ok); }
+    .equipment-bad { color: var(--warn); }
+    a { color: var(--source); }
+
+    /* runtime: Web of Worlds API activity panel. runtime (#8): keep the
+       green accent as a left rule on the docked section so the WoW panel still
+       reads as special within the game-engine editor styling. */
+    .card.wow-api { box-shadow: inset 3px 0 0 var(--ok); }
+    .card.wow-api > h3 { color: var(--ok); }
+    .card.wow-api > h3:hover { color: var(--ok); }
+    .wow-spec-id { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; color: var(--ink-dim);
+      overflow-wrap: anywhere; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    .wow-spec-id .std-false { color: var(--bad); font-weight: 700; }
+    .wow-services { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; color: var(--ink-dim);
+      overflow-wrap: anywhere; margin-bottom: 8px; }
+    .wow-sub { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-dim);
+      margin: 8px 0 4px; }
+    .wow-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .wow-chip { font: 700 10.5px ui-monospace, Menlo, monospace; padding: 3px 8px; border-radius: 6px;
+      border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+    .wow-chip:hover { border-color: var(--ok); color: var(--ok); }
+    .wow-id-input { width: 52px; font: 11px ui-monospace, Menlo, monospace; padding: 3px 6px;
+      border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+    /* runtime: portal-view refresh-settings number inputs. */
+    .pv-num-input { width: 78px; font: 11px ui-monospace, Menlo, monospace; padding: 3px 6px;
+      border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+      text-align: right; }
+    .pv-num-input:disabled { opacity: .4; cursor: not-allowed; }
+    .wow-log { list-style: none; margin: 0; padding: 0; max-height: 148px; overflow-y: auto;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+    .wow-log li { display: flex; gap: 6px; align-items: baseline; padding: 3px 8px;
+      font: 11px ui-monospace, Menlo, monospace; border-top: 1px solid var(--line); }
+    .wow-log li:first-child { border-top: 0; }
+    .wow-log .m { font-weight: 700; min-width: 34px; }
+    .wow-log .m.get { color: var(--source); }
+    .wow-log .m.post { color: var(--sim); }
+    .wow-log .p { color: var(--ink); overflow-wrap: anywhere; flex: 1; }
+    .wow-log .s { font-weight: 700; flex: none; }
+    .wow-log .s.ok { color: var(--ok); }
+    .wow-log .s.bad { color: var(--bad); }
+    .wow-log .sc { color: var(--ink-dim); flex: none; }
+    .wow-log-empty { padding: 8px; color: var(--ink-dim); font-size: 11px; }
+    .wow-json { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; color: var(--ink);
+      white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow-y: auto; margin: 6px 0 0;
+      padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+    .wow-json.bad { border-color: var(--bad); }
+    .wow-json .meta { color: var(--ink-dim); }
+    .wow-presenter { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+    .wow-presenter button { font: 700 11px inherit; padding: 5px 10px; border-radius: 7px; }
+    .wow-presenter .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .wow-arrival-edit { width: 100%; min-height: 42px; font: 11px ui-monospace, Menlo, monospace;
+      padding: 6px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+      margin: 6px 0; resize: vertical; }
+    .wow-hint { font-size: 10px; color: var(--ink-dim); margin: 2px 0 4px; }
+    button.danger { border-color: var(--bad); color: var(--bad); }
+    button.danger:hover:not(:disabled) { border-color: var(--bad); background: rgba(255,93,108,.12); }
+
+    @media (max-width: 620px) {
+      :root { --osl-glass-edge: 8px; --osl-glass-gap: 8px; }
+      header.role-banner { gap: 3px; padding: 0 6px; }
+      .role-chip { max-width: 47px; overflow: hidden; text-overflow: ellipsis;
+        padding: 3px 7px; font-size: 10px; }
+      .loc-title { display: none; }
+      .live-tag { max-width: 112px; overflow: hidden; text-overflow: ellipsis;
+        width: 37px; flex-basis: 37px; padding: 2px 5px; font-size: 9px; }
+      .header-actions { gap: 3px; }
+      /* runtime: shrunk 36px -> 30px. The header now carries 9 possible
+         icon buttons (7 original + camera-toggle + avatar-switch) instead of 7; at
+         36px+3px-gap none of the 9 fit this breakpoint's available width (verified:
+         #btn-rail-toggle got clipped off past the header's right edge). 30px is the
+         largest uniform size that keeps all 9 on-screen at 375-390px width. This is a
+         narrower touch target than before on this one breakpoint only (desktop is
+         untouched) — an intentional, necessary trade-off for the 2 added controls. */
+      .header-icon-button { flex-basis: 30px; width: 30px; height: 30px; min-width: 30px; border-radius: 9px; }
+      .header-icon-button.views-toggle { width: 30px; min-width: 30px; padding: 0; font-size: 9px; }
+      .header-icon-button.destinations-toggle { width: 30px; min-width: 30px; padding: 0; }
+      aside.rail { width: min(var(--rail-w), calc(100% - (2 * var(--osl-glass-edge)))); }
+      .player-first-frame { width: calc(100% - 20px); padding: 18px; border-radius: 16px; }
+      .player-first-frame .player-first-frame-actions { align-items: stretch; flex-direction: column; }
+      .player-first-frame .player-first-frame-actions button { width: 100%; }
+      footer.controls { padding: 8px 10px; }
+      #connection-footer-status { margin-left: 0; }
+    }
+
+    /* runtime (#12): inventory + avatar picker section (player view).
+       Chip rows per slot in the runtime docked-panel styling. */
+    .inv-note { font-size: 10px; color: var(--ink-dim); margin: 0 0 6px; }
+    .inv-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--ink-dim); margin: 8px 0 4px; }
+    .inv-options { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .inv-chip { font: 700 10.5px ui-monospace, Menlo, monospace; padding: 3px 8px; border-radius: 6px;
+      border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+    .inv-chip:hover { border-color: var(--source); color: var(--source); }
+    .inv-chip.active { border-color: var(--ok); color: var(--ok); background: rgba(70,209,138,.12); }
+    .inv-status { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; color: var(--ink-dim);
+      margin-top: 8px; overflow-wrap: anywhere; }
+    .inv-status.inv-ok { color: var(--ok); }
+    .inv-status.inv-bad { color: var(--bad); }
+
+    /* runtime: per-standard visibility views. Each standard in the
+       stack gets its own runtime accordion .card. The WoW card above is the
+       template; these share a compact "std-view" vocabulary so every view has
+       an honest one-liner, an exposable stats grid, and an explicit
+       non-conformance label. Read-only — no crossing/behaviour change. */
+    .card.std-view { box-shadow: inset 3px 0 0 var(--sim); }
+    .card.std-view > h3 { color: var(--sim); }
+    .card.std-view > h3:hover { color: var(--sim); }
+    .std-oneliner { font-size: 11px; color: var(--ink); line-height: 1.45;
+      margin-bottom: 8px; }
+    .std-oneliner em { color: var(--ink-dim); font-style: normal; }
+    .std-label { display: block; font-family: ui-monospace, Menlo, monospace;
+      font-size: 10px; color: var(--bad); font-weight: 700; letter-spacing: .3px;
+      overflow-wrap: anywhere; margin: 6px 0 8px; padding: 4px 8px;
+      border: 1px solid var(--bad); border-radius: 6px;
+      background: rgba(255,93,108,.08); }
+    .std-verdict { display: inline-block; font: 700 9.5px ui-monospace, Menlo, monospace;
+      text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px;
+      margin-bottom: 6px; }
+    .std-verdict.proper { color: var(--ok); border: 1px solid var(--ok); background: rgba(70,209,138,.12); }
+    .std-verdict.adjust { color: var(--warn); border: 1px solid var(--warn); background: rgba(255,204,85,.12); }
+    .std-verdict.real { color: var(--ok); border: 1px solid var(--ok); background: rgba(70,209,138,.12); }
+    .std-verdict.framing { color: var(--ink-dim); border: 1px solid var(--line); background: var(--panel); }
+    .std-verdict.transport { color: var(--source); border: 1px solid var(--source); background: rgba(80,180,255,.12); }
+    .std-sub { font-size: 10px; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--ink-dim); margin: 8px 0 4px; }
+    .std-stats .kv { padding: 2px 0; }
+    .std-stats .kv .k { font-size: 10.5px; }
+    .std-stats .kv .v { white-space: normal; overflow-wrap: anywhere; text-align: right; }
+    .std-gap { font-size: 10.5px; color: var(--warn); line-height: 1.4; margin: 3px 0;
+      padding-left: 12px; position: relative; overflow-wrap: anywhere; }
+    .std-gap::before { content: "▸"; position: absolute; left: 0; color: var(--warn); }
+    .std-src { font-size: 9.5px; color: var(--ink-dim); font-family: ui-monospace, Menlo, monospace;
+      margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+
+    .panel-live-group { border-bottom: 1px solid var(--line); }
+    .panel-group-heading { margin: 0; }
+    .panel-group-toggle { width: 100%; min-height: 42px; display: flex; align-items: center;
+      gap: 8px; padding: 9px 12px 9px 30px; border: 0; border-radius: 0; text-align: left;
+      color: var(--ink); background: #151e36; position: relative; text-transform: uppercase;
+      letter-spacing: .65px; font: 800 11px ui-monospace, Menlo, monospace; }
+    .panel-group-toggle::before { content: ""; position: absolute; left: 13px; top: 50%;
+      border-left: 6px solid currentColor; border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent; transform: translateY(-50%) rotate(90deg);
+      transition: transform .12s ease; }
+    .panel-group-toggle[aria-expanded="false"]::before {
+      transform: translateY(-50%) rotate(0deg); }
+    .panel-group-toggle:hover { background: #202a4a; }
+    .panel-group-toggle:focus-visible, .card > h3:focus-visible,
+    .journal-toolbar button:focus-visible { outline: 2px solid var(--source); outline-offset: -2px; }
+    .panel-group-count { margin-left: auto; min-width: 22px; padding: 1px 6px;
+      border: 1px solid var(--line); border-radius: 999px; text-align: center;
+      color: var(--ink-dim); font-size: 10px; }
+    .panel-group-body[hidden] { display: none; }
+    .panel-live-card { min-width: 0; }
+    .live-card-meta { margin: 0 0 7px; padding: 4px 7px; border-left: 2px solid var(--source);
+      color: var(--ink-dim); background: rgba(58,160,255,.06);
+      font: 10px/1.4 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+    .live-card-meta[data-tone="warning"], .live-card-meta[data-tone="fatal"] {
+      border-left-color: var(--bad); color: var(--bad); background: rgba(255,93,108,.07); }
+    .live-boundary { margin: 8px 0 0; color: var(--ink-dim);
+      font: 10px/1.45 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; }
+    .developer-detail { margin-top: 7px; }
+    .developer-detail > summary { color: var(--ink-dim); cursor: pointer;
+      font: 700 10.5px ui-monospace, Menlo, monospace; }
+    .portal-color-swatch { display: inline-block; width: 14px; height: 14px;
+      border-radius: 3px; border: 1px solid rgba(255,255,255,.4);
+      vertical-align: middle; background: #000; }
+    .portal-value-canvas { width: 100%; border: 1px solid rgba(255,255,255,.15);
+      border-radius: 6px; background: #0b1020; }
+    .journal-toolbar { display: flex; align-items: center; justify-content: space-between;
+      gap: 6px; flex-wrap: wrap; }
+    .journal-filters { display: inline-flex; gap: 4px; }
+    .journal-toolbar button { padding: 4px 7px; border-radius: 5px;
+      font: 700 10px ui-monospace, Menlo, monospace; }
+    .journal-toolbar button[aria-pressed="true"] { color: var(--ok);
+      border-color: var(--ok); background: rgba(70,209,138,.1); }
+    .journal-filter { display: inline-flex; align-items: center; gap: 6px;
+      color: var(--ink-dim); font: 10.5px ui-monospace, Menlo, monospace; }
+    .journal-summary { margin: 7px 0 4px; color: var(--ink-dim);
+      font: 10px ui-monospace, Menlo, monospace; }
+    .activity-journal { list-style: none; margin: 0; padding: 0; max-height: 240px;
+      overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+    .activity-journal li { display: grid; grid-template-columns: auto auto minmax(0, 1fr);
+      gap: 6px; padding: 5px 7px; border-top: 1px solid var(--line);
+      font: 10.5px/1.35 ui-monospace, Menlo, monospace; }
+    .activity-journal li:first-child { border-top: 0; }
+    .activity-journal time { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+    .journal-severity { min-width: 48px; text-transform: uppercase; font-weight: 800; }
+    .activity-journal li[data-severity="info"] .journal-severity { color: var(--source); }
+    .activity-journal li[data-severity="warning"] .journal-severity { color: var(--warn); }
+    .activity-journal li[data-severity="fatal"] .journal-severity { color: var(--bad); }
+    .journal-message { color: var(--ink); overflow-wrap: anywhere; }
+    .journal-empty { color: var(--ink-dim); grid-template-columns: 1fr !important; }
+    html[data-motion="reduced"] .rail-resizer::after,
+    html[data-motion="reduced"] .panel-height-resizer::after,
+    html[data-motion="reduced"] .runtime-tweak-resizer::after,
+    html[data-motion="reduced"] .storefront-shopping-affordance,
+    html[data-motion="reduced"] .boarding-journey-affordance,
+    html[data-motion="reduced"] .toast,
+    html[data-motion="reduced"] .card > h3::before,
+    html[data-motion="reduced"] .panel-group-toggle::before {
+      transition: none;
+      animation: none;
+    }
+    header.role-banner :focus-visible, aside.rail :focus-visible,
+    .rail-resizer:focus-visible, .panel-height-resizer:focus-visible {
+      outline: 3px solid var(--osl-glass-focus); outline-offset: 2px; }
+    @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      body:not([data-glass-blur="off"]) header.role-banner,
+      body:not([data-glass-blur="off"]) aside.rail,
+      body:not([data-glass-blur="off"]) .runtime-tweak-palette {
+        background: var(--osl-glass-fill);
+        -webkit-backdrop-filter: saturate(135%) blur(var(--osl-glass-blur));
+        backdrop-filter: saturate(135%) blur(var(--osl-glass-blur));
+      }
+    }
+    body[data-glass-blur="off"] header.role-banner,
+    body[data-glass-blur="off"] aside.rail,
+    body[data-glass-blur="off"] .runtime-tweak-palette,
+    body[data-reduced-transparency="true"] header.role-banner,
+    body[data-reduced-transparency="true"] aside.rail,
+    body[data-reduced-transparency="true"] .runtime-tweak-palette {
+      background: var(--osl-glass-fill-solid);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: var(--osl-glass-fill-solid);
+        -webkit-backdrop-filter: none; backdrop-filter: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important;
+        transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    }
+    @media (prefers-contrast: more) {
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: #080b12; border-color: rgba(255,255,255,.86);
+        box-shadow: 0 0 0 2px #000; }
+      .header-icon-button, .panel-control-strip button { border-color: currentColor; }
+    }
+    @media (forced-colors: active) {
+      header.role-banner, aside.rail, .runtime-tweak-palette { background: Canvas; color: CanvasText;
+        border: 2px solid CanvasText; box-shadow: none; forced-color-adjust: auto; }
+      .rail-resizer::after, .panel-height-resizer::after { background: Highlight; opacity: 1; }
+    }
+  </style>
+
+
+</head>
+<body>
+  <div id="app" class="role-source rail-collapsed">
+
+    <header class="role-banner">
+      <span class="role-chip" id="role-chip">SERVER A</span>
+      <span class="loc-title" id="loc-title">Location A</span>
+      <span class="loc-meta" id="loc-meta">location-a · demo-room-a · local-session-a</span>
+
+      <span class="live-tag connection-loading" id="connection-status" data-testid="connection-status"
+            role="status" aria-live="polite">Loading</span>
+      <span class="phase-pill" id="phase-pill">idle</span>
+      <div class="header-actions" data-testid="header-actions">
+        <button class="header-icon-button views-toggle" id="btn-views-home" type="button"
+                data-testid="views-home" title="Open mission views" aria-label="Open mission views">
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="M3 10.5 12 3l9 7.5"></path>
+            <path d="M5.5 9.5V21h13V9.5M9.5 21v-6h5v6"></path>
+          </svg>
+        </button>
+        <button class="header-icon-button destinations-toggle" id="btn-semantic-destinations" type="button"
+                data-testid="semantic-destinations-toggle" aria-expanded="false"
+                aria-controls="semantic-destinations-panel"
+                title="World destinations" aria-label="Open world destinations"
+                aria-hidden="true" tabindex="-1" hidden>
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="m3 5.5 6-2 6 2 6-2v15l-6 2-6-2-6 2z"></path>
+            <path d="M9 3.5v15M15 5.5v15"></path>
+          </svg>
+        </button>
+
+        <button class="header-icon-button camera-toggle" id="btn-camera-toggle" type="button"
+                data-testid="header-camera-toggle" hidden
+                title="Toggle first/third-person camera (C)" aria-label="Toggle first/third-person camera">
+          <svg class="header-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" focusable="false">
+            <path d="M4 8.5h2.6l1.4-2h8l1.4 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z"></path>
+            <circle cx="12" cy="13.5" r="3.4"></circle>
+          </svg>
+        </button>
+
+        <button id="btn-switch-avatar" class="header-icon-button" type="button"
+                data-testid="btn-switch-avatar" title="Switch avatar" aria-label="Switch avatar" hidden>
+          <span class="avatar-switch-label" aria-hidden="true">A</span>
+        </button>
+        <button class="header-icon-button runtime-tweak-toggle" id="btn-runtime-tweaks" type="button"
+                data-testid="runtime-tweak-toggle" aria-expanded="false"
+                aria-controls="runtime-tweak-palette" title="Runtime tweaks"
+                aria-label="Open runtime tweak palette" aria-hidden="true" tabindex="-1" hidden>
+          <span aria-hidden="true">⌁</span>
+        </button>
+        <button class="header-icon-button refresh-toggle" id="btn-refresh-settings" type="button"
+                data-testid="refresh-settings-toggle" aria-expanded="false"
+                aria-controls="refresh-settings-modal"
+                title="Refresh settings" aria-label="Open refresh settings">
+          <span class="refresh-icon" aria-hidden="true">↻</span>
+        </button>
+        <button class="header-icon-button notification-toggle" id="btn-notifications" type="button"
+                data-testid="notification-toggle" aria-expanded="false"
+                title="Notifications" aria-label="Open notifications">
+          <span aria-hidden="true">!</span><span class="notification-badge" id="notification-count-badge">0</span>
+        </button>
+        <button class="header-icon-button lobby-return-toggle" id="btn-return-lobby" type="button"
+                data-testid="return-lobby-button"
+                title="Return to lobby" aria-label="Return to lobby" hidden>
+          <span class="lobby-return-label" aria-hidden="true">L</span>
+        </button>
+        <button class="header-icon-button rail-toggle" id="btn-rail-toggle" type="button"
+                data-testid="rail-toggle" aria-expanded="false"
+                onclick="if (!window.__assembly) { const app = document.getElementById('app'); const collapsed = app.classList.toggle('rail-collapsed'); this.setAttribute('aria-expanded', String(!collapsed)); }"
+                title="Toggle inspector panel" aria-label="Toggle inspector panel">
+          <span class="rail-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <div id="scene-mount" tabindex="-1" aria-label="Interactive spatial world">
+        <script>
+        // X3DOM preview mode (?renderer=x3dom): the <x3d> host + Inline slot pool MUST be part of
+        // the page's original static-parse markup stream (see the README's Render-engine adapter
+        // section — a dynamically document.createElement()'d Inline node never completes its
+        // first load). A classic (non-module) script executing synchronously during the initial
+        // HTML parse is the only point document.write() can still inject real static markup —
+        // demo-shell-bootstrap.mjs (a module script) runs too late for this. Default (no param)
+        // page load: this block is a no-op, nothing extra is written or loaded.
+        (function () {
+          if (new URLSearchParams(location.search).get("renderer") !== "x3dom") return;
+          var w = window.innerWidth || 1280;
+          var h = window.innerHeight || 800;
+          document.write(
+            '<link rel="stylesheet" href="./vendor/scene-core/vendor/x3dom/x3dom.css">' +
+            '<script src="./vendor/scene-core/vendor/x3dom/x3dom-full.js"><' + '/script>' +
+            '<x3d id="x3dom-host" width="' + w + 'px" height="' + h + 'px">' +
+              '<scene>' +
+                '<viewpoint id="x3dom-viewpoint" position="0 6 10" orientation="1 0 0 -0.35"></viewpoint>' +
+                '<script src="./vendor/scene-core/render-adapter/x3dom-inline-pool.js"><' + '/script>' +
+              '</scene>' +
+            '</x3d>'
+          );
+        })();
+        </script>
+        <div class="state-overlay" id="state-overlay"></div>
+        <button class="boarding-journey-affordance" id="boarding-journey-affordance"
+                type="button" data-testid="boarding-journey-affordance"
+                aria-haspopup="dialog" aria-expanded="false" hidden>
+          Board local-demo flight at Gate A12 · E
+        </button>
+        <section class="boarding-journey-panel" id="boarding-journey-panel"
+                 data-testid="boarding-journey-panel" role="dialog" aria-modal="false"
+                 aria-labelledby="boarding-journey-title" data-world-input-suppressed="true" hidden>
+          <div class="boarding-journey-head">
+            <div>
+              <h2 class="boarding-journey-title" id="boarding-journey-title">A12 · Local demo flight</h2>
+              <div class="boarding-journey-meta" id="boarding-journey-meta">Graph-authored local demo</div>
+            </div>
+            <button class="boarding-journey-close" id="btn-boarding-close"
+                    type="button" data-testid="boarding-close"
+                    title="Close boarding panel" aria-label="Close boarding panel and resume movement">x</button>
+          </div>
+          <ol class="boarding-progress" aria-label="Local-demo boarding progress">
+            <li id="boarding-progress-ready" data-state="waiting">Gate ready</li>
+            <li id="boarding-progress-admitted" data-state="waiting">Admitted</li>
+            <li id="boarding-progress-boarding" data-state="waiting">Boarding components</li>
+            <li id="boarding-progress-completed" data-state="waiting">Completed</li>
+          </ol>
+          <div class="boarding-credential-form">
+            <div class="boarding-credential-field">
+              <label for="boarding-credential-input">Visible local-demo credential</label>
+              <input id="boarding-credential-input" data-testid="boarding-credential-input"
+                     type="text" inputmode="text" autocomplete="off" spellcheck="false"
+                     placeholder="OSL-DEMO-DS482-A12" maxlength="64">
+              <div class="boarding-credential-hint" id="boarding-credential-hint">
+                Visible local-demo value: OSL-DEMO-DS482-A12
+              </div>
+            </div>
+            <button id="btn-boarding-validate" data-testid="boarding-validate" type="button" class="primary">
+              Validate local-demo credential
+            </button>
+          </div>
+          <div class="boarding-journey-actions">
+            <button id="btn-boarding-cancel" data-testid="boarding-cancel" type="button">
+              Cancel journey and resume movement
+            </button>
+          </div>
+          <p class="boarding-journey-boundary">Local-demo state only. This is not a ticket, airline connection,
+            identity verification, security clearance, legal travel authorization, or real boarding.</p>
+          <p class="boarding-journey-status" id="boarding-journey-status"
+             data-testid="boarding-journey-status" role="status" aria-live="polite" aria-atomic="true">
+            Approach Gate A12 to begin the local-demo boarding journey.
+          </p>
+        </section>
+        <button class="storefront-shopping-affordance" id="storefront-shopping-affordance"
+                type="button" data-testid="storefront-shopping-affordance"
+                aria-haspopup="dialog" aria-expanded="false" hidden>
+          Browse airport storefront · E
+        </button>
+        <section class="storefront-shopping-panel" id="storefront-shopping-panel"
+                 data-testid="storefront-shopping-panel" role="dialog" aria-modal="false"
+                 aria-labelledby="storefront-shopping-title" data-world-input-suppressed="true" hidden>
+          <div class="storefront-shopping-head">
+            <div>
+              <h2 class="storefront-shopping-title" id="storefront-shopping-title">Airport storefront</h2>
+              <div class="storefront-shopping-meta" id="storefront-shopping-meta">Local demo pickup list</div>
+            </div>
+            <button class="storefront-shopping-close" id="btn-storefront-shopping-close"
+                    type="button" data-testid="storefront-shopping-close"
+                    title="Close storefront" aria-label="Close storefront and resume movement">x</button>
+          </div>
+          <div class="storefront-shopping-body">
+            <section class="storefront-shopping-column" aria-label="Store catalog">
+              <div class="storefront-shopping-column-label">Browse catalog</div>
+              <div class="storefront-shopping-catalog" id="storefront-shopping-catalog"
+                   data-testid="storefront-shopping-catalog"></div>
+            </section>
+            <section class="storefront-shopping-column storefront-shopping-detail"
+                     id="storefront-shopping-detail" data-testid="storefront-shopping-detail"
+                     aria-label="Selected item details"></section>
+            <section class="storefront-shopping-column" aria-label="Local demo pickup list">
+              <div class="storefront-shopping-basket-head">
+                <h3>Local demo pickup list</h3>
+                <span class="storefront-shopping-basket-count" id="storefront-shopping-basket-count">0 selected</span>
+              </div>
+              <div class="storefront-shopping-basket" id="storefront-shopping-basket"
+                   data-testid="storefront-shopping-basket"></div>
+              <p class="storefront-shopping-boundary">Session-local selection only. No order, payment,
+                stock reservation, fulfillment, or purchase occurs.</p>
+            </section>
+          </div>
+          <p class="storefront-shopping-status" id="storefront-shopping-status"
+             data-testid="storefront-shopping-status" role="status" aria-live="polite"
+             aria-atomic="true">Approach an airport storefront to browse.</p>
+        </section>
+        <section class="notification-center" id="notification-center"
+                 data-testid="notification-center" hidden aria-label="Notifications">
+          <div class="notification-center-head">
+            <div>
+              <div class="notification-title">Notifications</div>
+              <div class="notification-summary" id="notification-summary">0 records</div>
+            </div>
+            <button class="notification-close" id="btn-notifications-close" type="button"
+                    data-testid="notification-close" title="Close notifications" aria-label="Close notifications">x</button>
+          </div>
+          <div class="notification-list" id="notification-list" data-testid="notification-list"></div>
+          <div class="notification-detail" id="notification-detail" data-testid="notification-detail"></div>
+        </section>
+        <nav class="semantic-destinations-panel" id="semantic-destinations-panel"
+             data-testid="semantic-destinations-panel" aria-labelledby="semantic-destinations-title" hidden>
+          <div class="semantic-destinations-head">
+            <h2 class="semantic-destinations-title" id="semantic-destinations-title">World destinations</h2>
+            <button class="semantic-destinations-close" id="btn-semantic-destinations-close" type="button"
+                    data-testid="semantic-destinations-close" title="Close world destinations"
+                    aria-label="Close world destinations">x</button>
+          </div>
+          <p class="semantic-current-world" id="semantic-current-world" data-testid="semantic-current-world">Current world</p>
+          <div class="semantic-destinations-list" id="semantic-destinations-list"
+               data-testid="semantic-destinations-list"></div>
+          <p class="semantic-destinations-status" id="semantic-destinations-status"
+             data-testid="semantic-destinations-status" role="status" aria-live="polite"
+             aria-atomic="true"></p>
+        </nav>
+        <section class="refresh-settings-modal" id="refresh-settings-modal"
+                 data-testid="refresh-settings-modal" role="region"
+                 aria-labelledby="refresh-settings-title" hidden>
+          <div class="refresh-settings-head">
+            <div class="refresh-settings-title" id="refresh-settings-title">Refresh Settings</div>
+            <button class="refresh-settings-close" id="btn-refresh-settings-close" type="button"
+                    data-testid="refresh-settings-close" title="Close refresh settings"
+                    aria-label="Close refresh settings">x</button>
+          </div>
+          <div class="segmented" role="group" aria-label="Refresh mode">
+            <button type="button" id="hdr-refresh-mode-auto" data-testid="refresh-mode-auto"
+                    data-refresh-mode="auto" aria-pressed="true">Auto</button>
+            <button type="button" id="hdr-refresh-mode-on-demand" data-testid="refresh-mode-on-demand"
+                    data-refresh-mode="on_demand" aria-pressed="false">On-demand</button>
+          </div>
+          <div class="refresh-row">
+            <label for="hdr-client-interval">client read interval (ms)</label>
+            <input class="pv-num-input" id="hdr-client-interval" data-testid="refresh-client-interval"
+              type="number" min="100" max="10000" step="50" value="100" />
+          </div>
+          <div class="refresh-row">
+            <label for="hdr-server-republish">server republish (ms)</label>
+            <input class="pv-num-input" id="hdr-server-republish" data-testid="refresh-server-republish"
+              type="number" min="0" max="60000" step="100" value="100" />
+          </div>
+          <div class="refresh-line" id="hdr-refresh-mode-line" data-testid="refresh-mode-line">—</div>
+        </section>
+        <section class="runtime-tweak-palette" id="runtime-tweak-palette"
+                 data-testid="runtime-tweak-palette" role="dialog" aria-modal="false"
+                 aria-labelledby="runtime-tweak-title" hidden>
+          <div class="runtime-tweak-head">
+            <h2 class="runtime-tweak-title" id="runtime-tweak-title">Runtime tweaks</h2>
+            <button type="button" id="btn-runtime-tweak-copy-all"
+                    data-testid="runtime-tweak-copy-all">Copy all</button>
+            <button type="button" id="btn-runtime-tweak-reset-all"
+                    data-testid="runtime-tweak-reset-all">Reset all</button>
+            <button class="runtime-tweak-close" id="btn-runtime-tweak-close" type="button"
+                    data-testid="runtime-tweak-close" title="Close runtime tweaks"
+                    aria-label="Close runtime tweak palette">x</button>
+          </div>
+          <div class="runtime-tweak-rows" id="runtime-tweak-rows"
+               data-testid="runtime-tweak-rows"></div>
+          <p class="runtime-tweak-status" id="runtime-tweak-status" role="status"
+             aria-live="polite" aria-atomic="true">Session-local values; source defaults remain unchanged.</p>
+          <textarea class="runtime-tweak-copy-fallback" id="runtime-tweak-copy-fallback"
+                    data-testid="runtime-tweak-copy-fallback" readonly hidden></textarea>
+          <button class="runtime-tweak-resizer" id="runtime-tweak-resizer" type="button"
+                  data-testid="runtime-tweak-resizer" role="separator" tabindex="0"
+                  aria-orientation="horizontal"
+                  aria-label="Resize runtime tweak palette; use arrow keys"></button>
+        </section>
+        <section class="avatar-selector-modal" id="avatar-selector-modal"
+                 data-testid="avatar-selector-modal" role="dialog" aria-modal="true"
+                 aria-labelledby="avatar-selector-title" hidden>
+          <div class="avatar-selector-scrim" aria-hidden="true"></div>
+          <div class="avatar-selector-panel">
+            <div class="avatar-selector-head">
+              <div>
+                <div class="avatar-selector-title" id="avatar-selector-title">Avatar &amp; equipment</div>
+                <div class="avatar-selector-meta" id="avatar-selector-count" data-testid="avatar-selector-count">—</div>
+              </div>
+              <button class="avatar-selector-close" id="btn-avatar-selector-close" type="button"
+                      data-testid="avatar-selector-close" title="Cancel" aria-label="Cancel avatar selection">x</button>
+            </div>
+            <div class="avatar-selector-body">
+              <div class="avatar-selector-preview-column">
+                <div class="avatar-selector-preview" id="avatar-selector-preview"
+                     data-testid="avatar-selector-preview" tabindex="0" aria-label="Avatar preview">
+                  <button class="avatar-selector-arrow prev" id="btn-avatar-selector-prev" type="button"
+                          data-testid="avatar-selector-prev" aria-label="Previous avatar">&larr;</button>
+                  <div id="avatar-selector-preview-mount" data-testid="avatar-selector-preview-mount"></div>
+                  <button class="avatar-selector-arrow next" id="btn-avatar-selector-next" type="button"
+                          data-testid="avatar-selector-next" aria-label="Next avatar">&rarr;</button>
+                </div>
+                <div class="avatar-selector-preview-data">
+                  <strong id="avatar-selector-avatar-name" data-testid="avatar-selector-avatar-name">—</strong>
+                  <span id="avatar-selector-avatar-type" data-testid="avatar-selector-avatar-type">—</span>
+                  <span id="avatar-selector-preview-status" data-testid="avatar-selector-preview-status">—</span>
+                  <span id="avatar-selector-preview-rotation" data-testid="avatar-selector-preview-rotation">—</span>
+                </div>
+                <div class="avatar-selector-motion" role="group" aria-label="Preview motion">
+                  <button type="button" id="avatar-selector-motion-idle" data-testid="avatar-selector-motion-idle"
+                          data-preview-motion="idle" aria-pressed="false">Idle</button>
+                  <button type="button" id="avatar-selector-motion-walk" data-testid="avatar-selector-motion-walk"
+                          data-preview-motion="walk" aria-pressed="true">Walk</button>
+                </div>
+              </div>
+              <div class="avatar-selector-side">
+                <div class="avatar-selector-section">
+                  <div class="avatar-selector-section-title">Avatar</div>
+                  <div class="avatar-selector-options" id="avatar-selector-avatar-list"
+                       data-testid="avatar-selector-avatar-list"></div>
+                  <div class="avatar-selector-support" id="avatar-selector-support"
+                       data-testid="avatar-selector-support">—</div>
+                </div>
+                <div class="avatar-selector-section">
+                  <div class="avatar-selector-section-title">Equipment</div>
+                  <div id="avatar-selector-equipment-groups" data-testid="avatar-selector-equipment-groups"></div>
+                </div>
+                <div class="avatar-selector-section">
+                  <div class="avatar-selector-section-title">Additional gear</div>
+                  <div class="avatar-selector-options" id="avatar-selector-extra-items"
+                       data-testid="avatar-selector-extra-items"></div>
+                </div>
+              </div>
+            </div>
+            <div class="avatar-selector-footer">
+              <span class="avatar-selector-status" id="avatar-selector-status"
+                    data-testid="avatar-selector-status" role="status" aria-live="polite">—</span>
+              <span class="actions">
+                <button type="button" id="btn-avatar-selector-cancel"
+                        data-testid="avatar-selector-cancel">Cancel</button>
+                <button type="button" class="primary" id="btn-avatar-selector-apply"
+                        data-testid="avatar-selector-apply">Apply</button>
+              </span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <aside class="rail" aria-label="Inspector" data-testid="floating-panel">
+        <div class="panel-control-strip" data-testid="panel-control-strip">
+          <span class="panel-control-title">Inspector</span>
+          <button class="panel-close-button" id="btn-panel-close" type="button"
+                  data-testid="panel-close" title="Close inspector panel"
+                  aria-label="Close inspector panel">x</button>
+        </div>
+        <section class="panel-live-group" data-panel-group="standards" data-default-expanded="true">
+          <h2 class="panel-group-heading">
+            <button class="panel-group-toggle" id="panel-group-standards-toggle" type="button"
+                    aria-expanded="true" aria-controls="panel-group-standards-body">
+              <span>Web of Worlds + Standards</span>
+              <span class="panel-group-count" aria-hidden="true">6</span>
+            </button>
+          </h2>
+          <div class="panel-group-body" id="panel-group-standards-body">
+            <div class="card wow-api panel-live-card" id="wow-api-card" data-testid="wow-api-card"
+                 data-panel-card="wow-activity" data-default-expanded="true">
+              <h3>Web of Worlds activity</h3>
+              <div class="live-card-meta" id="wow-activity-meta">Waiting for live contract activity</div>
+              <div class="wow-spec-id" data-testid="wow-spec-identity" id="wow-spec-identity">OpenSpatialWorld API · loading</div>
+              <div class="wow-services" data-testid="wow-services-line" id="wow-services-line">Services · loading</div>
+              <div class="wow-services" data-testid="wow-resolved-line" id="wow-resolved-line">Resolved endpoints · loading</div>
+              <div class="wow-services" data-testid="wow-view-match-line" id="wow-view-match-line">Server view comparison · waiting</div>
+              <div class="wow-sub">Recent requests · newest first</div>
+              <ul class="wow-log" data-testid="wow-api-log" id="wow-api-log" aria-label="Recent Web of Worlds requests">
+                <li class="wow-log-empty" data-testid="wow-api-log-empty">No Web of Worlds requests recorded yet</li>
+              </ul>
+              <div class="wow-sub">Live endpoint actions</div>
+              <div class="wow-chips" data-testid="wow-endpoint-chips" id="wow-endpoint-chips">
+                <button class="wow-chip" type="button" data-testid="wow-chip-world" data-kind="world">GET world</button>
+                <button class="wow-chip" type="button" data-testid="wow-chip-user" data-kind="user">GET user</button>
+                <button class="wow-chip" type="button" data-testid="wow-chip-portal" data-kind="portal">GET portal</button>
+                <button class="wow-chip" type="button" data-testid="wow-chip-view" data-kind="view">GET view</button>
+                <button class="wow-chip" type="button" data-testid="wow-chip-fabric" data-kind="fabric">GET fabric</button>
+                <input class="wow-id-input" data-testid="wow-id-input" id="wow-id-input"
+                       type="text" inputmode="numeric" value="1" aria-label="Resource integer id" />
+              </div>
+              <details class="developer-detail">
+                <summary>Last endpoint response</summary>
+                <div class="presentation-json-preview">
+                  <button class="presentation-json-open" id="btn-open-wow-json-view" type="button"
+                          data-testid="open-wow-json-view" data-presentation-source="wow-json-view"
+                          aria-label="Open the current Web of Worlds endpoint response in the presentation viewer"
+                          title="Open presentation viewer" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                    </svg>
+                  </button>
+                  <pre class="wow-json" data-testid="wow-json-view" id="wow-json-view">Choose an endpoint to fetch its live response.</pre>
+                </div>
+              </details>
+              <div class="wow-presenter" data-testid="wow-presenter" id="wow-presenter">
+                <div class="wow-sub">Crossing API actions</div>
+                <div class="row">
+                  <button class="primary" type="button" data-testid="wow-btn-exit" id="wow-btn-exit">Create exit intent</button>
+                </div>
+                <label class="wow-hint" for="wow-arrival-position">Arrival position in the client-held packet</label>
+                <textarea class="wow-arrival-edit" data-testid="wow-arrival-position" id="wow-arrival-position"
+                          placeholder="[x, y, z]">[]</textarea>
+                <div class="row">
+                  <button type="button" data-testid="wow-btn-deliver" id="wow-btn-deliver" disabled>Deliver to target</button>
+                  <button type="button" class="danger" data-testid="wow-btn-wrongnode" id="wow-btn-wrongnode" disabled>Try wrong node</button>
+                </div>
+                <details class="developer-detail">
+                  <summary>Last crossing API response</summary>
+                  <div class="presentation-json-preview">
+                    <button class="presentation-json-open" id="btn-open-wow-presenter-result" type="button"
+                            data-testid="open-wow-presenter-result" data-presentation-source="wow-presenter-result"
+                            aria-label="Open the current Web of Worlds crossing response in the presentation viewer"
+                            title="Open presentation viewer" disabled>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                      </svg>
+                    </button>
+                    <pre class="wow-json" data-testid="wow-presenter-result" id="wow-presenter-result">No crossing API action yet.</pre>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <div class="card std-view panel-live-card" id="std-um-card" data-testid="std-um-card"
+                 data-panel-card="universal-manifest">
+              <h3>Universal Manifest live state</h3>
+              <div class="live-card-meta" id="std-um-activity-meta">Live identity and crossing manifest</div>
+              <div class="kv"><span class="k">subject · continuity</span><span class="v" id="std-um-subject">—</span></div>
+              <div class="kv"><span class="k">display name</span><span class="v" id="std-um-name">—</span></div>
+              <div class="kv"><span class="k">signed identity</span><span class="v" id="std-um-identity" data-testid="std-um-identity">—</span></div>
+              <div class="kv"><span class="k">facets</span><span class="v" id="std-um-facets">—</span></div>
+              <div class="kv"><span class="k">loadout items</span><span class="v" id="std-um-items">—</span></div>
+              <div class="kv"><span class="k">continuity</span><span class="v" id="std-um-continuity">—</span></div>
+              <div class="kv"><span class="k">crossing signature</span><span class="v" id="std-um-signing">—</span></div>
+              <div class="kv"><span class="k">panel manifest</span><span class="v" id="std-um-manifest">—</span></div>
+              <div class="kv"><span class="k">destination loading value</span><span class="v" id="std-um-loading">—</span></div>
+              <details class="developer-detail">
+                <summary>Current Universal Manifest preview</summary>
+                <div class="presentation-json-preview">
+                  <button class="presentation-json-open" id="btn-open-std-um-json-view" type="button"
+                          data-testid="open-std-um-json-view" data-presentation-source="std-um-json-view"
+                          aria-label="Open the current Universal Manifest panel data in the presentation viewer"
+                          title="Open presentation viewer" disabled>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path fill="currentColor" d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z"/>
+                    </svg>
+                  </button>
+                  <pre class="wow-json" data-testid="std-um-json-view" id="std-um-json-view">Waiting for the current accepted manifest.</pre>
+                </div>
+              </details>
+            </div>
+
+            <div class="card std-view panel-live-card" id="std-iwps-card" data-testid="std-iwps-card"
+                 data-panel-card="iwps-activity">
+              <h3>IWPS activity</h3>
+              <div class="live-card-meta" id="std-iwps-activity-meta">Waiting for Query → Teleport activity</div>
+              <div class="kv"><span class="k">route sequence</span><span class="v" id="std-iwps-endpoints">—</span></div>
+              <div class="kv"><span class="k">query event</span><span class="v" id="std-iwps-exit">—</span></div>
+              <div class="kv"><span class="k">teleport event</span><span class="v" id="std-iwps-arrival">—</span></div>
+              <div class="kv"><span class="k">correlation · result</span><span class="v" id="std-iwps-pose">—</span></div>
+            </div>
+
+            <div class="card std-view panel-live-card" id="std-fabric-card" data-testid="std-fabric-card"
+                 data-panel-card="spatial-fabric">
+              <h3>Spatial Fabric live state</h3>
+              <div class="live-card-meta" id="std-fabric-activity-meta">Current fabric attachment and gate</div>
+              <div class="kv"><span class="k">context</span><span class="v" id="std-fabric-context">—</span></div>
+              <div class="kv"><span class="k">loaded now</span><span class="v" id="std-fabric-loaded">—</span></div>
+              <div class="kv"><span class="k">root fabric</span><span class="v" id="std-fabric-root">—</span></div>
+              <div class="kv"><span class="k">child fabric</span><span class="v" id="std-fabric-child">—</span></div>
+              <div class="kv"><span class="k">advertised services</span><span class="v" id="std-fabric-services">—</span></div>
+              <div class="kv"><span class="k">portal attachment</span><span class="v" id="std-fabric-portal">—</span></div>
+              <div class="kv"><span class="k">trust state</span><span class="v" id="std-fabric-trust">—</span></div>
+              <div class="kv"><span class="k">signed read</span><span class="v" id="std-fabric-reads-msf">—</span></div>
+              <div class="kv"><span class="k">served in session</span><span class="v" id="std-fabric-serves-msf">—</span></div>
+              <div class="kv"><span class="k">module run</span><span class="v" id="std-fabric-abi">—</span></div>
+              <div class="wow-sub">Portal gate mode</div>
+              <div class="wow-chips" id="rp1-failclosed-modes" data-testid="rp1-failclosed-modes">
+                <button class="wow-chip" type="button" data-mode="off" data-testid="rp1-fc-off">Allow</button>
+                <button class="wow-chip" type="button" data-mode="stale-attachment" data-testid="rp1-fc-stale">Stale attachment</button>
+                <button class="wow-chip" type="button" data-mode="revoked-session" data-testid="rp1-fc-revoked">Revoked session</button>
+              </div>
+              <div class="kv"><span class="k">mode</span><span class="v" id="rp1-fc-mode">off</span></div>
+              <div class="kv"><span class="k">last receipt</span><span class="v" id="rp1-fc-receipt">—</span></div>
+              <div class="kv"><span class="k">scope</span><span class="v" id="rp1-fc-flag">—</span></div>
+            </div>
+
+            <div class="card std-view panel-live-card" id="portal-view-card" data-testid="portal-view-card"
+                 data-panel-card="hosted-portal">
+              <h3>Hosted portal value / TeleportXR</h3>
+              <div class="live-card-meta" id="hosted-portal-activity-meta">Reloadable hosted value · client pull</div>
+              <div class="kv"><span class="k">attach point</span><span class="v" id="pv-attach-id">—</span></div>
+              <div class="kv"><span class="k">version</span><span class="v" id="pv-version">—</span></div>
+              <div class="kv"><span class="k">server update</span><span class="v" id="pv-updated">—</span></div>
+              <div class="kv"><span class="k">previous → current</span><span class="v" id="pv-last-change">—</span></div>
+              <div class="kv"><span class="k">client reads</span><span class="v" id="pv-reloads">—</span></div>
+              <div class="kv"><span class="k">objects</span><span class="v" id="pv-object-count">—</span></div>
+              <div class="kv"><span class="k">portal pose</span><span class="v" id="pv-portal-pose">—</span></div>
+              <div class="row"><button type="button" id="pv-reload-now" data-testid="pv-reload-now">Reload now</button></div>
+              <div class="kv"><span class="k">color value</span><span class="v">
+                <span id="pv-color-swatch" class="portal-color-swatch" aria-hidden="true"></span>
+                <span id="pv-color-hex">—</span></span></div>
+              <div class="kv"><span class="k">3D snapshot</span><span class="v" id="pv-snapshot-meta">—</span></div>
+              <canvas id="pv-snapshot-canvas" width="240" height="150" class="portal-value-canvas"></canvas>
+              <div class="kv"><span class="k">splats</span><span class="v" id="pv-splats">—</span></div>
+              <div id="pv-drag-hint" class="live-boundary">Observer top-down view can change the hosted value.</div>
+              <div class="wow-sub">Refresh</div>
+              <label class="journal-filter"><input type="checkbox" id="pv-auto-toggle" data-testid="pv-auto-toggle" checked /> Auto-refresh</label>
+              <div class="kv"><span class="k">client interval (ms)</span><span class="v">
+                <input class="pv-num-input" id="pv-client-interval" data-testid="pv-client-interval"
+                       type="number" min="100" max="10000" step="50" value="100" /></span></div>
+              <div class="kv"><span class="k">server republish (ms)</span><span class="v">
+                <input class="pv-num-input" id="pv-server-republish" data-testid="pv-server-republish"
+                       type="number" min="0" max="60000" step="100" value="100" /></span></div>
+              <div class="kv"><span class="k">active mode</span><span class="v" id="pv-refresh-mode-line" data-testid="pv-refresh-mode-line">—</span></div>
+              <div class="kv"><span class="k">TeleportXR transport</span><span class="v" id="std-txr-transport">not used</span></div>
+              <div class="kv"><span class="k">native teleport</span><span class="v" id="std-txr-native">—</span></div>
+              <div class="kv"><span class="k">first-party render</span><span class="v" id="std-txr-render">—</span></div>
+              <div class="kv"><span class="k">actual renderer</span><span class="v" id="std-txr-renderer">—</span></div>
+            </div>
+
+            <div class="card std-view panel-live-card" id="geopose-card" data-testid="geopose-card"
+                 data-panel-card="geopose">
+              <h3>GeoPose live pose</h3>
+              <div class="live-card-meta" id="geopose-activity-meta">Live avatar pose projection</div>
+              <div class="kv"><span class="k">position (lat, lon, h)</span><span class="v" id="gp-ypr-pos">—</span></div>
+              <div class="kv"><span class="k">angles (yaw, pitch, roll)</span><span class="v" id="gp-ypr-ang">—</span></div>
+              <div class="kv"><span class="k">quaternion</span><span class="v" id="gp-quat">—</span></div>
+              <div class="kv"><span class="k">outer frame</span><span class="v" id="gp-outer">—</span></div>
+              <div class="kv"><span class="k">inner frame</span><span class="v" id="gp-inner">—</span></div>
+              <div class="kv"><span class="k">local source</span><span class="v" id="gp-local">—</span></div>
+              <div class="kv"><span class="k">Basic SDU schema</span><span class="v" id="gp-schema-valid">—</span></div>
+              <div class="kv"><span class="k">georeferenced</span><span class="v" id="gp-georef">—</span></div>
+              <div class="kv"><span class="k">scoped GeoPose state</span><span class="v" id="gp-conf">—</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-live-group" data-panel-group="runtime" data-default-expanded="false">
+          <h2 class="panel-group-heading">
+            <button class="panel-group-toggle" id="panel-group-runtime-toggle" type="button"
+                    aria-expanded="false" aria-controls="panel-group-runtime-body">
+              <span>Live Runtime Details</span>
+              <span class="panel-group-count" aria-hidden="true">8</span>
+            </button>
+          </h2>
+          <div class="panel-group-body" id="panel-group-runtime-body" hidden>
+            <div class="card panel-live-card flags" id="runtime-source-card" data-panel-card="runtime-source">
+              <h3>Runtime source &amp; connection</h3>
+              <div class="live-card-meta" id="runtime-source-activity-meta">Current producer and connection</div>
+              <div class="kv"><span class="k">mode</span><span class="v" id="mode-prov">—</span></div>
+              <div class="kv"><span class="k">connection</span><span class="v"><span class="prov prov-loading" id="connection-provenance" data-testid="connection-provenance">loading</span></span></div>
+              <div class="kv"><span class="k">live backend</span><span class="v" id="live-backend">connecting…</span></div>
+              <div class="kv"><span class="k">application handoff</span><span class="v" id="f-alh">—</span></div>
+              <div class="kv"><span class="k">native TeleportXR</span><span class="v" id="f-ntt">—</span></div>
+              <div class="kv"><span class="k">first-party TeleportXR render</span><span class="v" id="f-fpr">—</span></div>
+              <div class="kv"><span class="k">standards boundary</span><span class="v" id="f-std">—</span></div>
+              <div class="kv"><span class="k">boundary health</span><span class="v" id="f-check">—</span></div>
+            </div>
+
+            <div class="card panel-live-card movement-debug" id="world-context-card" data-panel-card="world-context">
+              <h3>World &amp; client context</h3>
+              <div class="live-card-meta" id="world-context-activity-meta">Current world in this browser context</div>
+              <div class="kv"><span class="k">client mode</span><span class="v" id="c-mode">—</span></div>
+              <div class="kv"><span class="k">active world</span><span class="v" id="c-active">—</span></div>
+              <div class="kv"><span class="k">preview world</span><span class="v" id="c-preview">—</span></div>
+              <div class="kv"><span class="k">context marker</span><span class="v" id="c-marker">—</span></div>
+              <div class="kv"><span class="k">camera</span><span class="v" id="c-camera">—</span></div>
+              <div class="kv"><span class="k">source boundary</span><span class="v" id="c-validation">—</span></div>
+              <div class="kv"><span class="k">navigator status</span><span class="v" id="n-status">—</span></div>
+              <div class="kv"><span class="k">context id</span><span class="v" id="n-context">—</span></div>
+              <div class="kv"><span class="k">single context</span><span class="v" id="n-single">—</span></div>
+              <div class="kv"><span class="k">root → child</span><span class="v"><span id="n-root">—</span><br /><span id="n-child">—</span></span></div>
+              <div class="kv"><span class="k">fabrics loaded</span><span class="v" id="n-fabrics">—</span></div>
+              <div class="kv"><span class="k">portal attachment</span><span class="v" id="n-portal-node">—</span></div>
+              <div class="kv"><span class="k">spawn source</span><span class="v" id="n-spawn">—</span></div>
+              <div class="kv"><span class="k">child render</span><span class="v" id="n-child-render">—</span></div>
+              <div class="kv"><span class="k">fabric trust</span><span class="v" id="n-trust">—</span></div>
+              <div class="kv"><span class="k">last promotion</span><span class="v" id="n-promotion">—</span></div>
+              <div class="kv"><span class="k">same marker</span><span class="v" id="n-marker-crossing">—</span></div>
+            </div>
+
+            <div class="card panel-live-card" id="avatar-loadout-card" data-panel-card="avatar-loadout">
+              <h3>Avatar &amp; loadout continuity</h3>
+              <div class="live-card-meta" id="avatar-loadout-activity-meta">One avatar · carried loadout</div>
+              <div class="kv"><span class="k">avatar</span><span class="v" id="a-id">—</span></div>
+              <div class="kv"><span class="k">continuity</span><span class="v" id="a-cont">—</span></div>
+              <div class="kv"><span class="k">display name</span><span class="v" id="a-name">—</span></div>
+              <div class="kv"><span class="k">source location</span><span class="v" id="a-src">—</span></div>
+              <div class="kv"><span class="k">loadout validation</span><span class="v" id="equipment-summary">—</span></div>
+              <div id="equipment-list"></div>
+              <p class="live-boundary">Use the avatar selector action in the footer to change the live body and loadout.</p>
+            </div>
+
+            <div class="card panel-live-card movement-debug" id="movement-debug-card" data-panel-card="movement">
+              <h3>Movement &amp; portal approach</h3>
+              <div class="live-card-meta" id="movement-activity-meta">Meaningful movement and approach state</div>
+              <div class="kv"><span class="k">active input</span><span class="v" id="m-keys">—</span></div>
+              <div class="kv"><span class="k">movement</span><span class="v"><span id="m-move-dir">—</span> · <span id="m-flags">—</span></span></div>
+              <div class="kv"><span class="k">facing</span><span class="v" id="m-facing">—</span></div>
+              <div class="kv"><span class="k">portal distance</span><span class="v" id="m-portal-dist">—</span></div>
+              <div class="kv"><span class="k">inside trigger</span><span class="v" id="m-inside">—</span></div>
+              <div class="kv"><span class="k">handoff ready</span><span class="v" id="m-auto">—</span></div>
+              <div class="kv"><span class="k">last input event</span><span class="v" id="m-last-key">—</span></div>
+            </div>
+
+            <div class="card panel-live-card movement-debug" id="portal-info-card" data-testid="portal-info-card"
+                 data-panel-card="portal-preview">
+              <h3>Selected portal &amp; preview</h3>
+              <div class="live-card-meta" id="portal-preview-activity-meta">Select a portal to inspect its live preview</div>
+              <div class="kv"><span class="k">portal</span><span class="v" id="pi-portal-id">—</span></div>
+              <div class="kv"><span class="k">route</span><span class="v" id="pi-route">—</span></div>
+              <div class="kv"><span class="k">target</span><span class="v" id="pr-target">—</span></div>
+              <div class="kv"><span class="k">preview source</span><span class="v" id="pr-source">—</span></div>
+              <div class="kv"><span class="k">read-only</span><span class="v" id="pr-readonly">—</span></div>
+              <div class="kv"><span class="k">freshness</span><span class="v" id="pr-freshness">—</span></div>
+              <div class="kv"><span class="k">fallback</span><span class="v" id="pr-fallback">—</span></div>
+              <div class="kv"><span class="k">arrival count</span><span class="v" id="pr-arrivals">—</span></div>
+              <div class="kv"><span class="k">attach point · version</span><span class="v"><span id="pi-attach-id">—</span> · <span id="pi-version">—</span></span></div>
+              <div class="kv"><span class="k">color value</span><span class="v">
+                <span id="pi-color-swatch" class="portal-color-swatch" aria-hidden="true"></span>
+                <span id="pi-color-hex">—</span></span></div>
+              <div class="kv"><span class="k">3D snapshot</span><span class="v" id="pi-snapshot-meta">—</span></div>
+              <canvas id="pi-snapshot-canvas" width="240" height="150" class="portal-value-canvas"></canvas>
+              <div class="kv"><span class="k">splats</span><span class="v" id="pi-splats">—</span></div>
+            </div>
+
+            <div class="card panel-live-card movement-debug" id="fabric-prefetch-card" data-testid="fabric-prefetch-card"
+                 data-panel-card="fabric-prefetch">
+              <h3>Fabric prefetch</h3>
+              <div class="live-card-meta" id="fabric-prefetch-activity-meta">Read-only destination preparation</div>
+              <div class="kv"><span class="k">status</span><span class="v" id="fx-status">—</span></div>
+              <div class="kv"><span class="k">fabric address</span><span class="v" id="fx-address">—</span></div>
+              <div class="kv"><span class="k">prefetch zone</span><span class="v" id="fx-zone">—</span></div>
+              <div class="kv"><span class="k">traversal trigger</span><span class="v" id="fx-trigger">—</span></div>
+              <div class="kv"><span class="k">region</span><span class="v" id="fx-region">—</span></div>
+              <div class="kv"><span class="k">region freshness</span><span class="v" id="fx-region-age">—</span></div>
+              <div class="kv"><span class="k">destination circle</span><span class="v" id="fx-dest-circle">—</span></div>
+              <div class="kv"><span class="k">aperture</span><span class="v" id="fx-aperture-render">—</span></div>
+              <div class="kv"><span class="k">occupancy</span><span class="v" id="fx-occupancy">—</span></div>
+              <div class="kv"><span class="k">occupancy freshness</span><span class="v" id="fx-presence-age">—</span></div>
+              <div class="kv"><span class="k">last event</span><span class="v" id="fx-last-event">—</span></div>
+              <div class="kv"><span class="k">cache</span><span class="v" id="fx-cache">—</span></div>
+              <div class="kv"><span class="k">completion</span><span class="v" id="fx-completion">—</span></div>
+            </div>
+
+            <div class="card panel-live-card movement-debug" id="portal-debug-card" data-panel-card="portal-transition">
+              <h3>Portal transition &amp; handoff</h3>
+              <div class="live-card-meta" id="portal-transition-activity-meta">Current transition and last handoff</div>
+              <div class="kv"><span class="k">active location</span><span class="v" id="p-location">—</span></div>
+              <div class="kv"><span class="k">transition phase</span><span class="v" id="p-phase">—</span></div>
+              <div class="kv"><span class="k">route</span><span class="v"><span id="p-direction">—</span> → <span id="p-target">—</span></span></div>
+              <div class="kv"><span class="k">portal distance</span><span class="v" id="p-distance">—</span></div>
+              <div class="kv"><span class="k">inside aperture · trigger</span><span class="v"><span id="p-inside-oval">—</span> · <span id="p-inside-volume">—</span></span></div>
+              <div class="kv"><span class="k">crossing direction</span><span class="v" id="p-crossing">—</span></div>
+              <div class="kv"><span class="k">trigger rearmed</span><span class="v" id="p-rearmed">—</span></div>
+              <div class="kv"><span class="k">handshake</span><span class="v" id="p-handshake">—</span></div>
+              <div class="kv"><span class="k">readiness blocker</span><span class="v" id="p-blocker">—</span></div>
+              <div class="kv"><span class="k">handoff id</span><span class="v" id="h-id">—</span></div>
+              <div class="kv"><span class="k">arrival count</span><span class="v" id="h-count">0</span></div>
+            </div>
+
+            <div class="card panel-live-card" id="activity-journal-card" data-testid="activity-journal-card"
+                 data-panel-card="activity-journal" data-default-expanded="true">
+              <h3>Activity journal</h3>
+              <div class="journal-toolbar" aria-label="Activity journal controls">
+                <div class="journal-filters" role="group" aria-label="Filter activity journal">
+                  <button type="button" data-journal-filter="all" aria-pressed="true">All</button>
+                  <button type="button" data-journal-filter="state" aria-pressed="false">State</button>
+                  <button type="button" data-journal-filter="warning" aria-pressed="false">Warnings</button>
+                </div>
+                <button type="button" id="activity-journal-order" aria-pressed="true">Newest first</button>
+              </div>
+              <div class="journal-summary" id="activity-journal-summary">Newest first · 0 of 80 retained meaningful events</div>
+              <ol class="activity-journal" id="activity-journal" data-testid="activity-journal"
+                  aria-label="Filtered activity journal"></ol>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <div class="rail-resizer" id="rail-resizer" data-testid="rail-resizer" role="separator"
+           aria-orientation="vertical" aria-label="Resize the right panel" tabindex="0"></div>
+      <div class="panel-height-resizer" id="panel-height-resizer" data-testid="panel-height-resizer"
+           role="separator" aria-orientation="horizontal"
+           aria-label="Resize the panel height" tabindex="0"></div>
+    </main>
+
+    <footer class="controls">
+
+      <button id="btn-equip-item" data-testid="btn-equip-item" hidden>Equip item</button>
+      <span class="legend" id="avatar-runtime-status" data-testid="avatar-runtime-status" hidden></span>
+      <span class="legend spacer" id="connection-footer-status" data-testid="connection-footer-status" hidden>
+        <span><span class="prov prov-loading">loading</span> connecting to components 3 backend</span>
+        <span>correlate by <b>handoff_id</b></span>
+      </span>
+      <span class="footer-links">
+        <a class="footer-link footer-hosted-link" href="https://labs.peers.social/open-spatial-lab/"
+           target="_blank" rel="noopener noreferrer">labs.peers.social/open-spatial-lab</a>
+      </span>
+    </footer>
+  </div>
+
+  <dialog class="presentation-json-dialog" id="presentation-json-dialog"
+          data-testid="presentation-json-dialog" aria-labelledby="presentation-json-title"
+          aria-describedby="presentation-json-source presentation-json-freshness"
+          aria-hidden="true">
+    <div class="presentation-json-surface" data-testid="presentation-json-surface">
+      <header class="presentation-json-head">
+        <div class="presentation-json-heading">
+          <h2 id="presentation-json-title">JSON presentation viewer</h2>
+          <p class="presentation-json-context" id="presentation-json-source">Authoritative application data</p>
+          <p class="presentation-json-freshness" id="presentation-json-freshness">Current panel snapshot</p>
+          <span class="presentation-json-redaction" id="presentation-json-redaction">redacted</span>
+        </div>
+        <button class="presentation-json-close" id="btn-presentation-json-close" type="button"
+                data-testid="presentation-json-close" aria-label="Close JSON presentation viewer"
+                title="Close JSON presentation viewer">×</button>
+      </header>
+      <div class="presentation-json-controls">
+        <label class="presentation-json-path-label" for="presentation-json-path">Highlight JSON Pointer or dot path</label>
+        <input class="presentation-json-path" id="presentation-json-path"
+               data-testid="presentation-json-path" type="text" inputmode="text"
+               autocomplete="off" spellcheck="false" placeholder="/destination/target_world_id" />
+        <button class="presentation-json-highlight-button" id="btn-presentation-json-highlight"
+                data-testid="presentation-json-highlight" type="button">Highlight field</button>
+        <p class="presentation-json-path-status" id="presentation-json-path-status"
+           data-testid="presentation-json-path-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="presentation-json-output" id="presentation-json-output"
+           data-testid="presentation-json-output" role="region" tabindex="0"
+           aria-label="Formatted redacted JSON"></div>
+    </div>
+  </dialog>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/scene-core/vendor/three/three.module.js"
+      }
+    }
+  </script>
+  <div id="demo-launcher-mount" hidden></div>
+  <script type="module" src="./demo-shell-bootstrap.mjs?v=1"></script>
+</body>
+</html>

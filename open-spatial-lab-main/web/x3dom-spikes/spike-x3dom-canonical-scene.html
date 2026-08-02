@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 2: canonical-world-content.js under X3DOMRenderAdapter (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 640px; height: 420px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<div id="log">(results appear here)</div>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { mountCanonicalWorldContent } from "/vendor/scene-core/canonical-world-content.js";
+
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(mountEl, { width: 640, height: 420, camera: { fov: 50, near: 0.1, far: 100 } });
+  adapter.setCameraPose(adapter.camera, { position: [0, 6.2, 8.4], lookAt: [0, 0, 0] });
+  append('mount() completed synchronously (no runtime wait needed for construction)');
+
+  const inventory = mountCanonicalWorldContent(adapter, adapter.sceneRoot, { color: '#3aa0ff' });
+  append('mountCanonicalWorldContent returned: ' + JSON.stringify(inventory, null, 2));
+
+  const sceneChildCount = adapter.sceneRoot.children.length;
+  append('scene child count (viewpoint + lights + floor + grid + 2 walls = 7 expected): ' + sceneChildCount);
+
+  await adapter.ready();
+  append('adapter.ready() resolved — runtime attached, backend: ' + adapter.runtime.backendName());
+
+  await new Promise((r) => setTimeout(r, 500));
+  const hasCanvas = !!mountEl.querySelector('canvas');
+  append('canvas present after settle: ' + hasCanvas);
+
+  window.__testResult = {
+    ok: true,
+    inventory,
+    sceneChildCount,
+    hasCanvas,
+    backend: adapter.runtime.backendName(),
+  };
+  status.textContent = 'done';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  status.textContent = 'error';
+});
+</script>
+</body>
+</html>

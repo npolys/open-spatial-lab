@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 5: X3domGltfHumanoidProvider.attachItem() (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="480px">
+  <scene>
+    <viewpoint position="0 1.4 4"></viewpoint>
+    <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { X3domGltfHumanoidProvider } from "/x3dom-gltf-humanoid-provider.mjs";
+
+const log = document.getElementById('log');
+function append(l) { log.textContent += l + "\n"; console.log(l); }
+function translationMatrix(x, y, z) { return [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]; }
+
+async function run() {
+  const el = document.getElementById('main');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.attach(el);
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const provider = new X3domGltfHumanoidProvider(adapter);
+  const { handle: avatarHandle, ready: avatarReady } = provider.spawnAvatar({ url: '/assets/avatars/glb/rpm_female_character.glb', position: [0, 0, 0] });
+  await avatarReady;
+  append('avatar loaded');
+
+  // Attach a hat 0.2m above the avatar root (local offset — a rough stand-in for "on the head"
+  // without any bone targeting, per this deliverable's explicit root-only scope).
+  const localOffset = translationMatrix(0, 1.7, 0);
+  const { itemHandle, ready: itemReady } = provider.attachItem(avatarHandle, { url: '/assets/equip-hat.glb', localTransform: localOffset });
+  const handleAvailableImmediately = !!itemHandle;
+  await itemReady;
+  append('item loaded, handle available synchronously: ' + handleAvailableImmediately);
+
+  const itemIsChildOfAvatar = avatarHandle.contains(itemHandle);
+  const itemInlineEl = itemHandle.querySelector('inline');
+  const itemHasContent = !!itemInlineEl && itemInlineEl.children.length > 0;
+  append('item parented under avatar: ' + itemIsChildOfAvatar + ', item has real content: ' + itemHasContent);
+
+  // Move the avatar and confirm the item's WORLD position tracks it (proves real scene-graph
+  // attachment via reparenting, not just a visual coincidence at spawn time).
+  const worldBefore = adapter.getWorldPosition(itemHandle);
+  provider.setPosition(avatarHandle, 5, 0, -3);
+  await new Promise((r) => setTimeout(r, 100));
+  const worldAfter = adapter.getWorldPosition(itemHandle);
+  const expectedAfter = [5 + 0, 0 + 1.7, -3 + 0];
+  const trackedAvatarMove = worldAfter &&
+    Math.abs(worldAfter[0] - expectedAfter[0]) < 0.05 &&
+    Math.abs(worldAfter[1] - expectedAfter[1]) < 0.05 &&
+    Math.abs(worldAfter[2] - expectedAfter[2]) < 0.05;
+  append('item world position before move: ' + JSON.stringify(worldBefore) + ', after avatar move: ' + JSON.stringify(worldAfter) + ' (expected ~' + JSON.stringify(expectedAfter) + ')');
+  append('item tracked avatar move: ' + trackedAvatarMove);
+
+  // Detach the item, then dispose the avatar — both should free their pool slots independently.
+  // The data-x3dom-inline-pool-slot flag lives on the <inline> element itself, not the
+  // <transform> wrapper createInlineAsset() returns as the handle.
+  provider.detachItem(itemHandle);
+  const itemSlotFreed = itemInlineEl.getAttribute('data-x3dom-inline-pool-slot') === 'free';
+  const avatarInlineEl = avatarHandle.querySelector('inline');
+  provider.dispose(avatarHandle);
+  const avatarSlotFreed = avatarInlineEl.getAttribute('data-x3dom-inline-pool-slot') === 'free';
+  append('item slot freed after detachItem: ' + itemSlotFreed + ', avatar slot freed after dispose: ' + avatarSlotFreed);
+
+  const ok = handleAvailableImmediately && itemIsChildOfAvatar && itemHasContent && trackedAvatarMove && itemSlotFreed && avatarSlotFreed;
+
+  window.__testResult = {
+    ok, handleAvailableImmediately, itemIsChildOfAvatar, itemHasContent, trackedAvatarMove,
+    itemSlotFreed, avatarSlotFreed, backend: adapter.runtime.backendName(),
+  };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

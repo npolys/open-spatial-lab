@@ -1,0 +1,86 @@
+
+
+
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/rajdhani-500-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/rajdhani-600-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/rajdhani-700-latin.woff2") format("woff2");
+}
+
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(120,200,255,0.35), inset 0 1px 0 rgba(255,255,255,0.4); }
+  50%      { box-shadow: 0 0 36px rgba(140,215,255,0.75), inset 0 1px 0 rgba(255,255,255,0.5); }
+}
+@keyframes drain {
+  from { width: 96%; }
+  to   { width: 14%; }
+}
+
+
+:root {
+  --glassline-accent-cyan:   #7fd8ff;
+  --glassline-accent-green:  #57e389;
+  --glassline-accent-yellow: #ffd34d;
+  --glassline-accent-red:    #ff5c5c;
+  --glassline-glass-border:  rgba(255,255,255,0.78);
+  --glassline-glass-bg:      linear-gradient(165deg,rgba(255,255,255,0.16),rgba(150,205,255,0.07) 45%,rgba(8,20,36,0.3));
+  --glassline-glass-shadow:  0 6px 24px rgba(0,15,35,0.35),inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+
+.glassline-hud-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 6;
+  font-family: "Rajdhani", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+
+.glassline-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  transition: opacity 140ms ease-out;
+}
+.glassline-anchor > * { pointer-events: none; }
+
+
+.glassline-tag {
+  cursor: default;
+  user-select: none;
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+
+.glassline-card-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 100%;
+  will-change: transform, opacity;
+}
+.glassline-card-anchor > * { pointer-events: auto; }

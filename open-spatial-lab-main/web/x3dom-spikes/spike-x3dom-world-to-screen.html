@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 4: worldToScreen/cameraDistanceTo under X3DOMRenderAdapter (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount" style="width:640px;height:420px;"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(l) { log.textContent += l + "\n"; console.log(l); }
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(mountEl, { width: 640, height: 420, camera: { fov: 50, near: 0.1, far: 200 } });
+  adapter.setCameraPose(adapter.camera, { position: [0, 0, 10], lookAt: [0, 0, 0] });
+  await adapter.ready();
+  append('ready, backend: ' + adapter.runtime.backendName());
+
+  // Center point, directly in front: should project to canvas center, visible=true.
+  const center = adapter.worldToScreen(adapter.camera, [0, 0, 0]);
+  const centerOk = center && center.visible && Math.abs(center.x - 320) < 2 && Math.abs(center.y - 210) < 2;
+  append('center point [0,0,0]: ' + JSON.stringify(center) + ' (expect ~x=320,y=210,visible=true)');
+
+  // Behind the camera (camera at z=10 looking toward -z; z=20 is behind it).
+  const behind = adapter.worldToScreen(adapter.camera, [0, 0, 20]);
+  const behindOk = behind && behind.visible === false;
+  append('behind-camera point [0,0,20]: ' + JSON.stringify(behind) + ' (expect visible=false)');
+
+  // Off-center point: to the right and up from center should land right-of-center,
+  // above-center on screen (Y flips: world +Y -> smaller screen Y).
+  const offCenter = adapter.worldToScreen(adapter.camera, [2, 1, 0]);
+  const offCenterOk = offCenter && offCenter.visible && offCenter.x > 320 && offCenter.y < 210;
+  append('off-center point [2,1,0]: ' + JSON.stringify(offCenter) + ' (expect x>320, y<210, visible=true)');
+
+  // Distance check: camera at (0,0,10), point at (3,4,10) -> same z, so distance = hypot(3,4) = 5.
+  const dist = adapter.cameraDistanceTo(adapter.camera, [3, 4, 10]);
+  const distOk = Math.abs(dist - 5) < 1e-6;
+  append('cameraDistanceTo([3,4,10]): ' + dist + ' (expect 5)');
+
+  const ok = centerOk && behindOk && offCenterOk && distOk;
+  window.__testResult = { ok, center, behind, offCenter, dist, backend: adapter.runtime.backendName() };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

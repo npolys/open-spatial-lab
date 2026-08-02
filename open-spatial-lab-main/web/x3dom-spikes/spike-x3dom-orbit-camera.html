@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Phase 3: orbit-camera-controller under X3DOMRenderAdapter (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 640px; height: 420px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<div id="log">(results appear here)</div>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { mountCanonicalWorldContent } from "/vendor/scene-core/canonical-world-content.js";
+import { createOrbitCameraController, computeOrbitCameraPose, createOrbitCameraState, seedOrbitCamera, stepOrbitCamera, ORBIT_CAMERA_DEFAULTS } from "/orbit-camera-controller.mjs";
+
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+function parseVec3(str) { return str.trim().split(/\s+/).map(Number); }
+function dist3(a, b) { return Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]); }
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(mountEl, { width: 640, height: 420 });
+  mountCanonicalWorldContent(adapter, adapter.sceneRoot, { color: '#3aa0ff' });
+
+  // A simple "avatar" box so there's something to orbit around, walking in a line.
+  const avatarMesh = adapter.createMesh(
+    adapter.createGeometry({ type: 'box', width: 0.6, height: 1.6, depth: 0.6 }),
+    adapter.createMaterial({ type: 'standard', color: 0xffcc55 })
+  );
+  adapter.add(adapter.sceneRoot, avatarMesh);
+
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const controller = createOrbitCameraController({ adapter, camera: adapter.camera });
+
+  // 1) Seed test: seed at a known azimuth/polar/distance/focus, verify pure-math pose matches
+  //    what actually landed in the Viewpoint's DOM attributes.
+  controller.seed({ azimuth: 0.4, polar: 0.15, distance: 4, focusPosition: [1, 0, 2] });
+  const seededPureCheck = computeOrbitCameraPose(controller.state);
+  const domPositionAfterSeed = parseVec3(adapter.camera.getAttribute('position'));
+  const seedPositionError = dist3(seededPureCheck.position, domPositionAfterSeed);
+  append('=== Seed check ===');
+  append('pure-math position: ' + seededPureCheck.position.map(n => n.toFixed(4)));
+  append('DOM viewpoint position attribute: ' + domPositionAfterSeed.map(n => n.toFixed(4)));
+  append('error (should be ~0): ' + seedPositionError.toFixed(6));
+
+  // 2) Step test: simulate the avatar walking in a straight line for 3s at 60fps-equivalent
+  //    ticks, with a changed target azimuth (simulating a mouse-drag orbit input), and confirm:
+  //    (a) camera stays at controller.state.distance from the focus at every step (orbit radius
+  //        is preserved through damping), (b) the DOM attribute always matches the pure math,
+  //    (c) azimuth actually moved toward its new target (proves damping/orbiting is live).
+  controller.state.targetAzimuth = 2.2; // simulate a drag input requesting a big turn
+  let maxPositionError = 0;
+  let maxRadiusError = 0;
+  const steps = 180; // 3s at 60Hz-equivalent dt
+  const dt = 1 / 60;
+  for (let i = 0; i < steps; i += 1) {
+    const t = i * dt;
+    const avatarPos = [t * 0.5, 0, 2 - t * 0.2]; // walking
+    controller.step(dt, avatarPos, false);
+    const pureCheck = computeOrbitCameraPose(controller.state);
+    const domPos = parseVec3(adapter.camera.getAttribute('position'));
+    maxPositionError = Math.max(maxPositionError, dist3(pureCheck.position, domPos));
+    const radius = dist3(pureCheck.position, pureCheck.lookAt);
+    maxRadiusError = Math.max(maxRadiusError, Math.abs(radius - controller.state.distance));
+  }
+  append('=== Step check (180 steps, avatar walking, azimuth target changed) ===');
+  append('final azimuth: ' + controller.state.azimuth.toFixed(4) + ' (target was 2.2, started at 0.4 — should have moved toward it)');
+  append('azimuth moved toward target: ' + (controller.state.azimuth > 0.4 && controller.state.azimuth <= 2.2 + 1e-6));
+  append('max |DOM position - pure-math position| over all steps (should be ~0): ' + maxPositionError.toFixed(6));
+  append('max |orbit radius - state.distance| over all steps (should be ~0, proves orbit geometry holds): ' + maxRadiusError.toFixed(6));
+
+  const ok = seedPositionError < 1e-6 && maxPositionError < 1e-6 && maxRadiusError < 1e-6 &&
+    controller.state.azimuth > 0.4 && controller.state.azimuth <= 2.2 + 1e-6;
+
+  window.__testResult = {
+    ok,
+    seedPositionError,
+    maxPositionError,
+    maxRadiusError,
+    finalAzimuth: controller.state.azimuth,
+    backend: adapter.runtime.backendName(),
+  };
+  status.textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  status.textContent = 'error';
+});
+</script>
+</body>
+</html>

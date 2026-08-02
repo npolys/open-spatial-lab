@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Diagnose: Inline added before the very first ready()</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount" style="width:640px;height:420px;"></div>
+<pre id="log"></pre>
+<script type="module">
+function pollChildren(el, timeoutMs) {
+  const t0 = performance.now();
+  return new Promise((resolve) => {
+    (function poll() {
+      const n = el.children ? el.children.length : 0;
+      if (n > 0) return resolve({ loaded: true, ms: performance.now() - t0, count: n });
+      if (performance.now() - t0 > timeoutMs) return resolve({ loaded: false, ms: performance.now() - t0 });
+      setTimeout(poll, 50);
+    })();
+  });
+}
+async function run() {
+  const mountEl = document.getElementById('mount');
+  // Build the ENTIRE tree — x3d, scene, viewpoint, AND the inline node — in one synchronous
+  // batch, then append to the document ONCE. Nothing awaits a runtime attachment before the
+  // inline node exists in the tree, unlike every previous (failing) test in this session.
+  const x3dEl = document.createElement('x3d');
+  x3dEl.setAttribute('width', '640px');
+  x3dEl.setAttribute('height', '420px');
+  const sceneEl = document.createElement('scene');
+  const vp = document.createElement('viewpoint');
+  vp.setAttribute('position', '0 1 3');
+  sceneEl.appendChild(vp);
+  const t = document.createElement('transform');
+  const inline = document.createElement('inline');
+  inline.setAttribute('url', '/assets/equip-crown.glb');
+  t.appendChild(inline);
+  sceneEl.appendChild(t);
+  x3dEl.appendChild(sceneEl);
+  mountEl.appendChild(x3dEl); // <-- single insertion point, whole tree at once
+
+  const result = { childrenBeforeAnyWait: inline.children.length };
+  result.x3domReloadIsFunction = typeof window.x3dom.reload === 'function';
+  if (result.x3domReloadIsFunction) {
+    try { window.x3dom.reload(); result.reloadCalled = true; } catch (e) { result.reloadError = String(e); }
+  }
+  result.pollResult = await pollChildren(inline, 8000);
+  result.runtimeAttachedByEnd = !!x3dEl.runtime;
+
+  document.getElementById('log').textContent = JSON.stringify(result, null, 2);
+  window.__testResult = result;
+  document.getElementById('status').textContent = 'done';
+}
+run().catch(e => { document.getElementById('status').textContent = 'error: ' + e; window.__testResult = { error: String(e && e.stack || e) }; });
+</script>
+</body>
+</html>

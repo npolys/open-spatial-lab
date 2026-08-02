@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Diagnose: document.write()-generated Inline slots (parameterized count, still parse-time)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading...</div>
+<x3d id="main" width="640px" height="420px">
+  <scene>
+    <viewpoint position="0 1 3"></viewpoint>
+    <!-- classic (non-module, non-deferred) script so document.write() runs synchronously
+         during initial HTML parsing, same as truly-static markup, but with a parameterized count -->
+    <script>
+      (function () {
+        var POOL_SIZE = 3; // stand-in for a runtime-configurable parameter
+        for (var i = 0; i < POOL_SIZE; i++) {
+          document.write('<transform translation="' + (i * 2 - 2) + ' 0 0">' +
+            '<inline id="slot' + i + '" url=""></inline></transform>');
+        }
+      })();
+    </script>
+  </scene>
+</x3d>
+<pre id="log"></pre>
+<script type="module">
+function waitReady(el, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const t0 = performance.now();
+    (function poll() {
+      if (el.runtime) return resolve(el.runtime);
+      if (performance.now() - t0 > timeoutMs) return reject(new Error('timeout'));
+      setTimeout(poll, 30);
+    })();
+  });
+}
+function pollCondition(fn, timeoutMs, intervalMs = 100) {
+  const t0 = performance.now();
+  return new Promise((resolve) => {
+    (function poll() {
+      const v = fn();
+      if (v) return resolve({ ok: true, ms: performance.now() - t0 });
+      if (performance.now() - t0 > timeoutMs) return resolve({ ok: false, ms: performance.now() - t0 });
+      setTimeout(poll, intervalMs);
+    })();
+  });
+}
+async function run() {
+  const el = document.getElementById('main');
+  await waitReady(el);
+  const slotCount = document.querySelectorAll('[id^="slot"]').length;
+  const slot0 = document.getElementById('slot0');
+  const result = { slotsFoundInDOM: slotCount };
+  if (slot0) {
+    slot0.setAttribute('url', '/assets/equip-crown.glb');
+    result.firstAssignLoad = await pollCondition(() => slot0.children.length > 0, 8000, 100);
+    if (result.firstAssignLoad.ok) {
+      const nameBefore = slot0.children[0].getAttribute('def');
+      slot0.setAttribute('url', '/assets/equip-hammer.glb');
+      result.swapLoad = await pollCondition(() => {
+        const c = slot0.children[0];
+        return c && c.getAttribute('def') !== nameBefore;
+      }, 8000, 100);
+    }
+  }
+  document.getElementById('log').textContent = JSON.stringify(result, null, 2);
+  window.__testResult = result;
+  document.getElementById('status').textContent = 'done';
+}
+run().catch(e => { document.getElementById('status').textContent = 'error: ' + e; window.__testResult = { error: String(e && e.stack || e) }; });
+</script>
+</body>
+</html>
