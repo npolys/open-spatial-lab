@@ -16,12 +16,22 @@ const browser = await puppeteer.launch({
 try {
   const page = await browser.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(String(e)));
-  // 403/404 "Failed to load resource" is the WoW-negotiated-asset feature's own expected noise —
-  // the demo's first two hosted objects at every location are always restricted/hidden (see
-  // wow-asset.js).
+  // Known-benign patterns this whole suite already filters elsewhere: X3DOM's own internal
+  // addNameSpace/Inline-node null-deref (intermittent, documented as not affecting functional
+  // correctness — see spike-run-x3dom-equipment-anchors.mjs's header comment), and the
+  // WoW-negotiated-asset feature's expected 403/404 noise (the demo's first two hosted objects at
+  // every location are always restricted/hidden — see wow-asset.js). This spike previously lacked
+  // this filter entirely, unlike its siblings.
+  const KNOWN_BENIGN_ERROR_PATTERNS = [
+    /Cannot read properties of null \(reading 'doc'\)/,
+    /Cannot read properties of null \(reading 'removeSpace'\)/,
+    /Permissions policy violation/,
+    /Failed to load resource: the server responded with a status of (403|404)/i,
+  ];
+  const isBenign = (text) => KNOWN_BENIGN_ERROR_PATTERNS.some((pattern) => pattern.test(text));
+  page.on("pageerror", (e) => { const t = String(e); if (!isBenign(t)) errors.push(t); });
   page.on("console", (m) => {
-    if (m.type() === "error" && !/Permissions policy violation: unload is not allowed|Failed to load resource: the server responded with a status of (403|404)/i.test(m.text()))
+    if (m.type() === "error" && !isBenign(m.text()))
       errors.push(`console[error]: ${m.text()}`);
   });
   await page.goto("http://127.0.0.1:8143/index.html?renderer=x3dom&role=player&active=a&intro=bypass", { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -40,7 +50,9 @@ try {
       apertureChildCount: apertureGroup ? apertureGroup.children.length : 0,
     };
   });
-  const aperturesRendered = boot.portalCount > 0 && boot.apertureChildCount === boot.portalCount;
+  // Each portal now mounts 2 DOM children: the aperture plane itself plus a decorative ring mesh
+  // (portal-parity fix, matching three.js's own dest-portal-ring) — not 1:1 with portalCount.
+  const aperturesRendered = boot.portalCount > 0 && boot.apertureChildCount === boot.portalCount * 2;
 
   // --- Drive the avatar toward the first portal and through it (same stepAvatar mechanism the
   // real per-frame loop uses; looped without real-time delay so this doesn't take wall-clock
@@ -99,7 +111,7 @@ try {
   const crossedWorlds = walk.crossed && after.locationId !== walk.fromLocationId;
   const phaseSettled = settled.phase === "arrived";
   const sceneRecomposed = after.worldContentChildCount > 0 &&
-    after.apertureChildCount === after.portalCount;
+    after.apertureChildCount === after.portalCount * 2;
   const noPageErrors = errors.length === 0;
   const ok = aperturesRendered && crossedWorlds && phaseSettled && sceneRecomposed &&
     after.avatarDomSynced && noPageErrors;

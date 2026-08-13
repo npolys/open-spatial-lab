@@ -44,6 +44,20 @@ async function main() {
             : "player";
     const active = params.get("active") || "a";
 
+    // Mirrors app.js's identical role-badge wiring (ROLE_DISPLAY_LABEL + appEl.className) — the
+    // three.js path sets these at boot, but this boot path never did, so every X3DOM session
+    // showed index.html's static placeholder ("SERVER A" / blue "source" styling) regardless of
+    // the real role. Restated locally rather than imported, matching this file's/its glue modules'
+    // existing convention for small shared constants (see x3dom-portal-traversal-glue.mjs's
+    // PORTAL_PREVIEW_PLACEHOLDER_COLOR/MIN_PROJECTED_PORTAL_AREA_DEVICE_PX).
+    const ROLE_DISPLAY_LABEL = { source: "SERVER A", target: "SERVER B", player: "PLAYER" };
+    const appEl = document.getElementById("app");
+    if (appEl)
+        appEl.className = `role-${role} rail-collapsed`;
+    const roleChipEl = document.getElementById("role-chip");
+    if (roleChipEl)
+        roleChipEl.textContent = ROLE_DISPLAY_LABEL[role] || role.toUpperCase();
+
     const host = document.getElementById("scene-mount");
     const x3dEl = document.getElementById("x3dom-host");
     if (!host || !x3dEl) {

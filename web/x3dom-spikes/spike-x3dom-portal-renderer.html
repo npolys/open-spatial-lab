@@ -78,7 +78,7 @@ async function run() {
     return !!rebuilt.appearanceEl.querySelector('imagetexture');
   };
 
-  const allShotsHaveDataUrls = shots.every((s) => s.hasTexture && s.textureKind === 'x3d-canvas-texture' && typeof s.url === 'string' && s.url.startsWith('data:'));
+  const allShotsHaveDataUrls = shots.every((s) => s.hasTexture && s.textureKind === 'x3d-url-texture' && typeof s.url === 'string' && s.url.startsWith('data:'));
   const urlsChangedOverTime = new Set(shots.map((s) => s.url)).size > 1;
   const sameTextureHandleReused = shots.length > 1 && shots.every((s) => s.textureKind === shots[0].textureKind);
 

@@ -50,6 +50,7 @@ const REGRESSION_SPIKES = [
     "spike-run-x3dom-portal-preview-camera-glue.mjs", // Portal-preview real-content Stage 2: destination camera tracks the main camera's real pose every tick (parallax), via glueCameraThroughFrames
     "spike-run-x3dom-portal-preview-gating.mjs", // Portal-preview real-content Stage 3: proximity/visibility gating skips capture+glue when the aperture isn't on-screen, via canvas-clipped worldToScreen projection
     "spike-run-x3dom-hosted-objects-wow-fetch.mjs", // WoW API compliance: real negotiated /wow/asset/primitive-<id> representations for active-world hosted objects (X3D XML via Inline), with fallback-to-synthetic on the demo's own restricted/hidden 403/404 objects and fixture-object exclusion
+    "spike-run-x3dom-airport-terminal.mjs", // Airport parity Stage 1: real terminal geometry (walls/columns/storefronts/gate/signage) mounts for both the active-world case (?active=airport) and the portal-preview case (?active=lobby), not the generic canonical room
 ];
 
 function run(script, args = []) {

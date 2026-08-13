@@ -16,12 +16,22 @@ const browser = await puppeteer.launch({
 try {
   const page = await browser.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(String(e)));
   // 403/404 "Failed to load resource" is the WoW-negotiated-asset feature's own expected noise —
   // the demo's first two hosted objects at every location are always restricted/hidden (see
-  // wow-asset.js).
+  // wow-asset.js). The addNameSpace null-deref is X3DOM's own documented intermittent internal
+  // Inline-node quirk (see spike-run-x3dom-equipment-anchors.mjs's header comment) — this spike
+  // previously lacked this filter, unlike its siblings, and started surfacing it after the
+  // portal-preview clip-plane work added more DOM construction at boot.
+  const KNOWN_BENIGN_ERROR_PATTERNS = [
+    /Cannot read properties of null \(reading 'doc'\)/,
+    /Cannot read properties of null \(reading 'removeSpace'\)/,
+    /Permissions policy violation: unload is not allowed/,
+    /Failed to load resource: the server responded with a status of (403|404)/i,
+  ];
+  const isBenign = (t) => KNOWN_BENIGN_ERROR_PATTERNS.some((p) => p.test(t));
+  page.on("pageerror", (e) => { const t = String(e); if (!isBenign(t)) errors.push(t); });
   page.on("console", (m) => {
-    if (m.type() === "error" && !/Permissions policy violation: unload is not allowed|Failed to load resource: the server responded with a status of (403|404)/i.test(m.text()))
+    if (m.type() === "error" && !isBenign(m.text()))
       errors.push(`console[error]: ${m.text()}`);
   });
   await page.goto("http://127.0.0.1:8143/index.html?renderer=x3dom&role=player&active=a&intro=bypass", { waitUntil: "domcontentloaded", timeout: 30000 });

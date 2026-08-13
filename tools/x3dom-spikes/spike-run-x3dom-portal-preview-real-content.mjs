@@ -11,9 +11,10 @@
 //     with the old placeholder would actually be visible).
 // (B) `?active=lobby` — location-lobby's third portal targets location-airport, the only world
 //     with an authored WoW graph (confirmed via runtime/world-server/src/config.js). Verifies the
-//     preview reaches the authored_wow_graph branch with real node content, and explicitly that no
-//     airport-terminal-specific content was mounted (mountAirportTerminalContent is a documented,
-//     deliberate scope cut for this stage — this assertion keeps that cut honest and diffable).
+//     preview reaches the authored_wow_graph branch with real node content, and — since airport-
+//     parity Stage 1 (2026-08-13, see web/x3dom-airport-terminal-scene.mjs) — that real
+//     mountAirportTerminalContentX3dom set-dressing (the terminal-content group, sign/store/gate-
+//     prefixed nodes) is genuinely mounted, not the earlier stage's graph-topology-only placeholder.
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
@@ -137,12 +138,13 @@ try {
     // CSS attribute selector matches nothing. Walk every element and read `.name` directly instead.
     const allNamed = root ? Array.from(root.querySelectorAll('*')).filter((el) => el.name) : [];
     const nodeCount = allNamed.length;
-    // mountAirportTerminalContent's own, specific naming convention (web/airport-terminal-scene.mjs):
-    // its root group is literally named "airport-terminal-content", and set-dressing nodes are
-    // prefixed "airport-sign:"/"airport-store:"/"airport-gate:". NOT a generic "airport"-topic
-    // check — the real authored graph legitimately contains airport-related node labels/ids of its
-    // own (this IS the airport world), so a broad topical regex would false-positive on real
-    // content that has nothing to do with mountAirportTerminalContent ever running.
+    // mountAirportTerminalContentX3dom's own, specific naming convention (matching the THREE
+    // version's mountAirportTerminalContent): its root group is literally named
+    // "airport-terminal-content", and set-dressing nodes are prefixed
+    // "airport-sign:"/"airport-store:"/"airport-gate:". NOT a generic "airport"-topic check — the
+    // real authored graph legitimately contains airport-related node labels/ids of its own (this
+    // IS the airport world), so a broad topical regex would false-positive on real content that
+    // has nothing to do with mountAirportTerminalContentX3dom ever running.
     const airportTerminalNodeFound = allNamed.some((el) =>
       el.name === 'airport-terminal-content' ||
       /^airport-(sign|store|gate):/.test(el.name || ''));
@@ -158,8 +160,13 @@ try {
   const scenarioAOk = colorResult.lobbyContentKind === "legacy_world" && colorResult.bContentKind === "legacy_world" &&
     colorResult.realColorFromApi !== "#3aa0ff" && colorResult.hasHostedGroup && colorResult.wallDiffuseColor != null;
   const hostedObjectOk = hostedObjectResult.hadObjects ? hostedObjectResult.positionMatches : true;
+  // Airport-parity Stage 1 (2026-08-13) now DOES mount real mountAirportTerminalContentX3dom
+  // set-dressing into the portal-preview destination — this assertion inverted from its original
+  // "graph topology only, no set-dressing" expectation to match. See
+  // web/x3dom-airport-terminal-scene.mjs and x3dom-portal-traversal-glue.mjs's
+  // applyAuthoredGraphContent().
   const scenarioBOk = airportResult.found && airportResult.contentKind === "authored_wow_graph" &&
-    airportResult.nodeCount > 5 && !airportResult.airportTerminalNodeFound;
+    airportResult.nodeCount > 5 && airportResult.airportTerminalNodeFound;
   const noErrors = errors.length === 0;
   const ok = scenarioAOk && hostedObjectOk && scenarioBOk && noErrors;
 

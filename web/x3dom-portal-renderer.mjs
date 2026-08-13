@@ -24,7 +24,11 @@ const DEFAULT_CAPTURE_INTERVAL_MS = 1000; // ~1fps, per explicit user direction 
 // X3DOM has no render-to-texture primitive, so the capture mechanism is necessarily different
 // from ThreePortalRenderer: a second, hidden <x3d> host renders the destination content for real,
 // and runtime.getScreenshot() (a synchronous data: URI capture) is polled on a timer and pushed
-// into an X3D ImageTexture via X3DOMRenderAdapter.createCanvasTexture()/updateCanvasTexture().
+// into an X3D ImageTexture via X3DOMRenderAdapter.createUrlTexture()/updateUrlTexture() — directly
+// from the data: URI getScreenshot() already returns, not round-tripped through an intermediate
+// canvas (createCanvasTexture()/updateCanvasTexture() would decode it into an Image, redraw it
+// onto a scratch canvas, and re-encode it a second time via toDataURL() for no benefit — a real,
+// measured cost this used to pay on every single capture, cut out entirely 2026-08-13).
 export class X3DOMPortalRenderer extends PortalRenderer {
     constructor(x3dom, options = {}) {
         super();
@@ -45,17 +49,23 @@ export class X3DOMPortalRenderer extends PortalRenderer {
         document.body.appendChild(host);
         const adapter = new X3DOMRenderAdapter(this._x3dom);
         adapter.mount(host, { width, height });
+        // Disables X3D's automatic per-viewport headlight (on by default, never explicitly
+        // disabled anywhere else in this app either — confirmed by grep) for the destination
+        // preview specifically, not the main scene. Live-reported as "bleached out with light":
+        // the destination camera (glued through the portal frames) frequently ends up close to
+        // and near-perpendicular to flat destination-room geometry, where a camera-attached
+        // headlight stacked on top of canonical-world-content.js's own ambient(0.75) +
+        // directional(0.9) lights is far more visually dominant than the same stack is in the
+        // main scene's normal room-scale camera movement.
+        const navInfo = document.createElement("navigationinfo");
+        navInfo.setAttribute("headlight", "false");
+        adapter.sceneRoot.appendChild(navInfo);
         // X3DOM's own <x3d>-element discovery only runs once (at document load); an <x3d> element
         // created and attached afterward — exactly this adapter's case, since it always mounts
         // well after the main adapter's ready() has already resolved — is otherwise never picked
         // up and never gets a runtime. reload() is X3DOM's documented hook for exactly this.
         this._x3dom.reload();
         adapter.__portalHostEl = host;
-        adapter.__portalCanvas = document.createElement("canvas");
-        adapter.__portalCanvas.width = width;
-        adapter.__portalCanvas.height = height;
-        adapter.__portalCtx = adapter.__portalCanvas.getContext("2d");
-        adapter.__portalImg = new Image();
         adapter.__portalLastCaptureAtMs = -Infinity;
         adapter.__portalTexture = null;
         return adapter;
@@ -71,18 +81,10 @@ export class X3DOMPortalRenderer extends PortalRenderer {
         }
         destinationAdapter.__portalLastCaptureAtMs = now;
         const dataUri = destinationAdapter.runtime.getScreenshot();
-        await new Promise((resolve, reject) => {
-            destinationAdapter.__portalImg.onload = () => resolve();
-            destinationAdapter.__portalImg.onerror = () => reject(new Error("X3DOMPortalRenderer.capture: screenshot decode failed"));
-            destinationAdapter.__portalImg.src = dataUri;
-        });
-        const ctx = destinationAdapter.__portalCtx;
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(destinationAdapter.__portalImg, 0, 0, width, height);
         if (!destinationAdapter.__portalTexture) {
-            destinationAdapter.__portalTexture = mainAdapter.createCanvasTexture(destinationAdapter.__portalCanvas);
+            destinationAdapter.__portalTexture = mainAdapter.createUrlTexture(dataUri);
         } else {
-            mainAdapter.updateCanvasTexture(destinationAdapter.__portalTexture);
+            mainAdapter.updateUrlTexture(destinationAdapter.__portalTexture, dataUri);
         }
         return { texture: destinationAdapter.__portalTexture, width, height };
     }

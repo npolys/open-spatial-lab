@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>X3DOM RenderedTexture feasibility spike (throwaway, statically-declared baseline)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+</head>
+<body>
+<div id="status">loading x3dom...</div>
+<x3d id="main" width="480px" height="360px">
+  <scene>
+    <background skycolor="0.1 0.2 0.5"></background>
+    <viewpoint position="0 1.6 4"></viewpoint>
+    <transform DEF="rtConsumer" translation="0 1.5 -3">
+      <shape>
+        <appearance>
+          <material diffuseColor="1 1 1"></material>
+          <renderedtexture id="rt" dimensions="128 128 4" update="always">
+            <viewpoint position="20 20 25" orientation="0 0 1 0" fieldofview="0.8"></viewpoint>
+            <transform USE="rtConsumer"></transform>
+          </renderedtexture>
+        </appearance>
+        <plane size="2 2"></plane>
+      </shape>
+    </transform>
+    <transform translation="20 20 20">
+      <shape>
+        <appearance><material id="farMat" diffuseColor="1 0 1" emissiveColor="1 0 1"></material></appearance>
+        <box size="4 4 4"></box>
+      </shape>
+    </transform>
+  </scene>
+</x3d>
+<div id="log" style="white-space:pre-wrap;font:13px ui-monospace,Menlo,monospace;background:#11162a;color:#d9e6ff;padding:10px;"></div>
+<script>
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+function waitReady(x3dEl, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const t0 = performance.now();
+    (function poll() {
+      if (x3dEl.runtime) return resolve(x3dEl.runtime);
+      if (performance.now() - t0 > timeoutMs) return reject(new Error('x3dom runtime did not attach within ' + timeoutMs + 'ms'));
+      setTimeout(poll, 30);
+    })();
+  });
+}
+function sampleCenter(canvas) {
+  const scratch = document.createElement('canvas');
+  scratch.width = canvas.width; scratch.height = canvas.height;
+  const ctx = scratch.getContext('2d');
+  ctx.drawImage(canvas, 0, 0);
+  const cx = Math.floor(canvas.width / 2), cy = Math.floor(canvas.height / 2);
+  const region = ctx.getImageData(cx - 20, cy - 20, 40, 40).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+}
+async function run() {
+  const mainEl = document.getElementById('main');
+  const runtime = await waitReady(mainEl);
+  status.textContent = 'ready';
+  await new Promise((r) => setTimeout(r, 1500));
+  const canvas = mainEl.querySelector('canvas');
+  const before = sampleCenter(canvas);
+  append('before (expect magenta-ish if RT renders the far box): ' + JSON.stringify(before));
+
+  document.getElementById('farMat').setAttribute('diffuseColor', '0.8 1 0');
+  document.getElementById('farMat').setAttribute('emissiveColor', '0.8 1 0');
+  await new Promise((r) => setTimeout(r, 1500));
+  const after = sampleCenter(canvas);
+  append('after color swap (expect yellow-green-ish if live): ' + JSON.stringify(after));
+
+  // Control: remove the RenderedTexture entirely and confirm the plane geometry itself is even
+  // visible at all (isolates "plane not rendering" from "plane rendering a black/empty texture").
+  const appearance = document.querySelector('#rt').parentElement;
+  document.getElementById('rt').remove();
+  await new Promise((r) => setTimeout(r, 500));
+  const control = sampleCenter(canvas);
+  append('control, no texture at all (expect white-ish, the plane material color): ' + JSON.stringify(control));
+
+  window.__spikeResult = { before, after, control };
+  status.textContent = 'done';
+}
+run().catch((err) => { append('ERROR: ' + (err && err.stack || err)); status.textContent = 'error'; });
+</script>
+</body>
+</html>

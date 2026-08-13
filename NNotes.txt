@@ -76,3 +76,11 @@ Open Spatial Asset API
 https://webofworlds.github.io/WoWAPI/specification/OpenSpatialAsset/ 
 
 /mnt/c/git/open-spatial-lab
+
+
+
+
+torus mesh used in the x3dom portals is rendered with just backfaces
+
+Also note that the airport location in the x3dom renderer is not the same scene (objects and avatars) as it is in the three renderer; please update the x3dom airport scene for parity.
+

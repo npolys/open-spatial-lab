@@ -431,6 +431,22 @@ export class X3DOMRenderAdapter extends RenderAdapter {
             el.name = name;
         return el;
     }
+    // X3D's ClipPlane node (confirmed present in the vendored x3dom-full.js build:
+    // registerNodeType("ClipPlane","Rendering",...)) uses the same ax+by+cz+d>=0-is-kept half-space
+    // convention as three.js's own THREE.Plane(normal, constant) — so callers building bounding
+    // volumes (portal-preview awareness clipping) can reuse that exact math unchanged, just writing
+    // the 4 numbers into this attribute instead of constructing a THREE.Plane. X3DOM-only: three.js
+    // never routes clip-plane logic through ThreeRenderAdapter either (portal-spatial-preview.mjs
+    // builds THREE.Plane/material.clippingPlanes directly), so this isn't part of the shared
+    // RenderAdapter interface — it's an adapter-owned DOM-construction primitive, same category as
+    // createGroup/createGeometry, for glue code to place via the existing generic add().
+    createClipPlane({ normal, constant, enabled = true }) {
+        const el = document.createElement("clipplane");
+        const n = Array.isArray(normal) ? normal : [0, 0, 1];
+        el.setAttribute("plane", `${n[0]} ${n[1]} ${n[2]} ${Number(constant) || 0}`);
+        el.setAttribute("enabled", enabled ? "true" : "false");
+        return el;
+    }
     // Confirmed empirically (see x3dom-spikes/ this session, exhausted every ordering of
     // document.createElement()-built Inline nodes): a dynamically-created <Inline> never
     // reliably loads, regardless of insertion order, the `load` field, or re-triggering. Only a
@@ -531,6 +547,12 @@ export class X3DOMRenderAdapter extends RenderAdapter {
                 el.setAttribute("height", String(desc.height ?? 1));
                 return el;
             }
+            case "torus": {
+                const el = document.createElement("torus");
+                el.setAttribute("innerRadius", String(desc.innerRadius ?? 0.5));
+                el.setAttribute("outerRadius", String(desc.outerRadius ?? 1));
+                return el;
+            }
             case "octahedron": {
                 // X3D has no native octahedron primitive — a precise 6-vertex/8-face
                 // IndexedFaceSet (three.js OctahedronGeometry(radius, 0), undivided).
@@ -596,8 +618,8 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         const appearanceEl = document.createElement("appearance");
         appearanceEl.appendChild(materialEl);
         if (desc.map) {
-            if (desc.map.kind !== "x3d-canvas-texture")
-                throw new Error('X3DOMRenderAdapter.createMaterial: "map" must be a handle from createCanvasTexture()');
+            if (desc.map.kind !== "x3d-canvas-texture" && desc.map.kind !== "x3d-url-texture")
+                throw new Error('X3DOMRenderAdapter.createMaterial: "map" must be a handle from createCanvasTexture() or createUrlTexture()');
             appearanceEl.appendChild(desc.map.el);
         }
         return { kind: "x3d-material", appearanceEl, materialEl, base, mapTexture: desc.map || null };
@@ -650,6 +672,23 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         if (!textureHandle || textureHandle.kind !== "x3d-canvas-texture")
             throw new Error("X3DOMRenderAdapter.updateCanvasTexture: requires a handle from createCanvasTexture()");
         textureHandle.el.setAttribute("url", textureHandle.canvas.toDataURL());
+    }
+    // X3DOM-only (no cross-engine equivalent need — three.js's own portal preview uses a real
+    // WebGLRenderTarget, not a URL-based texture at all): sets ImageTexture.url straight from a
+    // caller-supplied data: URI, with no canvas involved. Distinct from createCanvasTexture(),
+    // which forces a canvas.toDataURL() re-encode of already-encoded image data — worth avoiding
+    // for callers (x3dom-portal-renderer.mjs's capture()) that already have a data: URI in hand
+    // (from X3DOM's own runtime.getScreenshot()) and would otherwise decode it into an Image,
+    // redraw it onto a scratch canvas, and re-encode it a second time for no benefit.
+    createUrlTexture(url) {
+        const textureEl = document.createElement("imagetexture");
+        textureEl.setAttribute("url", url);
+        return { kind: "x3d-url-texture", el: textureEl };
+    }
+    updateUrlTexture(textureHandle, url) {
+        if (!textureHandle || textureHandle.kind !== "x3d-url-texture")
+            throw new Error("X3DOMRenderAdapter.updateUrlTexture: requires a handle from createUrlTexture()");
+        textureHandle.el.setAttribute("url", url);
     }
     createSprite() { throw new Error("X3DOMRenderAdapter.createSprite: not yet implemented"); }
     createGridHelper({ size, divisions, colorGrid, transparent, opacity }) {

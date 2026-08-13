@@ -2,7 +2,9 @@ import { mountCanonicalWorldContent } from "./vendor/scene-core/canonical-world-
 import { X3DOMPortalRenderer } from "./x3dom-portal-renderer.mjs";
 import { buildWowScene } from "./wow-scene.mjs";
 import { syncHostedSceneObjectMeshesX3dom, disposeHostedSceneObjectMeshesX3dom } from "./x3dom-portal-hosted-objects.mjs";
-import { glueCameraThroughFrames, normalizeVec3, subtract3, addScaled3 } from "./live-adapter-portal-geometry.mjs";
+import { glueCameraThroughFrames, normalizeVec3, subtract3, addScaled3, dot3 } from "./live-adapter-portal-geometry.mjs";
+import { portalAwarenessVolume } from "./portal-spatial-preview.mjs";
+import { mountAirportTerminalContentX3dom } from "./x3dom-airport-terminal-scene.mjs";
 
 // Phase 2 of the X3DOM render-parity plan — portal traversal.
 //
@@ -87,6 +89,9 @@ const ACTIVE_HOSTED_POINT_POLL_MS = 100;
 // subsystem this glue doesn't need to duplicate (the destination content is already resolved by
 // the time a portal exists in the active world at all).
 const MIN_PROJECTED_PORTAL_AREA_DEVICE_PX = 16;
+// Matches three.js's own RADIAL_CLIP_PLANE_COUNT (portal-spatial-preview.mjs, not exported —
+// restated here, same convention as the constants above).
+const RADIAL_CLIP_PLANE_COUNT = 20;
 
 function portalFrameMatrix(frame) {
     const right = Array.isArray(frame.right) ? frame.right : [1, 0, 0];
@@ -101,6 +106,38 @@ function portalFrameMatrix(frame) {
         forward[0], forward[1], forward[2], 0,
         position[0], position[1], position[2], 1,
     ];
+}
+
+// User-confirmed live (2026-08-13), correcting this file's earlier wrong assumption: for a torus
+// to be parallel to a wall, it needs to be a ring in the local X-Y plane with its hole looking down
+// local Z — the SAME local-Z-face-normal convention portalFrameMatrix already uses for the aperture
+// plane (see that function's own column order: right, up, forward → X, Y, Z), not a different
+// hole-along-Y convention. So this is just portalFrameMatrix with right/up pre-scaled to the
+// frame's width/height (mirroring three.js's `ring.scale.set(width/2, height/2, 1)` on a unit
+// torus) — no separate axis remapping needed, and no manual rotation-attribute override either
+// (an earlier version of this function swapped forward into the Y column and patched the result
+// with a hardcoded `rotation` override, which only happened to look approximately right from one
+// specific camera angle — wrong, per live testing across multiple portals).
+function portalRingMatrix(frame, widthM, heightM) {
+    const right = Array.isArray(frame.right) ? frame.right : [1, 0, 0];
+    const up = Array.isArray(frame.up) ? frame.up : [0, 1, 0];
+    const forward = Array.isArray(frame.forward) ? frame.forward : [0, 0, 1];
+    const position = Array.isArray(frame.position) ? frame.position : [0, 0, 0];
+    const hw = widthM / 2;
+    const hh = heightM / 2;
+    return [
+        right[0] * hw, right[1] * hw, right[2] * hw, 0,
+        up[0] * hh, up[1] * hh, up[2] * hh, 0,
+        forward[0], forward[1], forward[2], 0,
+        position[0], position[1], position[2], 1,
+    ];
+}
+
+// Restated locally rather than imported from portal-spatial-preview.mjs, matching this file's own
+// convention for small shared constants (see PORTAL_PREVIEW_PLACEHOLDER_COLOR/
+// MIN_PROJECTED_PORTAL_AREA_DEVICE_PX above).
+function destWorldRingColor(locationId) {
+    return String(locationId || "") === "location-b" ? 0xffc266 : 0x66e0ff;
 }
 
 function worldPortals(world) {
@@ -194,6 +231,51 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         }
     }
 
+    // Bounds the destination content to a sphere around the portal's own awareness volume, so a
+    // player standing far from the source portal doesn't see a small, fixed-size destination room
+    // rendered wildly out of its own bounds (the round-4 "portal screenshot still looks wrong" gap
+    // documented in the parity plan memory — an explicitly deferred, not-forgotten item). Reuses
+    // portalAwarenessVolume() (portal-spatial-preview.mjs) as-is: it's pure data math with no THREE
+    // dependency, and every access on its optional `machine` first argument is null-safe, so
+    // passing null here falls through cleanly to the portal's own authored radius data — the exact
+    // same fallback three.js itself takes whenever its own richer machine-based radius isn't
+    // available either, not a degraded path specific to X3DOM.
+    //
+    // X3D's ClipPlane uses the identical ax+by+cz+d>=0-is-kept convention as THREE.Plane(normal,
+    // constant), so this is the same 21-plane construction three.js's own
+    // SpatialPortalPreviewManager builds (one forward "setback" plane so the back of the portal
+    // isn't visible, plus RADIAL_CLIP_PLANE_COUNT Fibonacci-sphere-distributed radial planes
+    // approximating a bounding sphere) — same math, different node type. Mounted once per portal
+    // preview setup (boot + each crossing), not per frame — the awareness volume is anchored to the
+    // portal's own fixed position, not the live camera.
+    //
+    // Inserted BEFORE any destination content is mounted (called from setupPortalPreview() ahead of
+    // the content-kind branch), since X3D's ClipPlane scoping is traversal-order sensitive — it
+    // affects geometry that comes after it among its siblings, not geometry that precedes it.
+    function mountAwarenessClipPlanes(record, portal) {
+        const volume = portalAwarenessVolume(null, portal);
+        if (!volume.valid)
+            return;
+        const center = volume.center;
+        const forward = normalizeVec3(volume.forward, [0, 0, 1]);
+        const forwardPlane = record.destAdapter.createClipPlane({
+            normal: forward,
+            constant: -dot3(forward, center) + volume.plane_setback_m,
+        });
+        record.destAdapter.add(record.destAdapter.sceneRoot, forwardPlane);
+        for (let index = 0; index < RADIAL_CLIP_PLANE_COUNT; index += 1) {
+            const y = 1 - (index / (RADIAL_CLIP_PLANE_COUNT - 1)) * 2;
+            const radial = Math.sqrt(Math.max(0, 1 - y * y));
+            const theta = index * Math.PI * (3 - Math.sqrt(5));
+            const outward = [Math.cos(theta) * radial, y, Math.sin(theta) * radial];
+            const plane = record.destAdapter.createClipPlane({
+                normal: [-outward[0], -outward[1], -outward[2]],
+                constant: dot3(outward, center) + volume.radius_m,
+            });
+            record.destAdapter.add(record.destAdapter.sceneRoot, plane);
+        }
+    }
+
     function applyPlaceholderContent(record, portal) {
         const destCamera = record.destAdapter.createPerspectiveCamera({ fov: 55, near: 0.1, far: 30 });
         record.destAdapter.sceneRoot.appendChild(destCamera);
@@ -260,10 +342,14 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     // the factory here must return the ALREADY-MOUNTED destination adapter, not a fresh instance
     // (X3DOMRenderAdapter.sceneRoot is null until mount()/attach() runs; three.js's own equivalent
     // factory gets away with `() => new ThreeRenderAdapter(THREE)` only because THREE.Scene() works
-    // standalone). Deliberately does NOT call mountAirportTerminalContent (100% raw THREE, no
-    // adapter indirection — porting it is out of scope) or mountWowSceneAssets (real glTF asset
-    // loading into this small hidden preview — deferred as a stretch item, not attempted here) —
-    // real graph topology only, a documented, deliberate scope cut.
+    // standalone). mountAirportTerminalContentX3dom (x3dom-airport-terminal-scene.mjs) mounts the
+    // real terminal geometry on top of buildWowScene's own root, same order three.js's own
+    // portal-preview path uses (buildWowScene, then mountAirportTerminalContent on the same
+    // `built`) — buildWowScene's generic floor/grid/lights stay as-is underneath, matching what
+    // the live three.js path already tolerates (hideStageDebugVisuals only hides GridHelper/gizmo
+    // markers, never the generic floor). Stage 1 of X3DOM airport parity — still does NOT call
+    // mountWowSceneAssets (real glTF asset loading for NPC/staff avatars) or the entity-runtime
+    // manifest cards; those are staged as separate follow-ons, not attempted here.
     function applyAuthoredGraphContent(record, content) {
         const built = buildWowScene(content.graph, () => record.destAdapter, {
             width: PORTAL_PREVIEW_SIZE_PX,
@@ -274,6 +360,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         record.destCamera = built.camera;
         record.disposeContent = null;
         record.contentKind = "authored_wow_graph";
+        mountAirportTerminalContentX3dom(content.graph, record.destAdapter, { parent: record.destAdapter.sceneRoot, document });
     }
 
     async function setupPortalPreview(portal, material) {
@@ -284,6 +371,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
             await destAdapter.ready();
             if (record.disposed)
                 return;
+            mountAwarenessClipPlanes(record, portal);
             let content = null;
             try {
                 content = await liveAdapter.resolvePortalDestinationContent(portal);
@@ -325,6 +413,21 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
             adapter.add(portalGroup, mesh);
             if (portalRenderer)
                 setupPortalPreview(portal, material);
+
+            // Decorative frame, matching three.js's own dest-portal-ring (portal-spatial-preview.mjs)
+            // — a glowing emissive torus around the aperture, colored per destination world.
+            const ringColor = destWorldRingColor(portal.target_location_id);
+            const ringGeometry = adapter.createGeometry({ type: "torus", innerRadius: 0.075, outerRadius: 1 });
+            // side: "double" — user-confirmed live (2026-08-13): without this, only the torus's
+            // backfaces were visible (culled the wrong way round under this build's winding/normal
+            // conventions for a Torus placed via setLocalMatrix's decomposed rotation). Same fix
+            // already applied to the aperture plane for an analogous reason (see this file's header
+            // comment) — disabling culling entirely sidesteps the exact mechanism rather than
+            // needing to fully re-derive it.
+            const ringMaterial = adapter.createMaterial({ type: "standard", color: ringColor, emissive: ringColor, emissiveIntensity: 0.72, side: "double" });
+            const ringMesh = adapter.createMesh(ringGeometry, ringMaterial);
+            adapter.setLocalMatrix(ringMesh, portalRingMatrix(frame, Number(frame.width_m) || 2, Number(frame.height_m) || 3));
+            adapter.add(portalGroup, ringMesh);
         }
     }
 
@@ -434,11 +537,44 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         activeHostedPollHandle = setInterval(poll, ACTIVE_HOSTED_POINT_POLL_MS);
     }
 
+    // Mirrors scene-runtime-controller.mjs's own activeAuthoredAirport(world) exactly — same
+    // three-part check (location_id, resolved spatialID, graph presence). liveAdapter.wowResolved()
+    // is genuinely engine-agnostic (a plain getter on LiveAdapter, populated during the normal
+    // boot/crossing sequence regardless of render path) and was already available to X3DOM before
+    // today; it was just never read here.
+    function activeAuthoredAirport(world) {
+        const resolved = typeof liveAdapter.wowResolved === "function" ? liveAdapter.wowResolved() : null;
+        if (world?.location_id !== "location-airport" || resolved?.spatialID !== "world-airport-terminal" || !resolved.graph)
+            return null;
+        return resolved;
+    }
+
     function mountWorldContent() {
         clearGroup(worldContentGroup);
         worldContentGroup = adapter.createGroup("x3dom-world-content");
         adapter.add(adapter.sceneRoot, worldContentGroup);
-        mountCanonicalWorldContent(adapter, worldContentGroup, liveAdapter.world || {});
+        const airport = activeAuthoredAirport(liveAdapter.world);
+        let airportMounted = false;
+        if (airport) {
+            // Deliberately NOT buildWowScene here (unlike the portal-preview branch below) — that
+            // function unconditionally owns "the whole scene" (background color, its own floor/
+            // grid/lights) and is only safe against a dedicated, otherwise-empty destination
+            // adapter. The active world shares ONE persistent adapter/scene across every crossing,
+            // scoped via worldContentGroup the same way mountCanonicalWorldContent already is —
+            // mounting airport content straight into that same group keeps that scoping intact.
+            try {
+                airportMounted = !!mountAirportTerminalContentX3dom(airport.graph, adapter, { parent: worldContentGroup, document });
+            }
+            catch (err) {
+                log(`[x3dom-portal-glue] airport terminal mount failed, falling back to canonical room: ${err && err.message}`);
+            }
+        }
+        if (!airportMounted) {
+            clearGroup(worldContentGroup);
+            worldContentGroup = adapter.createGroup("x3dom-world-content");
+            adapter.add(adapter.sceneRoot, worldContentGroup);
+            mountCanonicalWorldContent(adapter, worldContentGroup, liveAdapter.world || {});
+        }
         mountActiveHostedObjects();
         mountPortalApertures();
     }

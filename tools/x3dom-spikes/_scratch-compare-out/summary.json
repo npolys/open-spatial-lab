@@ -7,18 +7,18 @@
       "appClassName": "role-player rail-collapsed"
     },
     "defaultFps": {
-      "frames": 48,
-      "elapsedMs": 3029.2999999999065,
-      "fps": 15.845244776021353,
-      "maxGapMs": 116.69999999999982
+      "frames": 61,
+      "elapsedMs": 3015.7999999999993,
+      "fps": 20.226805491080317,
+      "maxGapMs": 66.80000000000018
     },
     "defaultShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/three-default.png",
     "portalShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/three-near-portal.png",
     "nearPortalFps": {
-      "frames": 35,
-      "elapsedMs": 3089.099999999813,
-      "fps": 11.3301608882853,
-      "maxGapMs": 133.29999999999927
+      "frames": 57,
+      "elapsedMs": 3020.500000001117,
+      "fps": 18.87104783975465,
+      "maxGapMs": 66.79999999999927
     },
     "previewDebug": {
       "_claim": "runtime full-fidelity bounded portal windows — shared canonical destination composition, transformed-bounds awareness, fragment clipping, direct-density targets, strict full-or-absent peers; local validation layer, spatial_render_standard_conformance:false",
@@ -59,7 +59,7 @@
           "canonical_content_status": "ready",
           "canonical_content_error": null,
           "canonical_content_source": "shared_canonical_legacy_world_builder",
-          "canonical_content_revision": "location-b:demo-room-b:hosted-4566",
+          "canonical_content_revision": "location-b:demo-room-b:hosted-336",
           "canonical_inventory": [
             "canonical-world-floor",
             "canonical-world-debug-grid",
@@ -77,16 +77,16 @@
           "avatar_fault": null,
           "avatar_representations": [],
           "controlled_identity_filter": {
-            "controlled_player_id": "player-1786581918334-87fbazp4o44",
+            "controlled_player_id": "player-1786590610801-ab3pyg9r77c",
             "input_player_ids": [],
             "suppressed_player_ids": [],
             "rendered_player_ids": [],
             "source": "snapshot_fallback",
-            "applied_at": "2026-08-13T00:45:31.919Z"
+            "applied_at": "2026-08-13T03:10:25.099Z"
           },
           "last_avatar_reconcile": {
-            "at": "2026-08-13T00:45:31.919Z",
-            "at_ms": 1786581931919,
+            "at": "2026-08-13T03:10:25.099Z",
+            "at_ms": 1786590625099,
             "previous_player_ids": [],
             "next_player_ids": [],
             "removed_player_ids": [],
@@ -112,8 +112,8 @@
           "awareness_clip_plane_count": 21,
           "radial_fragment_clip": true,
           "object_culling": {
-            "eligible_count": 2,
-            "culled_count": 5,
+            "eligible_count": 3,
+            "culled_count": 4,
             "objects": [
               {
                 "id": "canonical-world-floor",
@@ -153,7 +153,7 @@
               },
               {
                 "id": "canonical-world-wall-z",
-                "reason": "outside_portal_camera_frustum",
+                "reason": "bounds_intersect_awareness_and_frustum",
                 "bounds": {
                   "min": [
                     -6,
@@ -192,14 +192,14 @@
                 "reason": "outside_awareness_radius",
                 "bounds": {
                   "min": [
-                    -2.9144407028950727,
+                    -2.971836379856374,
                     -5.960464455334602e-9,
-                    -1.4239223898784616
+                    -1.7207156246943511
                   ],
                   "max": [
-                    -2.1144406909741438,
+                    -2.171836367935445,
                     0.8000000059604645,
-                    -0.6239223779575327
+                    -0.9207156127734222
                   ]
                 },
                 "dynamic_bounds": true,
@@ -208,7 +208,7 @@
                   "shape": "box",
                   "size_m": 0.8,
                   "color": "#ff8c42",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -221,14 +221,14 @@
                 "reason": "outside_portal_camera_frustum",
                 "bounds": {
                   "min": [
-                    1.4081190973512074,
+                    0.9954022694364384,
                     5.960464455334602e-9,
-                    1.2234903926592786
+                    1.383796483280388
                   ],
                   "max": [
-                    2.1081190854302783,
+                    1.6954022575155094,
                     0.6999999940395355,
-                    1.9234903807383497
+                    2.083796471359459
                   ]
                 },
                 "dynamic_bounds": true,
@@ -237,7 +237,7 @@
                   "shape": "sphere",
                   "size_m": 0.7,
                   "color": "#ffd166",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "SphereGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -250,14 +250,14 @@
                 "reason": "outside_awareness_radius",
                 "bounds": {
                   "min": [
-                    -1.306926135521308,
+                    -1.4104351567418336,
                     -1.1920928966180355e-8,
-                    2.464106903966124
+                    2.330949800811849
                   ],
                   "max": [
-                    -0.7069261116794501,
+                    -0.8104351328999757,
                     0.600000011920929,
-                    3.0641069278079818
+                    2.930949824653707
                   ]
                 },
                 "dynamic_bounds": true,
@@ -266,7 +266,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#c65ccd",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -277,10 +277,10 @@
             ]
           },
           "avatar_culling": [],
-          "frames_rendered": 94,
+          "frames_rendered": 106,
           "render_target": {
-            "width": 21,
-            "height": 549,
+            "width": 215,
+            "height": 404,
             "sizing_rule": "projected aperture device-pixel crop at direct drawing-buffer density",
             "fixed_low_resolution": false
           },
@@ -290,20 +290,20 @@
           },
           "last_camera": {
             "position": [
-              7.953321483134154,
-              1.9705163284774931,
-              -0.7130180009083928
+              8.945481945184515,
+              2.0863952631616987,
+              -0.3459039395341259
             ],
             "target": [
-              4.352728887495161,
-              0.8267074280581508,
-              0.6013008947752807
+              5.08986152069782,
+              1.1224577242528877,
+              0.10688250390633447
             ],
-            "rotation_y": -1.2207963267948965,
+            "rotation_y": -1.4538963267949043,
             "source_local": {
-              "x": -2.086981999091607,
-              "y": 0.620516328477493,
-              "z": 5.153321483134154
+              "x": -2.454096060465874,
+              "y": 0.7363952631616986,
+              "z": 6.145481945184516
             },
             "viewer_side": "front"
           },
@@ -323,7 +323,7 @@
             "debug_grid_included": true,
             "hosted_objects": {
               "attach_point_id": "um-attach-point-location-b",
-              "version": 4566,
+              "version": 336,
               "refresh_owner": "PortalRenderController existing bounded client pull",
               "refresh_cadence_ms": 100,
               "streaming": false,
@@ -333,7 +333,7 @@
                   "shape": "box",
                   "size_m": 0.8,
                   "color": "#ff8c42",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -341,9 +341,9 @@
                   "wow_status": "synthetic",
                   "scene_name": "demo-scene-object-obj-b-cube-1",
                   "position": [
-                    -2.212656091069498,
+                    -2.190402578208153,
                     0.4,
-                    -1.2948802391788712
+                    -1.2129969526509312
                   ],
                   "instance_count": 1
                 },
@@ -352,7 +352,7 @@
                   "shape": "sphere",
                   "size_m": 0.7,
                   "color": "#ffd166",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "SphereGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -360,9 +360,9 @@
                   "wow_status": "synthetic",
                   "scene_name": "demo-scene-object-obj-b-sphere-1",
                   "position": [
-                    1.3484069876429159,
+                    1.8614404937464344,
                     0.35,
-                    1.7214170727341196
+                    1.7851112468539743
                   ],
                   "instance_count": 1
                 },
@@ -371,7 +371,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#c65ccd",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -379,9 +379,9 @@
                   "wow_status": "synthetic",
                   "scene_name": "demo-scene-object-obj-b-cube-2",
                   "position": [
-                    -0.6383125922615303,
+                    -0.48668846135556615,
                     0.3,
-                    2.787133534948752
+                    2.590634660365245
                   ],
                   "instance_count": 1
                 }
@@ -423,7 +423,7 @@
                 2.5,
                 -6
               ],
-              "culling_reason": "outside_portal_camera_frustum",
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
               "dynamic_bounds": false,
               "hosted_scene_object": null,
               "camera_space": null
@@ -443,9 +443,9 @@
             {
               "object_id": "demo-scene-object-obj-b-cube-1",
               "world_position": [
-                -2.212656091069498,
+                -2.190402578208153,
                 0.4,
-                -1.2948802391788712
+                -1.2129969526509312
               ],
               "culling_reason": "outside_awareness_radius",
               "dynamic_bounds": true,
@@ -454,7 +454,7 @@
                 "shape": "box",
                 "size_m": 0.8,
                 "color": "#ff8c42",
-                "version": 4566,
+                "version": 336,
                 "projection_authority": "shared_hosted_scene_object_projection_v1",
                 "geometry_type": "BoxGeometry",
                 "material_type": "MeshStandardMaterial",
@@ -466,9 +466,9 @@
             {
               "object_id": "demo-scene-object-obj-b-sphere-1",
               "world_position": [
-                1.3484069876429159,
+                1.8614404937464344,
                 0.35,
-                1.7214170727341196
+                1.7851112468539743
               ],
               "culling_reason": "outside_portal_camera_frustum",
               "dynamic_bounds": true,
@@ -477,7 +477,7 @@
                 "shape": "sphere",
                 "size_m": 0.7,
                 "color": "#ffd166",
-                "version": 4566,
+                "version": 336,
                 "projection_authority": "shared_hosted_scene_object_projection_v1",
                 "geometry_type": "SphereGeometry",
                 "material_type": "MeshStandardMaterial",
@@ -489,9 +489,9 @@
             {
               "object_id": "demo-scene-object-obj-b-cube-2",
               "world_position": [
-                -0.6383125922615303,
+                -0.48668846135556615,
                 0.3,
-                2.787133534948752
+                2.590634660365245
               ],
               "culling_reason": "outside_awareness_radius",
               "dynamic_bounds": true,
@@ -500,7 +500,7 @@
                 "shape": "box",
                 "size_m": 0.6,
                 "color": "#c65ccd",
-                "version": 4566,
+                "version": 336,
                 "projection_authority": "shared_hosted_scene_object_projection_v1",
                 "geometry_type": "BoxGeometry",
                 "material_type": "MeshStandardMaterial",
@@ -546,7 +546,7 @@
           "canonical_content_status": "ready",
           "canonical_content_error": null,
           "canonical_content_source": "shared_canonical_legacy_world_builder",
-          "canonical_content_revision": "location-lobby:demo-lobby:hosted-4566",
+          "canonical_content_revision": "location-lobby:demo-lobby:hosted-336",
           "canonical_inventory": [
             "canonical-world-floor",
             "canonical-world-debug-grid",
@@ -563,16 +563,16 @@
           "avatar_fault": null,
           "avatar_representations": [],
           "controlled_identity_filter": {
-            "controlled_player_id": "player-1786581918334-87fbazp4o44",
+            "controlled_player_id": "player-1786590610801-ab3pyg9r77c",
             "input_player_ids": [],
             "suppressed_player_ids": [],
             "rendered_player_ids": [],
             "source": "snapshot_fallback",
-            "applied_at": "2026-08-13T00:45:31.920Z"
+            "applied_at": "2026-08-13T03:10:25.099Z"
           },
           "last_avatar_reconcile": {
-            "at": "2026-08-13T00:45:31.920Z",
-            "at_ms": 1786581931920,
+            "at": "2026-08-13T03:10:25.099Z",
+            "at_ms": 1786590625099,
             "previous_player_ids": [],
             "next_player_ids": [],
             "removed_player_ids": [],
@@ -678,14 +678,14 @@
                 "reason": "outside_destination_half_space",
                 "bounds": {
                   "min": [
-                    -4.5126561029904275,
+                    -4.490402590129082,
                     -1.1920928966180355e-8,
-                    1.2051197489002
+                    1.2870030354281399
                   ],
                   "max": [
-                    -3.9126560791485696,
+                    -3.890402566287224,
                     0.600000011920929,
-                    1.8051197727420578
+                    1.8870030592699978
                   ]
                 },
                 "dynamic_bounds": true,
@@ -694,7 +694,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#9fb0d0",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -707,14 +707,14 @@
                 "reason": "outside_awareness_radius",
                 "bounds": {
                   "min": [
-                    3.8484069757219874,
+                    4.361440481825506,
                     -1.1920928966180355e-8,
-                    1.2214170608131907
+                    1.2851112349330454
                   ],
                   "max": [
-                    4.448406999563845,
+                    4.961440505667364,
                     0.600000011920929,
-                    1.8214170846550486
+                    1.8851112587749033
                   ]
                 },
                 "dynamic_bounds": true,
@@ -723,7 +723,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#9fb0d0",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -734,7 +734,7 @@
             ]
           },
           "avatar_culling": [],
-          "frames_rendered": 151,
+          "frames_rendered": 188,
           "render_target": {
             "width": 237,
             "height": 408,
@@ -790,7 +790,7 @@
             "debug_grid_included": true,
             "hosted_objects": {
               "attach_point_id": "um-attach-point-location-lobby",
-              "version": 4566,
+              "version": 336,
               "refresh_owner": "PortalRenderController existing bounded client pull",
               "refresh_cadence_ms": 100,
               "streaming": false,
@@ -800,7 +800,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#9fb0d0",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -808,9 +808,9 @@
                   "wow_status": "synthetic",
                   "scene_name": "demo-scene-object-obj-lobby-bench-1",
                   "position": [
-                    -4.212656091069499,
+                    -4.190402578208153,
                     0.3,
-                    1.5051197608211289
+                    1.5870030473490688
                   ],
                   "instance_count": 1
                 },
@@ -819,7 +819,7 @@
                   "shape": "box",
                   "size_m": 0.6,
                   "color": "#9fb0d0",
-                  "version": 4566,
+                  "version": 336,
                   "projection_authority": "shared_hosted_scene_object_projection_v1",
                   "geometry_type": "BoxGeometry",
                   "material_type": "MeshStandardMaterial",
@@ -827,9 +827,9 @@
                   "wow_status": "synthetic",
                   "scene_name": "demo-scene-object-obj-lobby-bench-2",
                   "position": [
-                    4.148406987642916,
+                    4.661440493746435,
                     0.3,
-                    1.5214170727341196
+                    1.5851112468539743
                   ],
                   "instance_count": 1
                 }
@@ -992,9 +992,9 @@
             {
               "object_id": "demo-scene-object-obj-lobby-bench-1",
               "world_position": [
-                -4.212656091069499,
+                -4.190402578208153,
                 0.3,
-                1.5051197608211289
+                1.5870030473490688
               ],
               "culling_reason": "outside_destination_half_space",
               "dynamic_bounds": true,
@@ -1003,7 +1003,7 @@
                 "shape": "box",
                 "size_m": 0.6,
                 "color": "#9fb0d0",
-                "version": 4566,
+                "version": 336,
                 "projection_authority": "shared_hosted_scene_object_projection_v1",
                 "geometry_type": "BoxGeometry",
                 "material_type": "MeshStandardMaterial",
@@ -1011,17 +1011,17 @@
                 "wow_status": "synthetic"
               },
               "camera_space": [
-                2.1778,
-                -0.7303,
-                -2.7342
+                2.2603,
+                -0.7365,
+                -2.7155
               ]
             },
             {
               "object_id": "demo-scene-object-obj-lobby-bench-2",
               "world_position": [
-                4.148406987642916,
+                4.661440493746435,
                 0.3,
-                1.5214170727341196
+                1.5851112468539743
               ],
               "culling_reason": "outside_awareness_radius",
               "dynamic_bounds": true,
@@ -1030,7 +1030,7 @@
                 "shape": "box",
                 "size_m": 0.6,
                 "color": "#9fb0d0",
-                "version": 4566,
+                "version": 336,
                 "projection_authority": "shared_hosted_scene_object_projection_v1",
                 "geometry_type": "BoxGeometry",
                 "material_type": "MeshStandardMaterial",
@@ -1038,9 +1038,9 @@
                 "wow_status": "synthetic"
               },
               "camera_space": [
-                6.2006,
-                1.5754,
-                -9.6919
+                6.5024,
+                1.7074,
+                -10.0903
               ]
             }
           ],
@@ -1095,7 +1095,7 @@
             },
             "reason": "outside_portal_perimeter"
           },
-          "at_ms": 1786581931919
+          "at_ms": 1786590625099
         },
         "location-a-portal-lobby": {
           "portal_key": "location-a-portal-lobby",
@@ -1117,7 +1117,7 @@
             },
             "reason": "outside_portal_perimeter"
           },
-          "at_ms": 1786581931920
+          "at_ms": 1786590625099
         }
       }
     }
@@ -1126,38 +1126,38 @@
     "renderer": "x3dom",
     "errors": [],
     "roleChip": {
-      "text": "SERVER A",
-      "appClassName": "role-source rail-collapsed"
+      "text": "PLAYER",
+      "appClassName": "role-player rail-collapsed"
     },
     "defaultFps": {
-      "frames": 12,
-      "elapsedMs": 3149.8999999999996,
-      "fps": 3.8096447506270046,
-      "maxGapMs": 1133.2000000000007
+      "frames": 18,
+      "elapsedMs": 3117.8999999999996,
+      "fps": 5.77311652073511,
+      "maxGapMs": 750
     },
     "defaultShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/x3dom-default.png",
     "portalShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/x3dom-near-portal.png",
     "nearPortalFps": {
-      "frames": 21,
-      "elapsedMs": 3074.3999999998123,
-      "fps": 6.8306010928965915,
-      "maxGapMs": 300
+      "frames": 28,
+      "elapsedMs": 3084.200000000372,
+      "fps": 9.078529278255829,
+      "maxGapMs": 200
     },
     "previewDebug": [
       {
         "ready": true,
-        "capturedUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAH8klEQVR4AeyYz29UVRTHbwdhINCiEcNCRqdCDIn4KxpJCMHOhv+ApYmwUtdqjEDLEOJGJSExdUVplD/AxI2JiyEajXGjiaw0hoYGEqUYHYFSpOD5TjNkoDPvvU7fvffMO1/yTt/0vjv3nvM5H968TsnxHwlEJEABI8Ln1s5RQFoQlQAFjIqfm1NAOhCVAAWMip+b2xWQvVdBgAKqaIPdJCig3d6rqJwCqmiD3SQooN3eq6icAqpog90kKKC93ququLRl244xVRkxGVMESi8deKOxY8/+Y6aqZrFqCLQ+grfv3j9BCdX0xFQiLQFRMSR85cCb5/CaQQKhCNwTEBs+sm37q5CQz4WgwQhB4D4BsSEkxHMhJQQNhm8CywRsbwgJ8VxYfXnvWF7BdWyybDvV7dxTQEzed/D9iddOfdVgkEG/DlRf2Jf4NV+igJCQQQI+CVBAn3S5dioBCpiKiBN8EqCAPuly7VQCFDAVUR4TuEYvAhSwFxmOByFAAYNg5ia9CFDAXmQ4HoQABQyCmZv0IkABe5HheBACFDAIZrubpFVOAdMI8bpXAhTQK14unkaAAqYR4nWvBCigV7xcPI0ABUwjxOteCVBAr3i5eBqB4gqYVjmvqyBAAVW0wW4SFNBu71VUTgFVtMFuEhTQbu9VVE4BVbTBbhIUsHi9H6iKKOBAtat4yVLA4vV0oCqigAPVruIlSwGL19OBqogCDlS7ipcsBSxeTweqolwFHKjKmawKAhRQRRvsJkEB7fZeReUUUEUb7CZBAe32XkXlFFBFG+wmQQFz6T0X6ZcABeyXHN+XCwEKmAtGLtIvAQrYLzm+LxcCFDAXjFykXwIUsF9yfF8uBAZewNGRNe7Qzg2ritrwulxgal2kVrnqapUFiUV3aJeT8103uvluLumudpGBF7A6vMZVh0uritriWle7s261LNW9v1a54o7vuSHCjUhslNjkqiNL54PPbJJreB1Xgbi7q2tZcRKqVeZEuDVS0FqJ9RL4D7a83bWKfHrswnWZEuFYnlHgJGqVpju+Z3bl8fyP7tDj37nRDXOBM9a/Xa1ySeS7LYmWJR6SgIhDcu5+VPEYE0nC6AJ2R5JttLp+ziGyzbYxa3T4b5FvXorFnQ/iocUIGUo4IGGtkj4vYYm+LoXfsa80+aasBGpPzMpUiIc7HkJ+zXjUKuE/iilgxuYMwjTc/aqbb0mqbfHwly7ijoxlOYbk7nkjy8Tc5gyugLkhKNpCuPtBukUpDOJ1hgylHnhuTJ2U2wQKmBtKLQuhpRDwtiTUDsiIwLgM9zwW5ftBzOs5IfcLyDb3RblgTAJtyXDng4D/STIIvEZgXIaWHXjfbXfhH5yXXfQ2QAG9oY21MO5gkAwB4SAfAs+GOCMwjuuQDWe8B9cX3EwzrBJhd4vVEyP7Xvj3YakUMkGytliQbUHGIVhnYAyBMZxvyhx8fcM/QgQEj34JNGYek7dCOgRkbAdEg2Rt2XBGYGxJvJnmdfkI3izvD3fwDhiOdV47Ja7TuFyVj1F8CQ2xIB1EbAfujBhfEs453O2uy3rXJJpu6vxWOYc9KGBY3kF2mzq/UyTE1zGQDXc5iAj5OgPjbQGb7swvm4Lk9uAmFPBBIgX5fUlCPAfiDoc7HmREQDycEfOuMVt2498/5ZaeH8MXX9r74rOuVzy3bYsbLd/yGqVbQ+7iXHlFMXu17Gabj7qL80+6y9c3uj+a8/di7tpNt9K4Ur7p1pYXvNbpm2O39Ru/Pe0av24VtqVWXPrLuaW462b+HJJYlBjxWvfY7t1jr7/19rFeUfr9h6/rveLnL6fr30x94DWmT35cn5iYXFGMj0/Wx098Xp/48Iv64ROf1t8bH78X7xw5Wr8/DsvvyfHuJ4frp6cnpM4TCmN1/D87NSlsz0qcqR85ijgt56l6vX5a4qzUu7r10/yY+enbc0n31dL05EfHih0npb5BjmL3h8+ASf89ec07gRUJ6D0bbmCOAAU013JdBVNAXf0wlw0FNNdyXQVTQF39MJcNBTTXcl0FU8BM/eAkXwQooC+yXDcTAQqYCRMn+SJAAX2R5bqZCFDATJg4yRcBCuiLLNfNRIACZsJkd5Lvyimgb8JcP5EABUzEw4u+CVBA34S5fiIBCpiIhxd9E6CAvglz/UQCFDARDy/6JqBXQN+Vc30VBCigijbYTYIC2u29isopoIo22E2CAtrtvYrKKaCKNthNggLq672pjCigqXbrK5YC6uuJqYwooKl26yuWAurriamMKKCpdusrlgLq64mpjO4T0FTlLFYFAQqoog12k6CAdnuvonIKqKINdpOggHZ7r6JyCqiiDXaToICt3vNHLAIUMBZ57tsiQAFbGPgjFgEKGIs8920RoIAtDPwRiwAFjEWe+7YIUMAWBrs/YldOAWN3wPj+FNC4ALHLp4CxO2B8fwpoXIDY5VPA2B0wvj8FNC5A7PLjCRi7cu6vggAFVNEGu0lQQLu9V1E5BVTRBrtJUEC7vVdROQVU0Qa7SVDA8L3njh0EKGAHDL4MT4AChmfOHTsIUMAOGHwZngAFDM+cO3YQoIAdMPgyPAEKGJ653R27VE4Bu0DhUDgCFDAca+7UhQAF7AKFQ+EIUMBwrLlTFwIUsAsUDoUjQAHDseZOXQgYEbBL5RxSQYACqmiD3SQooN3eq6icAqpog90kKKDd3quonAKqaIPdJChgwXuvvbz/AQAA//9hcBYjAAAABklEQVQDALOjZ5sv+t6PAAAAAElFTkSuQmCC",
+        "capturedUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAH1UlEQVR4AeyZXYgVZRiAJynKIIkS8sK/fihBIfojLTm70IVeeSGiN6EGEkISpAb9emYWu48oKDGUEM1tV0gLEpLdlX7urIgVgroxo6IrI7J1XU/fe9yh2dPs2Tlz5ued8z7Lec/Mmfnm+973eR+/4+o8jx8IlEgAAUuEz9Keh4BYUCoBBCwVP4sjIA6USgABS8XP4nYFpPcqCCCgijbYTQIB7fZeReUIqKINdpNAQLu9V1E5Aqpog90kENBe71VVjICq2mEvGQS013NVFSOgqnbYSwYB7fVcVcUIqKod9pJBQHs9V1VxoQKqqjyDZBYuX9GvKbwK/iBgyqZtDA43as+8NKIpUpZS6mMImAL/Ridfisd4JIYAAsZA4VJxBBCwQ9bsfh0Cm2M4As4BiNv5EkDADvim3/06WMTYUARM2HDkSwiqw2EI2CEwhmdLAAET8GT3SwAp5RAETAmOx7IhgIBzcGT3mwNQl7cRsA1A5GsDJ+GtuYYh4FyEuJ8rAQScBS+73yxgMr6MgBkDZbrOCCBgDC92vxgoOV1CwJzAMm0yAgjYwondrwVIzh97V8AU4JAvBbQuH0HALgHyeHcEEHCaH7vfNIiCDwhYMHCWm0kAAR0Pdj8HoaSXeQGRryTzppc1L+A0h146VKoW0wKy+5XvqmkBy8dPBmYFZPfTIb9JAZFPh3yShUkBpXBCBwFzArL76RAvzCJTAcNJOUIgKQEETEqKcbkQMCfgifr2G3IhyaSpCJgTMBUlHsqNAALmhpaJkxAwKSBfw0nUKGaMSQGzR8uMaQkgYFpyPJcJAbMC8jWciT9dT2JWwK7JMUEmBBAwE4xMkpYAAqYlx3OZEDAtIH8P7N6hbmcwLWC38DQ9v6VviTc2dmy00bjQaDR+aYyNDY9K9Pev7teUZ2suCNhKpGKft/Qt8ob3Pe5t7lvq1Wqr+8L0a7Un+mq1J/tGRj4e8f29fnhd27GSAvavXZXZn+oqfw0PbFvmxFvknGq0xDX3WeL69Xr9xfrY2IlRd1Hdq5ICjgy9PKKOZMEJDWy7y1u5bL5bVSSbcsdoiHwzo1Zb0+f7u9XthPNc5rwqRmDV0pucfLe4rEWyqHizncu4a169vrvu+8+rkhABXRur9jW8ee2tLuurkQjFi7sm9+S6HCV0tVxXNg5p4pfhgSuX3Oh5DZEqaYh4MnbK7YK76prQIaCmbnSSyxURatI9EQ25FkZ4XT7LuRzDcI8peSHgdCOq9jXcTHviijuEIZK1hggn18JjeO4eU/JCQCWNSJ3GDAlFRpFstuOkd/bsV2Op18rhQQTMAWreU47/LDtaZJUJJ921CXdBxAuPct4ack/CDVXyQsBII6ryNTx+wQkXybt5Oul+0Zj4x/MaIpiIFx7lXEI+T7hfQt7nn2GawHhLS8A7/sXf3uCXl+Ofl19ORMQpEc4J6f0XQf1AMDr6rar/EWEHjG+j+qsi4f++iqNZX5Ud0e2UE05EJ2Tw+qHAHziiaveTdBFQKESiKl/DkvK+o5e8thLKIBfB/mOBv/+oOvlcal4lBFy8+N77Hnx4zbowLk/N99Zv2ORHY8Pmrf6mp3c0Q87jIry/eftOf7aQMQ/dv9yTeOSBu72s49EV93idxmPumdni1Lk7vVPfLPT++Ot27/c/F3iXJ29uxm+XbvN++PUOb8vOT4PzFxd4Uq/UFo1WRsKz9tS656IRMm89Sk/ahciVJCohYGsh67e+t6v1Wpafvz/9YSAx/vlHQdZx/sxQ0GmMnzkRtIvBQ8eD3a8MB3tfGw6e3fNJsOOFk8GeV4eCgTeOBVlyyWOuSgh48eJPP3537uvTYZw9c/qdz04O+dE4OfiBP3TkYDPkPC7C+4OH3/VnCxkT3jt68G0/6zhy4C2/83jTPZMkrs8dzTmsRY5SWzRaGQlPYRuNkHnrUXrSLpLKWgkBkxbDuOoR6EjA6pVHxtoJIKD2DvV4fgjY4w3WXh4Cau9Qj+eHgD3eYO3lIaD2DvV4fgiYqMEMyosAAuZFlnkTEUDARJgYlBcBBMyLLPMmIoCAiTAxKC8CCJgXWeZNRAABE2GyOyjvyhEwb8LM35YAArbFw828CSBg3oSZvy0BBGyLh5t5E0DAvAkzf1sCCNgWDzfzJqBXwLwrZ34VBBBQRRvsJoGAdnuvonIEVNEGu0kgoN3eq6gcAVW0wW4SCKiv96YyQkBT7dZXLALq64mpjBDQVLv1FYuA+npiKiMENNVufcUioL6emMpohoCmKqdYFQQQUEUb7CaBgHZ7r6JyBFTRBrtJIKDd3quoHAFVtMFuEgjY7D1vZRFAwLLIs26TAAI2MfBWFgEELIs86zYJIGATA29lEUDAssizbpMAAjYx2H0ru3IELLsDxtdHQOMClF0+ApbdAePrI6BxAcouHwHL7oDx9RHQuABll1+egGVXzvoqCCCgijbYTQIB7fZeReUIqKINdpNAQLu9V1E5Aqpog90kELD43rNihAACRmBwWjwBBCyeOStGCCBgBAanxRNAwOKZs2KEAAJGYHBaPAEELJ653RVjKkfAGChcKo4AAhbHmpViCCBgDBQuFUcAAYtjzUoxBBAwBgqXiiOAgMWxZqUYAkYEjKmcSyoIIKCKNthNAgHt9l5F5Qioog12k0BAu71XUTkCqmiD3SQQsMd7r728fwEAAP//wpb7hAAAAAZJREFUAwANVY1uClj1sQAAAABJRU5ErkJggg==",
         "contentKind": "legacy_world",
         "destCameraPosition": "10.041535333871725 3.2970917115432528 -2.207900815685779",
-        "captureAttempts": 57,
+        "captureAttempts": 74,
         "eligible": true
       },
       {
         "ready": true,
-        "capturedUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAFGklEQVR4AeyYv2oVQRyFL/cRVCxEIVgEVBAFkcQiCbEXH8DCgJWNjX2SUhDtrAUR8Q3scjsbrSxtfA4rswuRG9x/7u7MnJnzCRMv+2fmd77zqReXC35BICEBBEwIn6MXCwTEgqQEEDApfg5HQBxISgABk+LncF8B6V6CAAJK1OA7BAL6di+RHAElavAdAgF9u5dIjoASNfgOgYB+3UslXl7auLonNRHDWBFYbh08Otncv39klZqwMgTqf4I3d+8dIqFMJ1aD1AJWiSsJtw8er6rPLAjEIvBXwOrAixtXdisJ+V5Y0WDFIHBOwOrASsLqeyESVjRYoQn8I+DZgZWE1ffCja07e3Mt9vFkeeZU0++tAlYP7794cvjs86sTFgzGOnD9we3O/+brFLCSkAWBkAQQMCRd9u4lgIC9iHggJAEEDEmXvXsJIGAvojkeYI82AgjYRobrUQggYBTMHNJGAAHbyHA9CgEEjIKZQ9oIIGAbGa5HIYCAUTD7HtKXHAH7CHE/KAEEDIqXzfsIIGAfIe4HJYCAQfGyeR8BBOwjxP2gBBAwKF427yNQroB9ybkvQQABJWrwHQIBfbuXSI6AEjX4DoGAvt1LJEdAiRp8h0DA8rrPKhECZlVXecMiYHmdZpUIAbOqq7xhEbC8TrNKhIBZ1VXesAhYXqdZJZpVwKySM6wEAQSUqMF3CAT07V4iOQJK1OA7BAL6di+RHAElavAdAgFn6Z5NxhJAwLHkeG8WAgg4C0Y2GUsAAceS471ZCCDgLBjZZCwBBBxLjvdmIYCAs2D03WRqcgScSpD3JxFAwEn4eHkqAQScSpD3JxFAwEn4eHkqAQScSpD3JxFAwEn4eHkqgXwFnJqc9yUIIKBEDb5DIKBv9xLJEVCiBt8hENC3e4nkCChRg+8QCJhf90VNjIBF1ZlfGATMr7OiJl5u39hZtK1bF24urv2+zILBaAd27j7ce/r85VHbWv5cfTtuW98/fTk+efsx8/XhdP6cV978f339ser6K3v5/t3ro7LXm9N8Oa+y++E7YNcfT+4FJ/BfAgafhgPsCCCgXeVagRFQqw+7aRDQrnKtwAio1YfdNAhoV7lWYAQc1AcPhSKAgKHIsu8gAgg4CBMPhSKAgKHIsu8gAgg4CBMPhSKAgKHIsu8gAgg4CJPvQ6GTI2BowuzfSQABO/FwMzQBBAxNmP07CSBgJx5uhiaAgKEJs38nAQTsxMPN0AR0BQydnP0lCCCgRA2+QyCgb/cSyRFQogbfIRDQt3uJ5AgoUYPvEAio173VRAhoVbdeWATU68RqIgS0qlsvLALqdWI1EQJa1a0XFgH1OrGa6JyAVskJK0EAASVq8B0CAX27l0iOgBI1+A6BgL7dSyRHQIkafIdAwLp7fqQigICpyHNuTQABawz8SEUAAVOR59yaAALWGPiRigACpiLPuTUBBKwx+P5InRwBUzdgfj4CmguQOj4Cpm7A/HwENBcgdXwETN2A+fkIaC5A6vjpBEydnPMlCCCgRA2+QyCgb/cSyRFQogbfIRDQt3uJ5AgoUYPvEAgYv3tOXCOAgGsw+BifAALGZ86JawQQcA0GH+MTQMD4zDlxjQACrsHgY3wCCBifue+JDckRsAEKl+IRQMB4rDmpgQACNkDhUjwCCBiPNSc1EEDABihcikcAAeOx5qQGAiYCNiTnkgQBBJSowXcIBPTtXiI5AkrU4DsEAvp2L5EcASVq8B0CAQvvXj3eHwAAAP//TAzylQAAAAZJREFUAwAJ73WM35LxwQAAAABJRU5ErkJggg==",
+        "capturedUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAF/ElEQVR4Aeycv68MURSAl79CIUjoxaPRIFFQqYQQEYVCQqHVjUovJCIKEZEQ1dNQiB+NTuJHSef/IGfeu97s7szs3Zl77zm755Oc3Z2ZO/ec850vVyN2T/gDAUUCCKgIn9STCQJigSoBBFTFT3IExAFVAgioip/kfgVk9iYIIKCJMfgtAgH9zt5E5whoYgx+i0BAv7M30TkCmhiD3yIQ0N/sTXWMgKbG4a8YBPQ3c1MdI6CpcfgrBgH9zdxUxwhoahz+ikFAfzM31XFRAVN1vufQgVMakap+9tkhsJICnrx96YNG7GDjVyoCKylgquaX3efigzt/l32H9f0EELCfz9xTJJxDMuoGAo7Cx8tjCSDgAIKcggOgdbyCgB1gFt1eTsJFu/l9joB+Z2+icwQcMQZOwRHwtl9FwG0QfOkQQMCR3DkFxwFEwHH86reRsMYw6AMBB2HjpVgCi9Yh4CJCkc85BSNBzSxDwBkgYy6RcHl6CLg8M95ISAABE8KUrTgFhUJ8IGA8q+iVSBiNiv+iNx4VK3MQWN8TMAetJfbkFIyDhYBxnFiViQACZgIr23IKCoX+QMB+PqOfImE/QgTs58PTzAQQMDNg2Z5TUCi0BwK2c0l+t6CEyWvPuSEC5qTL3gsJIOBCROkWcArOs0TAeSZZ7yDhNF4EnObBVWECCFgYuKTjFBQKW4GAWxz4VCKQVEClHlYyLafg1tgQcIuDyicSTvj3gCrmkfQ/AU7A/yh0fng/BRFQx7uprJ4lRMApFbgoTQABkxAfv4nXUxABx7uTbAePEiJgMn3YaAgBBBxCLeM73k5BBMwoE1svJoCAixkVX+HpFETA4nrFJVwVCeO66V6FgN1seFKAAAIWgEyKbgII2M2GJwUIIGAByKToJoCA3WxUn7y8dW+XagGFkiNgIdCkaSewugK297MWd72cfjIsBBQKhBoBBFRDT2IhgIBCwVB4+utXsCOgUCDUCCCgGvr5xN5OPyGAgEJhtWKtqkXAtRrn6jWDgEZm5vGvX0EfLeDevQcP9cXhjeNn2uLE6TM3Z+PsufNViHMXrlbnr1yv5DuEXIe4cO1GFeLy9VuVxMb+Y5OYOLL/6OTIvqNRaze295T1OSPkmf2WvpoR+g/fgY1wa/6W6xCBs8xBhrsKES2gpWZ+vPl0NyZ+vvl89/vmx6i1YT9ZnzNCntlvS3xL1hIt4J8/v3/1xbevX961xef37x7OxtvN11WIzVfPqtfPn1TyHUKuQ7x6+qgK8eLJg0ri+eP7VWwMWS/v5Iquumfzhf7Dd2Aj3Jq/5TpE4CxzKCnRmFzRAo5JwrsQ6CKwlIBdm3AfAkMJIOBQcryXhAACJsHIJkMJIOBQcryXhAACJsHIJkMJIOBQcryXhAACRmFkUS4CCJiLLPtGEUDAKEwsykUAAXORZd8oAggYhYlFuQggYC6y7BtFAAGjMPldlLtzBMxNmP17CSBgLx4e5iaAgLkJs38vAQTsxcPD3AQQMDdh9u8lgIC9eHiYm4BdAXN3zv4mCCCgiTH4LQIB/c7eROcIaGIMfotAQL+zN9E5ApoYg98iENDe7F1VhICuxm2vWQS0NxNXFSGgq3HbaxYB7c3EVUUI6Grc9ppFQHszcVXRlICuOqdZEwQQ0MQY/BaBgH5nb6JzBDQxBr9FIKDf2ZvoHAFNjMFvEQhYz54PLQIIqEWevDUBBKwx8KFFAAG1yJO3JoCANQY+tAggoBZ58tYEELDG4PdDu3ME1J6A8/wI6FwA7fYRUHsCzvMjoHMBtNtHQO0JOM+PgM4F0G5fT0DtzslvggACmhiD3yIQ0O/sTXSOgCbG4LcIBPQ7exOdI6CJMfgtAgHLz56MDQII2IDBz/IEELA8czI2CCBgAwY/yxNAwPLMydgggIANGPwsTwAByzP3m7GlcwRsgcKtcgQQsBxrMrUQQMAWKNwqRwABy7EmUwsBBGyBwq1yBBCwHGsytRBwImBL59wyQQABTYzBbxEI6Hf2JjpHQBNj8FsEAvqdvYnOEdDEGPwWgYBrPnvr7f0DAAD//0C76JkAAAAGSURBVAMAuKCZX+yLLU0AAAAASUVORK5CYII=",
         "contentKind": "legacy_world",
         "destCameraPosition": "-10.041535333871725 3.2970917115432528 2.207900815685779",
-        "captureAttempts": 57,
+        "captureAttempts": 74,
         "eligible": true
       }
     ]
