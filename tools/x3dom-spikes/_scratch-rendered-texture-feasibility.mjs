@@ -19,8 +19,11 @@
 // swaps the box's color and re-samples, to confirm genuinely live updates (not a one-shot capture).
 import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 const PNG = null; // no PNG-decode dependency available here — sample via a 2D canvas readback in-page instead.
 
 const browser = await puppeteer.launch({
@@ -132,7 +135,7 @@ try {
   }
 
   const before = await sampleCenterPixel();
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-before.png" });
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-before.png") });
 
   // Phase 2: swap the distant box to a very different color (bright yellow-green) and confirm the
   // plane's sampled color actually changes — proves live updates, not a one-shot initial capture.
@@ -143,7 +146,7 @@ try {
   });
   await new Promise((r) => setTimeout(r, 1500));
   const after = await sampleCenterPixel();
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-after.png" });
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-after.png") });
 
   // Magenta ~ (255,0,255), yellow-green ~ (204,255,0). "Renders at all" = center pixel isn't the
   // plain white/background it'd be if the texture never picked up any content. "Updates live" =
@@ -159,7 +162,7 @@ try {
     after: after.avg,
     errors,
   };
-  writeFileSync("/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/rt-feasibility.json", JSON.stringify(result, null, 2));
+  writeFileSync(join(OUT_DIR, "rt-feasibility.json"), JSON.stringify(result, null, 2));
   console.log("RESULT:", JSON.stringify(result, null, 2));
   if (!result.renders) process.exitCode = 1;
 } catch (err) {

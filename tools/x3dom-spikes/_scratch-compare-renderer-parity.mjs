@@ -5,10 +5,12 @@
 // capture active). Uses window.__assembly (three.js) / window.__x3domLiveMode (x3dom) globals.
 import { createRequire } from "node:module";
 import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
 
-const OUT_DIR = process.env.COMPARE_OUT_DIR || "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out";
+const OUT_DIR = process.env.COMPARE_OUT_DIR || join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 mkdirSync(OUT_DIR, { recursive: true });
 
 const KNOWN_BENIGN_ERROR_PATTERNS = [

@@ -14,9 +14,19 @@ const BACKEND_PORTS = {
 };
 const BASE = `http://127.0.0.1:${FRONTEND_PORT}`;
 const sleep = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
+// The WoW-negotiated hosted-object asset feature deliberately makes 2 of every location's 3
+// hosted objects permanently unauthorized in the stock demo (wow-asset.js's own convention: the
+// first scene object at every location is `restricted` (403), the second `hidden` (404), gated on
+// OSL_DEMO_ASSET_TOKEN which is unset anywhere in this repo) — real, expected console noise on
+// every normal boot, not a failure. Every X3DOM regression spike already filters this same
+// pattern; this core demo-check script never had the matching filter added.
+const isBenignConsoleNoise = (text) => /Failed to load resource: the server responded with a status of (403|404)/i.test(text);
 function run(script, args = []) {
     const repoRoot = ROOT;
-    const bashPath = process.env.OSL_BASH_PATH || (process.platform === "win32" ? "C:/Users/NPolys/Documents/MobaXterm/slash/bin/bash.exe" : "/usr/bin/bash");
+    // Git for Windows' bundled bash — the same default bash.cmd (repo root) already assumes,
+    // and the one thing this README's Requirements section guarantees is actually installed
+    // ("Git 2.33+"). OSL_BASH_PATH overrides for any non-standard install.
+    const bashPath = process.env.OSL_BASH_PATH || (process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/usr/bin/bash");
     const scriptPath = join(repoRoot, script);
     const result = spawnSync(bashPath, [scriptPath, ...args], { cwd: repoRoot, encoding: "utf8" });
     if (result.status !== 0)
@@ -40,7 +50,7 @@ async function openWorld(browser, route, expectedLocation, requestLog, errors) {
     page.on("requestfailed", (request) => errors.push(`request failed: ${request.url()} ${request.failure()?.errorText || ""}`));
     page.on("pageerror", (error) => errors.push(`page error: ${String(error)}`));
     page.on("console", (message) => {
-        if (message.type() === "error")
+        if (message.type() === "error" && !isBenignConsoleNoise(message.text()))
             errors.push(`console error: ${message.text()}`);
     });
     await page.goto(`${BASE}/${route}`, { waitUntil: "domcontentloaded", timeout: 30000 });

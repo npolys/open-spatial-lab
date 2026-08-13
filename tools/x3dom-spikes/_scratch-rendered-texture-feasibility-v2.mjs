@@ -21,8 +21,11 @@
 //     world changes) is picked up correctly — the "dynamically-created nodes are unreliable" risk
 import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 
 const browser = await puppeteer.launch({
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
@@ -165,7 +168,7 @@ try {
   await new Promise((r) => setTimeout(r, 1000));
   const sample3 = await sampleCenterPixel();
 
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.png" });
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v2.png") });
 
   const magentaish = (c) => c[0] > 120 && c[2] > 120 && c[1] < 120;
   const yellowGreenish = (c) => c[0] > 120 && c[1] > 120 && c[2] < 120;
@@ -178,7 +181,7 @@ try {
     errors,
   };
   result.ok = result.noFeedbackLoopOrErrors && result.rendersDestinationContent && result.stableBeforeSwap && result.dynamicSwapPickedUp;
-  writeFileSync("/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.json", JSON.stringify(result, null, 2));
+  writeFileSync(join(OUT_DIR, "rt-feasibility-v2.json"), JSON.stringify(result, null, 2));
   console.log("RESULT:", JSON.stringify(result, null, 2));
   if (!result.ok) process.exitCode = 1;
 } catch (err) {

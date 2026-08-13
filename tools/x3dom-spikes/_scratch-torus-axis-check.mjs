@@ -6,8 +6,11 @@
 // If it reads as a flat ellipse/line (hole pointing up), the default hole-axis is Y, matching the
 // original assumption — meaning the bug is elsewhere, not the axis convention itself.
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 
 const browser = await puppeteer.launch({
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
@@ -34,7 +37,7 @@ try {
   });
 
   await new Promise((r) => setTimeout(r, 800));
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/torus-axis-check.png" });
+  await page.screenshot({ path: join(OUT_DIR, "torus-axis-check.png") });
   console.log("RESULT: screenshot written");
 } catch (err) {
   console.log("RESULT:", JSON.stringify({ ok: false, error: (err && err.stack) || String(err) }, null, 2));

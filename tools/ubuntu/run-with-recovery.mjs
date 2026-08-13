@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
-const ports = ['8143', '18151', '18152', '18153', '18154'];
 
 function run(command, args = [], options = {}) {
   const result = spawnSync(command, args, {
@@ -34,20 +33,17 @@ function toWslPath(winPath) {
   return `/mnt/${driveMatch[1].toLowerCase()}/${driveMatch[2]}`;
 }
 
-if (process.platform === 'win32') {
-  console.log('[recovery] resetting WSL state...');
-  run('wsl.exe', ['--shutdown']);
-}
-
+// No `wsl.exe --shutdown` here, and no inline fuser-based port kill before `npm start` below —
+// both were a broader hammer than the problem needs, now that stopOpenSpatialLab.sh (which
+// launchOpenSpatialLab.sh, which `npm start` runs, already calls as its own first step) does a
+// properly targeted job: owned-PID kill first, then a port-based fallback that kills anything on
+// OSL's 5 configured ports regardless of owner (SIGTERM then SIGKILL, with a readiness wait) —
+// the actual fix for a second, independent checkout silently holding a port. `wsl --shutdown`
+// resets the *entire* WSL subsystem, which would also kill any unrelated work running in WSL, not
+// just this app; it's no longer needed for OSL's own port conflicts specifically.
 const wslRepoRoot = toWslPath(repoRoot);
 const bashScript = [
   'set -e',
-  'for p in 8143 18151 18152 18153 18154; do',
-  '  pids=$(fuser -n tcp "$p" 2>/dev/null || true)',
-  '  for pid in $pids; do',
-  '    kill -9 "$pid" 2>/dev/null || true',
-  '  done',
-  'done',
   `cd '${wslRepoRoot}'`,
   'export PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser',
   'npm start',

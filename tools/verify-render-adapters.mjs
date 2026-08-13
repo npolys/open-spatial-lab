@@ -55,7 +55,10 @@ const REGRESSION_SPIKES = [
 
 function run(script, args = []) {
     const repoRoot = ROOT;
-    const bashPath = process.env.OSL_BASH_PATH || (process.platform === "win32" ? "C:/Users/NPolys/Documents/MobaXterm/slash/bin/bash.exe" : "/usr/bin/bash");
+    // Git for Windows' bundled bash — the same default bash.cmd (repo root) already assumes,
+    // and the one thing this README's Requirements section guarantees is actually installed
+    // ("Git 2.33+"). OSL_BASH_PATH overrides for any non-standard install.
+    const bashPath = process.env.OSL_BASH_PATH || (process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/usr/bin/bash");
     const scriptPath = join(repoRoot, script);
     const result = spawnSync(bashPath, [scriptPath, ...args], { cwd: repoRoot, encoding: "utf8" });
     if (result.status !== 0)

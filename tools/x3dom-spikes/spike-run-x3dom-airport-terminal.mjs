@@ -5,8 +5,13 @@
 // portal-preview case (viewing the airport from the lobby, ?active=lobby, reachable via
 // location-lobby's third portal per the existing wow-authored-graph portal-preview spike).
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+// Portable relative to this script's own location, not a hardcoded machine-specific absolute
+// path — this spike is registered in REGRESSION_SPIKES and needs to run on any checkout.
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 
 const KNOWN_BENIGN_ERROR_PATTERNS = [
   /Cannot read properties of null \(reading 'doc'\)/,
@@ -54,7 +59,7 @@ try {
       canonicalRoomPresentInActiveWorld,
     };
   });
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/airport-active.png" }).catch(() => {});
+  await page.screenshot({ path: join(OUT_DIR, "airport-active.png") }).catch(() => {});
 
   // --- Portal-preview case: view the airport through a portal from the lobby. ---
   const page2 = await browser.newPage();

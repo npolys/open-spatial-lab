@@ -55,6 +55,12 @@ function walk(current = ROOT) {
 function classify(path) {
     if (path === "smoke_tests.md")
         return { classification: "documentation", license: "Apache-2.0" };
+    if (path === "bash.cmd" || path === "run-bash.ps1")
+        return { classification: "launcher", license: "Apache-2.0" };
+    if (path.startsWith("tools/ubuntu/") && path.endsWith(".md"))
+        return { classification: "documentation", license: "Apache-2.0" };
+    if (path.startsWith("tools/ubuntu/"))
+        return { classification: "launcher", license: "Apache-2.0" };
     if (path.endsWith("/LICENSE.md"))
         return { classification: "third-party-license", license: "notice-only" };
     if (path.startsWith("runtime/scene-core/public/"))

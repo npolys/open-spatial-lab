@@ -3,7 +3,7 @@
   "project": "Open Spatial Lab",
   "release_slug": "grigb/open-spatial-lab",
   "release_scope": "complete-local-web-of-worlds-demo",
-  "complete_tree_sha256": "85b069b452fda2461d83afe39907799163b3faa727e9223b05e8bb6ef7cd091b",
+  "complete_tree_sha256": "f1794b9d7657cbe962890533e1be775f61b423f9194664ede49f86ac455afe65",
   "files": [
     {
       "path": ".gitignore",
@@ -11,6 +11,14 @@
       "size": 74,
       "sha256": "81a7712d83873d3701ba0b0c8a08c426cb83e0c08c02efdd5e49f6188a96efa3",
       "classification": "project-config",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "bash.cmd",
+      "mode": "100644",
+      "size": 143,
+      "sha256": "2a5fe83fe4d38dbf1b6f9e9438e7c24c034303ac2494f1d2fca53548b0e3eaf8",
+      "classification": "launcher",
       "license": "Apache-2.0"
     },
     {
@@ -176,17 +184,25 @@
     {
       "path": "package.json",
       "mode": "100644",
-      "size": 1001,
-      "sha256": "708d06c3c56d17bd1b4a85e18328792faf1bcbadef6ddf5fd30f8853f625726a",
+      "size": 1065,
+      "sha256": "1e4422074f0b93bef1a10b670cdc22eaa0c26428bd95615eb11fa10b20d408d2",
       "classification": "package-config",
       "license": "Apache-2.0"
     },
     {
       "path": "README.md",
       "mode": "100644",
-      "size": 38380,
-      "sha256": "3c80c1cf2eb82f988771d3e73ccf4044d06cb36f8514fb8a5911a01f4e8fb803",
+      "size": 52620,
+      "sha256": "0a49972b2ffd1d8013494fe3adc645e61739b18cf0d4bcdb5438f2552b099e9c",
       "classification": "documentation",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "run-bash.ps1",
+      "mode": "100644",
+      "size": 140,
+      "sha256": "b5440b1aa3319b6d7b3ad679ccdabdf849d37b5ed0195ea8065d59e73bb684ad",
+      "classification": "launcher",
       "license": "Apache-2.0"
     },
     {
@@ -216,8 +232,8 @@
     {
       "path": "runtime/scene-core/public/render-adapter/spatial-math.mjs",
       "mode": "100644",
-      "size": 4604,
-      "sha256": "1de8a080ce8e310c65ce9cf11ab5cd01c418c7e9b13179010227674345cf7d96",
+      "size": 5638,
+      "sha256": "4355db797c1597390b56f563084840c9adead1479c03639832b5c841ba88de1f",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -232,16 +248,16 @@
     {
       "path": "runtime/scene-core/public/render-adapter/x3dom-inline-pool.js",
       "mode": "100644",
-      "size": 1930,
-      "sha256": "a9ab4b1644aefa4d717489fc6dfdfa00c9ad080604e622e8cfcf799942d02ac0",
+      "size": 2957,
+      "sha256": "4c20b3af7caebdef440b026c3be401904ce3e9634ff9f51be11caa54856676d3",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "runtime/scene-core/public/render-adapter/x3dom-render-adapter.mjs",
       "mode": "100644",
-      "size": 33920,
-      "sha256": "a1925c3e5d7a01c526d7c905681522493e9f48f16621e6ef7772b10b8ccc827a",
+      "size": 46011,
+      "sha256": "1ad224da3b5990daffbd82306a194167655cc64791cbc76f1fd02e2552b4ede5",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -320,16 +336,16 @@
     {
       "path": "runtime/world-server/src/server.js",
       "mode": "100644",
-      "size": 30657,
-      "sha256": "50b7eba44dde6f6ee281ad8fabce2f6f305d7398204dbd849b91400f085d5793",
+      "size": 31799,
+      "sha256": "f4abdc9777f5de1f34560ee1b2f302c594bd8bfea4d305da271062edbc2e4bcc",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "runtime/world-server/src/spatial-graph.js",
       "mode": "100644",
-      "size": 18836,
-      "sha256": "05f45752a28fffdf08a83b2a84bf47d8933f908196301b7e3d7b13a4f65960c7",
+      "size": 19459,
+      "sha256": "bb92f21925125cb1fcded87a2bf9b4c1602906fd80a3080f0b0fca23067f89a1",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
@@ -376,8 +392,8 @@
     {
       "path": "src/orchestrator.js",
       "mode": "100644",
-      "size": 2280,
-      "sha256": "a96de682cfa66a9c8f62252b7dc0459f1dcd1818878bacce6532e5512bdd5d57",
+      "size": 2651,
+      "sha256": "2152c88e9048ddd309fc5e7b2a63d690f873db5b4a91ba89bd76437e5fe8b787",
       "classification": "server-runtime",
       "license": "Apache-2.0"
     },
@@ -392,8 +408,8 @@
     {
       "path": "stopOpenSpatialLab.sh",
       "mode": "100644",
-      "size": 1611,
-      "sha256": "3c983dc5c20eb021fa4e12fb51eb68bbdc9a1d59c1f2b21cf1bf7abf493e237b",
+      "size": 2910,
+      "sha256": "6677900458a7f3d6907438bfb96d41ae76e575e8013fbe62de9ca605b4b0dcf6",
       "classification": "launcher",
       "license": "Apache-2.0"
     },
@@ -416,8 +432,8 @@
     {
       "path": "tools/generate-release-manifest.mjs",
       "mode": "100644",
-      "size": 5530,
-      "sha256": "8092d244d58d44af74c6e5a66086b1b765cf194dc11dabceff5e9256e48c5e6f",
+      "size": 5909,
+      "sha256": "fdf2c3882679157a2b0fee3501ccf52f214cbc758792e85db77273489cf4f2b7",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -430,10 +446,74 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "tools/ubuntu/env.sh",
+      "mode": "100644",
+      "size": 797,
+      "sha256": "3d0fc589034e643dc1e8916370fa1db34031f67311948930de4b19f9397898a7",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/launch.sh",
+      "mode": "100644",
+      "size": 210,
+      "sha256": "d102a0efa270b8d6b8ed0de9a8dc3f644eae9ffd35d9e087b91677e5bb86bb5a",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/README.md",
+      "mode": "100644",
+      "size": 1057,
+      "sha256": "2e2fed8efd409973141842ea3b29a246c26c5bd1d9484aa347b92b35eb7c63de",
+      "classification": "documentation",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/run-bash.sh",
+      "mode": "100644",
+      "size": 241,
+      "sha256": "f76291c743fbed404efdcd19b640045a65f1f7fd2fc70bde2968a4328ff58417",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/run-render-checks.sh",
+      "mode": "100644",
+      "size": 478,
+      "sha256": "17a19eebac08ac5f82e5f2fbb9352c0bb49626dc1f9879bde43ee460f122f09e",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/run-with-recovery.mjs",
+      "mode": "100644",
+      "size": 2046,
+      "sha256": "4a8e7b547c41efcfb4ca2b5fa4828abc5fb888ca7f0f2e439d028abe201e2e92",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/run-with-recovery.sh",
+      "mode": "100644",
+      "size": 945,
+      "sha256": "5ea9a6d6c71130610e9835ee326e8fbf0680a50856e83d7e56c724441b33d70c",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/ubuntu/stop.sh",
+      "mode": "100644",
+      "size": 213,
+      "sha256": "b2c035b27fbdecfb2da4b86d8f494bb960320801a5aca4fdf8cbca363eb68278",
+      "classification": "launcher",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "tools/verify-demo.mjs",
       "mode": "100644",
-      "size": 20316,
-      "sha256": "f0615ebd020ae1968630841a3747944c2b9e93cfc79ffb59f7d6883aa1462850",
+      "size": 21515,
+      "sha256": "fb75dd4eb935bd32f2854179ebc9b87cb3fead20a05cd2261bd1e0a7cccd5f58",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -448,16 +528,208 @@
     {
       "path": "tools/verify-render-adapters.mjs",
       "mode": "100644",
-      "size": 5786,
-      "sha256": "d3d362b80c25a4d006317cd38b3fc5b7f295c025f64eac762c262555f0ed1047",
+      "size": 9129,
+      "sha256": "7892ff176571f27f3ecdac3325bfd0c03b7b2521b151f009699f6074124491c1",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
     {
       "path": "tools/verify-wowapi-smoke.mjs",
       "mode": "100644",
-      "size": 19524,
-      "sha256": "903e86e63f4e3d12ec7593529c17b551a898db12f0435d820bd0ba1dc794cfa1",
+      "size": 19999,
+      "sha256": "3cec04be52d53229b4c857fe981b0b4780e4a8cfd065a666b74b17b3023b46c9",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-airport-double-mount-check.mjs",
+      "mode": "100644",
+      "size": 2110,
+      "sha256": "edcf46c2ced385f64580608b3cc58940afa210b063a82506bd5192eeeb794542",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-airport-wide-view.mjs",
+      "mode": "100644",
+      "size": 1547,
+      "sha256": "46f3af5d30391a2e84005a92f18c4e792b31a607d06f191e0006d8c8e68ab0f0",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-check-avatar-flash.mjs",
+      "mode": "100644",
+      "size": 2206,
+      "sha256": "be0e71e23251f7fca63eabd2d8d10ac8f991ef1cbe595d8553b1750d72de1d84",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/airport-active.png",
+      "mode": "100644",
+      "size": 190156,
+      "sha256": "b4869468ff7eb036642e9de47c82d14589cadd7bf5a99ab2fb25f53698894da0",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/airport-wide.png",
+      "mode": "100644",
+      "size": 101987,
+      "sha256": "1daaea12321501194ebaba0ea4ffe5d72d414873d26d03b10f716c95996f53a4",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/ring-orientation-check.png",
+      "mode": "100644",
+      "size": 112343,
+      "sha256": "1fc00d35856de54da2bf771f2c692da2c6b003eaeafc6b5d761c864aa8448092",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-after.png",
+      "mode": "100644",
+      "size": 112554,
+      "sha256": "e0c84396718c82190df16084741c4735a2136c34d48412c3acf1941b50b439b5",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-before.png",
+      "mode": "100644",
+      "size": 51942,
+      "sha256": "0650e43eed67d9b9b11af25e5f190ab49f82f9aac8b4a97572e6a35527b390bf",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.json",
+      "mode": "100644",
+      "size": 293,
+      "sha256": "428bdb50b31dcef5777dce9f71f51243729612ffbba0c88c05882b2c29db96e5",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.png",
+      "mode": "100644",
+      "size": 133898,
+      "sha256": "c4859b8f041c468f1f4bd817a2dc07d59546dae54973ac53dd757c41dd30cbfc",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility.json",
+      "mode": "100644",
+      "size": 145,
+      "sha256": "e0a14978503b1f56f4420cedbb1c6d4e6b512cddfa0574ed5b172dd6006e545e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/summary.json",
+      "mode": "100644",
+      "size": 46425,
+      "sha256": "6511a031941ab831251ddce2e51901643e1fa324875812e7831cf7181fd9203b",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/three-default.png",
+      "mode": "100644",
+      "size": 108099,
+      "sha256": "427d1352fba70a584feb1e6adbfc950d646d9a6e515a85ff1bd7881d4472e490",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/three-near-portal.png",
+      "mode": "100644",
+      "size": 139386,
+      "sha256": "50684417bf70d8f6e3d7cbfeca1ebb12df3f2d5d11bf2ea5ca01c7f029441129",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/x3dom-default.png",
+      "mode": "100644",
+      "size": 134058,
+      "sha256": "9304c501809957e8d82ab58ba0fa1a59dd76e567e294f27459026bb6c66302ea",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/x3dom-near-portal.png",
+      "mode": "100644",
+      "size": 111804,
+      "sha256": "0e694ee565a9ff56549ff52a1a6dc8585a8710ad2213ae74440198134de602f9",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-renderer-parity.mjs",
+      "mode": "100644",
+      "size": 6403,
+      "sha256": "d9c9d42085e2e606e7757bcdd7bd55868cdf1fccadf35050200c2589d49d072d",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-equip-hang.mjs",
+      "mode": "100644",
+      "size": 1772,
+      "sha256": "30b9f1a2670bccc202c5e8b1144bfec471891b659c82f08de5fdc0727a6aa395",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-queue-timeline.mjs",
+      "mode": "100644",
+      "size": 1591,
+      "sha256": "9b90aba4a2d1568d553ca2928f5676c16592e6daa5977dbfa9de2b68ab0fb387",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-feasibility-v2.mjs",
+      "mode": "100644",
+      "size": 10254,
+      "sha256": "bb0b017a01f4ff6cb60b98819024caea291604fbe191d5589767feef1e85ba20",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-feasibility.mjs",
+      "mode": "100644",
+      "size": 9572,
+      "sha256": "8a55efe4c4c6f095391b58292301f3113ab3834e8f87a3345e7317183a9e7fd7",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-static.mjs",
+      "mode": "100644",
+      "size": 1710,
+      "sha256": "1df706033b9caa362d81c496db182e8ed5691c70e7fd3cb3f81636719d292c69",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-ring-orientation-check.mjs",
+      "mode": "100644",
+      "size": 2674,
+      "sha256": "dfe5b51ac6f9f31fdf88f7d99e59505ea186450f314bdc969659df03b94b0d2e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-torus-axis-check.mjs",
+      "mode": "100644",
+      "size": 2719,
+      "sha256": "679780b2c6a2b0f6ef796d9cf09be9d29feb2a156ad7d0ef0886cafda77bb304",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -646,10 +918,138 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-airport-terminal.mjs",
+      "mode": "100644",
+      "size": 6389,
+      "sha256": "31bb282b43a5b367c687e82e9c1382cbdd3c793ef56f542280364463affb4075",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-equipment-anchors.mjs",
+      "mode": "100644",
+      "size": 7285,
+      "sha256": "29e3bab1b7b3add34bca8922cd9d1d60414070795d97c78e2ba5a41bf6091805",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-hosted-objects-wow-fetch.mjs",
+      "mode": "100644",
+      "size": 7107,
+      "sha256": "a2e17e427c81488652ca41b16be33e493cfe25a3821623069ed6e4e69f46e30e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-hud.mjs",
+      "mode": "100644",
+      "size": 7029,
+      "sha256": "2c147feae15e9c5ef026f71aae1de489404b488316d1c4d039586bc87644a4bb",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-inline-load-queue.mjs",
+      "mode": "100644",
+      "size": 5845,
+      "sha256": "d79f42ffb0373329e77835e3730d45aa353a893ef99ba556419aa8206f7bd1cc",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "tools/x3dom-spikes/spike-run-x3dom-live-mode.mjs",
       "mode": "100644",
-      "size": 4836,
-      "sha256": "d00090598dead6dc348bdd3b149c9651a226dd34813256e089c884cb7f16f89e",
+      "size": 6248,
+      "sha256": "9a1abce4c7df5622431fcd1627e655be1f3b962219964d80a9991178a46d9c22",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-movement-camera.mjs",
+      "mode": "100644",
+      "size": 7206,
+      "sha256": "76316809a2eeddc4bf1e4efc35fbda7554c435d3c76196743b2b976f3b29a698",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-peer-avatars.mjs",
+      "mode": "100644",
+      "size": 7136,
+      "sha256": "1dff847f72d16baecc2077b2bfa5e61bd417a0ccde445325d3afc34e075d31b7",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-phase7-combined-load.mjs",
+      "mode": "100644",
+      "size": 12555,
+      "sha256": "b75d0bd1c53c9a7772bc2624569ae9a1bd7e46c5d94dac8c5a627b423c71865d",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-hosted-objects.mjs",
+      "mode": "100644",
+      "size": 1985,
+      "sha256": "e8820e139d4ca67e1235c874f97fe26c976686cf05d11a50a2c80369c139f379",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-camera-glue.mjs",
+      "mode": "100644",
+      "size": 6330,
+      "sha256": "f13e12904bece3cccdc6a1cdf4a06e01263635e87981e17c4075697b1373b5d3",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-gating.mjs",
+      "mode": "100644",
+      "size": 7160,
+      "sha256": "b083cf57436b2e98166a9f5069a18cc699ed0b4fcd2152716085aa2033b709a1",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-real-content.mjs",
+      "mode": "100644",
+      "size": 10789,
+      "sha256": "1b8695b534271dab1d4f11913d7a35a2047e52e1eb321575b72f30ad896e3018",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview.mjs",
+      "mode": "100644",
+      "size": 6389,
+      "sha256": "185eca088316e6dd2e9b8cf1dc6e4519cdf2c4ded47d43bd592eafd0439e4a0c",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-portal-traversal.mjs",
+      "mode": "100644",
+      "size": 6767,
+      "sha256": "1b56f0fef30807171baff42c6620b2294d6958883b15231ace3186d94fa77076",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-renderer-selector.mjs",
+      "mode": "100644",
+      "size": 6064,
+      "sha256": "f083183e800c38cd59614b5cff01212784e68de1ddfa901be31ddc2fa69b0949",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-wall-solid.mjs",
+      "mode": "100644",
+      "size": 3973,
+      "sha256": "abe26838ab6939055a5db25d5f37224268244f2a732795b10234530824d721ed",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -712,8 +1112,8 @@
     {
       "path": "web/app.js",
       "mode": "100644",
-      "size": 205802,
-      "sha256": "c52c6a4cb1016ad98c9ed999bddfb33aec745538aa012a31b577cd1195d92f5d",
+      "size": 205954,
+      "sha256": "9d26e2a63d173342ce8fbab1c7a6414770535c71082e94322e8b6857412736a8",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1144,8 +1544,8 @@
     {
       "path": "web/demo-shell-bootstrap.mjs",
       "mode": "100644",
-      "size": 2846,
-      "sha256": "41ab0cfe9b3f046f9c82513babf4e2e8d6d13fab596b18a1ac40bb5d5f728609",
+      "size": 5229,
+      "sha256": "4eb764a5bd2724306f0de75c0290e2a5b0288c0dd1219c76fbd80017c3d67424",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1264,16 +1664,16 @@
     {
       "path": "web/humanoid-provider.mjs",
       "mode": "100644",
-      "size": 2687,
-      "sha256": "8384738ad43da30bb8cd7557697561a0d8f756fb14ce36e08b8383b5fdafcb53",
+      "size": 3104,
+      "sha256": "355818360e40075515499c49fd604ad09fae965dbffa9e14f77286254eef3c65",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "web/index.html",
       "mode": "100644",
-      "size": 124214,
-      "sha256": "d3fe1ca9df489003341f7de596e4868d6fc1f5732ff5a1359e675995e3eb6855",
+      "size": 125556,
+      "sha256": "f9dd4111e06c5db488fd83d53d8e7b85230203c46bee79bf7e5552769689f1ed",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1312,16 +1712,16 @@
     {
       "path": "web/live-adapter-peer-presence-reducer.mjs",
       "mode": "100644",
-      "size": 21423,
-      "sha256": "5156b78d44438fe387ae3beb8ee9b22de8a0e8347a61dacebd180614d758be45",
+      "size": 22399,
+      "sha256": "72b18e7843338c02f52ac64d1875d7bb3ace9ea47c58f2069219c722b232774f",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "web/live-adapter-portal-geometry.mjs",
       "mode": "100644",
-      "size": 22859,
-      "sha256": "09a7f3dc83e529c105960c6bca00ea2b68a121f1fa34a7e103c45f9c58e8bac0",
+      "size": 24432,
+      "sha256": "fc789b2f6f83eeef1db5eacc1dbbe8e95091616de79fe327c35352cb0334f372",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1368,8 +1768,8 @@
     {
       "path": "web/live-adapter.js",
       "mode": "100644",
-      "size": 233170,
-      "sha256": "12ca5fb71518e9a1d6d9af379962c4c17023d9e5a2dc26843d0f26950693adb3",
+      "size": 233252,
+      "sha256": "1e108b254618375544eccb9a18e991dcec364d26f1b9e8a63738bfc97574e279",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1600,8 +2000,8 @@
     {
       "path": "web/portal-render-controller.mjs",
       "mode": "100644",
-      "size": 41974,
-      "sha256": "9c1b3c4d8c4c9770eb1dda3e3865ac493838385d362447d6b1db36442c189e23",
+      "size": 47706,
+      "sha256": "427f358c12769c74a6ea10bdbeeeab9854360c4c1a0ad104fe329db5b840985d",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1672,8 +2072,8 @@
     {
       "path": "web/scene-runtime-controller.mjs",
       "mode": "100644",
-      "size": 52388,
-      "sha256": "d03b28eb9d281b3afc4a4fad351c9e8fe2831c903e80330e09fc2f15d610e564",
+      "size": 52395,
+      "sha256": "777142bc02790d5747c16bba7c20259487428e5c0205b315a308dc8469002284",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1798,26 +2198,82 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "web/x3dom-airport-terminal-scene.mjs",
+      "mode": "100644",
+      "size": 19752,
+      "sha256": "f25480e528d2248e5b377e1a0ae1a58eeb8cc72545f9d1137411f62f45c99b39",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-equipment-glue.mjs",
+      "mode": "100644",
+      "size": 6348,
+      "sha256": "67e084c1f23fef344040a09041ab9befb300087e2b8504e4734c1b72a05c968d",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "web/x3dom-gltf-humanoid-provider.mjs",
       "mode": "100644",
-      "size": 1803,
-      "sha256": "30c80fc7c3ff78559f2b0236c205f79f85e0782136e741f9aa3d37273daea18a",
+      "size": 5311,
+      "sha256": "5cc107c0ae63117274340a55174a584ae37eccc8584924233bed98d2a86f85ad",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-hud-glue.mjs",
+      "mode": "100644",
+      "size": 3858,
+      "sha256": "73e9cd0eaeb06ba33b29f1e0dad36fcafdfa6e78037d257c6a842ee6a896a6ed",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "web/x3dom-live-mode.mjs",
       "mode": "100644",
-      "size": 7007,
-      "sha256": "62802d954130ad4d72d7c690dc8ed616e4779da0bfc2d27adb236bcb61ccdc81",
+      "size": 11152,
+      "sha256": "06546d4138cc174cb269fc554841f95780da03b3a3e46b47fb5078c8590cfd57",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-movement-camera-controller.mjs",
+      "mode": "100644",
+      "size": 12080,
+      "sha256": "66be1c14e683388b6c6f651526ffe7aa7aff60f7d96585ca649f5f2e28913daa",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-peer-avatars-glue.mjs",
+      "mode": "100644",
+      "size": 8478,
+      "sha256": "6a3cae213b0a1f076da89185761cd19f681e8e5673d2c6b97d3b88dd2d6a5b53",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-portal-hosted-objects.mjs",
+      "mode": "100644",
+      "size": 11922,
+      "sha256": "5f6f7d46f6405589a09ceda920c87185a31f7ec0668910d3e1c765722b2a12a9",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
     {
       "path": "web/x3dom-portal-renderer.mjs",
       "mode": "100644",
-      "size": 4804,
-      "sha256": "fb0c370c65f1f9df7cb8ac9caea1cc74ad71bcdec52124a3874103eaca49a282",
+      "size": 6637,
+      "sha256": "a1c4024748255610ea886937d41c0251ada05bf16a80f952256401e87360c8e6",
+      "classification": "browser-runtime",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-portal-traversal-glue.mjs",
+      "mode": "100644",
+      "size": 39123,
+      "sha256": "f183e2319e603e9f1fdc999485a629016792a15d723cbc41e3b0dfbfc52bf2e3",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -1942,10 +2398,18 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "web/x3dom-spikes/spike-x3dom-portal-hosted-objects.html",
+      "mode": "100644",
+      "size": 4817,
+      "sha256": "525d01b8c9d0399e37252c4d7fe775ded0af6f66e0b8040ed2457853756d6feb",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "web/x3dom-spikes/spike-x3dom-portal-renderer.html",
       "mode": "100644",
-      "size": 5632,
-      "sha256": "f905537a58ab9204ce5a235e863b5ef467bc8558dd8c41b6d999a3c972181a3b",
+      "size": 5629,
+      "sha256": "6633adefa00d05056dae94c88179c359ad2a2fd9bf79ac459053628ebf3421cc",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1954,6 +2418,14 @@
       "mode": "100644",
       "size": 6160,
       "sha256": "f5143b3e4feddf1342d83f565fb209aab2eab22b31a28f98ffd280b12beb6c72",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture.html",
+      "mode": "100644",
+      "size": 3947,
+      "sha256": "6f332288b2465613991ae0cd71591bf7b068d0a1e957712b907a450de4454a7d",
       "classification": "public-test",
       "license": "Apache-2.0"
     },

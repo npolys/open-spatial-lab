@@ -7,8 +7,11 @@
 // unambiguous head-on view: wall-parallel should read as a near-complete oval filling the
 // aperture; floor-parallel should read as a thin horizontal sliver.
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 
 const browser = await puppeteer.launch({
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
@@ -36,7 +39,7 @@ try {
   });
 
   await new Promise((r) => setTimeout(r, 1200));
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/ring-orientation-check.png" });
+  await page.screenshot({ path: join(OUT_DIR, "ring-orientation-check.png") });
   console.log("RESULT:", JSON.stringify(info, null, 2));
 } catch (err) {
   console.log("RESULT:", JSON.stringify({ ok: false, error: (err && err.stack) || String(err) }, null, 2));

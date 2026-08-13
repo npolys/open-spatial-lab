@@ -4,14 +4,14 @@
   "stableBeforeSwap": false,
   "dynamicSwapPickedUp": false,
   "sample1": [
-    10,
-    11,
-    12
-  ],
-  "sample2": [
     9,
     13,
     15
+  ],
+  "sample2": [
+    10,
+    11,
+    12
   ],
   "sample3": [
     9,

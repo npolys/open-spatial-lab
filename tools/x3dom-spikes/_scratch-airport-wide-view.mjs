@@ -1,6 +1,9 @@
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "_scratch-compare-out");
 
 const browser = await puppeteer.launch({
   executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
@@ -23,7 +26,7 @@ try {
     m.camera.step(5, avatarPos);
   });
   await new Promise((r) => setTimeout(r, 1000));
-  await page.screenshot({ path: "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/airport-wide.png" });
+  await page.screenshot({ path: join(OUT_DIR, "airport-wide.png") });
   console.log("done");
 } finally {
   await browser.close();
