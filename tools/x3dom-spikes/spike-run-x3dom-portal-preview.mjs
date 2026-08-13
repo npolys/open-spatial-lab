@@ -1,12 +1,12 @@
 // Phase 6 of the X3DOM parity plan: verifies the live portal-aperture preview wired into
-// x3dom-portal-traversal-glue.mjs. This is the previously-unwired X3DOMPortalRenderer
-// (screenshot-polling, since X3DOM has no render-target API) hooked up for real — a hidden
-// second <x3d> host renders a procedural destination-world preview and its captured screenshot is
-// pushed into an ImageTexture on the portal aperture's material, refreshed on a throttled timer
-// (see X3DOMPortalRenderer's DEFAULT_CAPTURE_INTERVAL_MS) via portalGlue.tick(), called every
-// frame from x3dom-live-mode.mjs's onEnterFrame callback.
+// x3dom-portal-traversal-glue.mjs. Originally the previously-unwired X3DOMPortalRenderer
+// (screenshot-polling, since X3DOM was believed to have no render-target API) — REWRITTEN
+// 2026-08-13 to use X3DOMRenderAdapter.createRenderedTexture() instead: destination content is
+// staged directly in the main document and a RenderedTexture attached to the aperture material
+// renders it continuously (update="always"), with no discrete capture step and no data: URI at all
+// — see x3dom-portal-traversal-glue.mjs's own header comment for the full architecture change.
 //
-// Reads window.__x3domLiveMode.portalGlue.previewDebugState() rather than counting <imagetexture>
+// Reads window.__x3domLiveMode.portalGlue.previewDebugState() rather than counting texture
 // elements in the document: avatar/equipment glTF assets embed their OWN real <imagetexture>
 // elements internally (baseColor/normal/etc. maps) — a first draft of this spike counted document-
 // wide imagetexture elements and got 18 (avatar + 3 default equipped items' own material textures)
@@ -16,23 +16,19 @@
 //
 // Verifies: (1) a preview record exists per real portal in this world (location-a has TWO —
 // to location-b and to the lobby — not hardcoded to 1) and every one becomes ready; (2) every one
-// captures a real, well-formed data: URI texture, stable across a second read a moment later
-// (still attached, not lost/reset); (3) no console/page errors, filtering the known-benign
-// addNameSpace pattern documented elsewhere in this session's work (Phase 3) — the main scene's
-// avatar/equipment Inline loads run concurrently with this phase's own hidden-host reload().
+// has a RenderedTexture attached to its aperture material, in "always" update mode (both boot's
+// default camera pose and every portal's own default resolution path result in an eligible,
+// actively-updating preview), stable across a second read a moment later; (3) no console/page
+// errors, filtering the known-benign addNameSpace pattern documented elsewhere in this session's
+// work (Phase 3) — the main scene's avatar/equipment Inline loads run concurrently with portal
+// preview setup.
 //
-// Deliberately does NOT assert the captured bytes change between reads (a "liveness" check) —
-// the actual capture-loop liveness mechanism (that repeated captures DO reflect real scene
-// changes) is already proven separately by the animated-scene spike-run-portal-renderer.mjs,
-// already in REGRESSION_SPIKES. (Historical note: at the time this spike was written, the
-// destination preview was still Phase 6's fixed-color placeholder room with a static camera, so
-// captures were also legitimately byte-identical for that reason too. The portal-preview
-// real-content follow-on work replaced that with real destination content and a camera that
-// glues to the player's real pose every tick — this spike's own assertions never depended on
-// which content is shown, so they remain valid unchanged; see
-// spike-run-x3dom-portal-preview-real-content.mjs and
-// spike-run-x3dom-portal-preview-camera-glue.mjs for what verifies the newer behavior
-// specifically.)
+// Deliberately does NOT assert on the texture's actual pixel content (a "renders correctly" check)
+// — that's covered by the dedicated RenderedTexture feasibility spikes
+// (spike-run-rendered-texture-v2.mjs, spike-run-rendered-texture-adapter.mjs) and by direct visual
+// verification during the rewrite. This spike is about the GLUE wiring — is a RenderedTexture
+// actually attached and live — not the underlying primitive's own correctness, which those other
+// spikes already own.
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const puppeteer = require("puppeteer-core");
@@ -67,11 +63,12 @@ try {
   await page.waitForFunction(() => window.__x3domLiveMode?.avatarReady != null, { timeout: 30000 });
   await page.evaluate(() => window.__x3domLiveMode.avatarReady);
 
-  // Portal preview setup is async (destination adapter ready() + mount) and captures are
-  // throttled (~10fps) — give it real time to complete at least a couple of capture ticks.
+  // Portal preview setup's only real async step now is resolvePortalDestinationContent() (a
+  // network-ish fetch) — the RenderedTexture itself is attached synchronously up front (see
+  // setupPortalPreview()'s own comment), so this just waits for content to resolve (`ready`).
   await page.waitForFunction(() => {
     const state = window.__x3domLiveMode?.portalGlue?.previewDebugState?.();
-    return Array.isArray(state) && state.length > 0 && state[0].capturedUrl;
+    return Array.isArray(state) && state.length > 0 && state.every((r) => r.ready);
   }, { timeout: 20000 }).catch(() => { });
 
   const first = await page.evaluate(() => window.__x3domLiveMode.portalGlue.previewDebugState());
@@ -84,18 +81,17 @@ try {
   // hardcoding a count, just requiring at least one and that every one of them came up correctly.
   const recordCountCorrect = first.length >= 1 && first.length === second.length;
   const allReady = recordCountCorrect && first.every((r) => r.ready);
-  const allTextureAttached = allReady && first.every((r) => typeof r.capturedUrl === "string" && r.capturedUrl.startsWith("data:") && r.capturedUrl.length > 500);
-  const allStillAttachedLater = allTextureAttached && first.every((r, i) => {
-    const laterUrl = second[i]?.capturedUrl;
-    return typeof laterUrl === "string" && laterUrl.startsWith("data:");
-  });
+  const allTextureAttached = allReady && first.every((r) => r.textureAttached === true);
+  // Boot's default camera pose is the known-good eligible baseline (matches the gating spike's own
+  // assumption) — every preview should be actively updating, not paused.
+  const allUpdatingAlways = allTextureAttached && first.every((r) => r.eligible === true && r.updateMode === "always");
+  const allStillAttachedLater = allUpdatingAlways && second.every((r) => r.textureAttached === true && r.updateMode === "always");
   const noErrors = errors.length === 0;
-  const ok = recordCountCorrect && allReady && allTextureAttached && allStillAttachedLater && noErrors;
+  const ok = recordCountCorrect && allReady && allTextureAttached && allUpdatingAlways && allStillAttachedLater && noErrors;
 
   console.log("RESULT:", JSON.stringify({
-    ok, portalCount: first.length, recordCountCorrect, allReady, allTextureAttached, allStillAttachedLater, noErrors,
-    urlLengths: first.map((r) => r.capturedUrl?.length ?? null),
-    errors,
+    ok, portalCount: first.length, recordCountCorrect, allReady, allTextureAttached, allUpdatingAlways, allStillAttachedLater, noErrors,
+    first, second, errors,
   }, null, 2));
   if (!ok) process.exitCode = 1;
 } catch (err) {

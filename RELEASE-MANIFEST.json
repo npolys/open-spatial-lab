@@ -3,7 +3,7 @@
   "project": "Open Spatial Lab",
   "release_slug": "grigb/open-spatial-lab",
   "release_scope": "complete-local-web-of-worlds-demo",
-  "complete_tree_sha256": "f1794b9d7657cbe962890533e1be775f61b423f9194664ede49f86ac455afe65",
+  "complete_tree_sha256": "aac9bad200de343b6ae6eb7d6c3d7c0af8d655998655e806c053b779b5d0cb27",
   "files": [
     {
       "path": ".gitignore",
@@ -192,8 +192,8 @@
     {
       "path": "README.md",
       "mode": "100644",
-      "size": 52620,
-      "sha256": "0a49972b2ffd1d8013494fe3adc645e61739b18cf0d4bcdb5438f2552b099e9c",
+      "size": 60382,
+      "sha256": "6a924d9d91ea7ea1eabb9ebad563e867a99f5bc8bfeb244e087c3a6c5af0672b",
       "classification": "documentation",
       "license": "Apache-2.0"
     },
@@ -256,8 +256,8 @@
     {
       "path": "runtime/scene-core/public/render-adapter/x3dom-render-adapter.mjs",
       "mode": "100644",
-      "size": 46011,
-      "sha256": "1ad224da3b5990daffbd82306a194167655cc64791cbc76f1fd02e2552b4ede5",
+      "size": 53995,
+      "sha256": "5ab0a6198e14944bf8c5ac50582f53bd1c729d89788c7b6387de47ac5e892833",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -528,8 +528,8 @@
     {
       "path": "tools/verify-render-adapters.mjs",
       "mode": "100644",
-      "size": 9129,
-      "sha256": "7892ff176571f27f3ecdac3325bfd0c03b7b2521b151f009699f6074124491c1",
+      "size": 10301,
+      "sha256": "7912720062544132bb7e1894167702fc34345c13b20b04b60b8ebff5c4c61302",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -568,8 +568,8 @@
     {
       "path": "tools/x3dom-spikes/_scratch-compare-out/airport-active.png",
       "mode": "100644",
-      "size": 190156,
-      "sha256": "b4869468ff7eb036642e9de47c82d14589cadd7bf5a99ab2fb25f53698894da0",
+      "size": 172092,
+      "sha256": "7ef13d3d3c5fd0767ba025269b90cf9bf0d532318fda1015e89bf4bad9602333",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -608,16 +608,64 @@
     {
       "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.json",
       "mode": "100644",
-      "size": 293,
-      "sha256": "428bdb50b31dcef5777dce9f71f51243729612ffbba0c88c05882b2c29db96e5",
+      "size": 294,
+      "sha256": "72d1158769913be1c76f7f66ba211a794af3000ed41318dd91caa91ff9e3ce42",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
     {
       "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.png",
       "mode": "100644",
-      "size": 133898,
-      "sha256": "c4859b8f041c468f1f4bd817a2dc07d59546dae54973ac53dd757c41dd30cbfc",
+      "size": 144052,
+      "sha256": "0f7b7e5fd979d9f3e7450ea50f4b0300ee30ab4aeb965822c1a5e6b18ddda259",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v3.json",
+      "mode": "100644",
+      "size": 456,
+      "sha256": "4880c4aa16d1a022e3a921c23a2c04debaaccde2089608129cc14c9eecefbf4e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v3.png",
+      "mode": "100644",
+      "size": 144343,
+      "sha256": "2d3008d2c1f378a71d502399bf8e4a6bef6edfdb2040297cdfd48e30169cc496",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4-sample1.png",
+      "mode": "100644",
+      "size": 138685,
+      "sha256": "f892951c14158101a262ac38bd473d58c00fc305ca81d9882a884fd6cad97e06",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4-sample3.png",
+      "mode": "100644",
+      "size": 137431,
+      "sha256": "0a6d5545135f7a6400fba2314b726957eafe281a772f2d0e96050002dc81b8c6",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4.json",
+      "mode": "100644",
+      "size": 456,
+      "sha256": "4880c4aa16d1a022e3a921c23a2c04debaaccde2089608129cc14c9eecefbf4e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v5.png",
+      "mode": "100644",
+      "size": 17367,
+      "sha256": "b8e81b1515def4b6062390b5b8c5ec5b0f7cb7b877c5b2108383f0e8e8da1a82",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -626,6 +674,54 @@
       "mode": "100644",
       "size": 145,
       "sha256": "e0a14978503b1f56f4420cedbb1c6d4e6b512cddfa0574ed5b172dd6006e545e",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-orientation-check.png",
+      "mode": "100644",
+      "size": 7611,
+      "sha256": "0b2c1e4c22a652d11234791557a07fb9d3cd96bd191d99f394cc47c91da26a17",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-aperture-closeup.png",
+      "mode": "100644",
+      "size": 19883,
+      "sha256": "9bda7b9b4186b60725a6b0be5e322f53888c1fcb9b04ec911d5564f394ffba33",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-aperture-pointblank.png",
+      "mode": "100644",
+      "size": 70734,
+      "sha256": "de5cd457f9e7bdda94195c979a20f346a4471e975548594c30f076e521902d6c",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-default-pose.png",
+      "mode": "100644",
+      "size": 126808,
+      "sha256": "42c1e5a2021ae7abc032c18728f5d3b392acb3a4e1b25855eed6349581bbea07",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-fps.json",
+      "mode": "100644",
+      "size": 281,
+      "sha256": "7c2ebfec618bb5d018b69b4dad14648096517e0242351608d8e03d49d07f4b7a",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-near-portal.png",
+      "mode": "100644",
+      "size": 89524,
+      "sha256": "d4bf1ef92bc0438f7615fc111aa970f3cfb5ad9839d199b8537f682211172297",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -678,10 +774,82 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "tools/x3dom-spikes/_scratch-diag-black-aperture.mjs",
+      "mode": "100644",
+      "size": 3163,
+      "sha256": "a15d98b77b4eb7c2fb28e7f3fd43ae740914418450d380e1603de5bbfc6bd672",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-camera-pose.mjs",
+      "mode": "100644",
+      "size": 1380,
+      "sha256": "d8bdfded46d2d7e617be70c9740bccc793a40dee550d2ec8afff349b268886f5",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "tools/x3dom-spikes/_scratch-diag-equip-hang.mjs",
       "mode": "100644",
       "size": 1772,
       "sha256": "30b9f1a2670bccc202c5e8b1144bfec471891b659c82f08de5fdc0727a6aa395",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-feedback-loop-source.mjs",
+      "mode": "100644",
+      "size": 1347,
+      "sha256": "8b4d5f14f9fbf3865166e8f0624c0b03cfb63564053580c8eef6c4c6496e54c0",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-full-console.mjs",
+      "mode": "100644",
+      "size": 1098,
+      "sha256": "8aa2aab0ff2bde1c38ed6d38abeaeed96c7938e6d4204f48576fb08295b4b666",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-headlight-state.mjs",
+      "mode": "100644",
+      "size": 1143,
+      "sha256": "71ef1e9b684b504e16ad0c7b8869105d7a1befdaa4506ed500a80a5e39e1bedb",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-mount-count.mjs",
+      "mode": "100644",
+      "size": 2098,
+      "sha256": "1f7e650750fe78dfd1427271cb89f75dfb9714f43e27eb32dd531b7b68fbe9b8",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-nodebag.mjs",
+      "mode": "100644",
+      "size": 2520,
+      "sha256": "4a2a7047c614027aae67342c1b2c2ff0988f30d64d402c73ad12a40e43a3e586",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-preview-state-check.mjs",
+      "mode": "100644",
+      "size": 1274,
+      "sha256": "3f66cf4fa3d517495fa20069fe7eba2d542da5a352889008e19dd3a3b95af3b9",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-diag-preview-state-flicker.mjs",
+      "mode": "100644",
+      "size": 1419,
+      "sha256": "52144f0d44a1db6fabc001abcc40895b09625b6b4244eaf293ec9b7d585d3523",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -694,10 +862,58 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "tools/x3dom-spikes/_scratch-diag-scenefield-timeline.mjs",
+      "mode": "100644",
+      "size": 1880,
+      "sha256": "19817a203836a08579f8e7aa40aa2b03af3d00b27956ae9f796f775bef347d22",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-aperture-closeup.mjs",
+      "mode": "100644",
+      "size": 1459,
+      "sha256": "2859e595437c82e8cdb37e651d3cb1e1128e2eedf0dbc00045af17f762c056ce",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-aperture-pointblank.mjs",
+      "mode": "100644",
+      "size": 1844,
+      "sha256": "5781e6b30e6d46f23ccfc52f769380649006a4e72178c538468934fcb2b7c416",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-default-pose-screenshot.mjs",
+      "mode": "100644",
+      "size": 1583,
+      "sha256": "81aad081191e89f9affb445c310fefd260e29685c90d833fedc59e33b8146611",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "tools/x3dom-spikes/_scratch-rendered-texture-feasibility-v2.mjs",
       "mode": "100644",
-      "size": 10254,
-      "sha256": "bb0b017a01f4ff6cb60b98819024caea291604fbe191d5589767feef1e85ba20",
+      "size": 10174,
+      "sha256": "aadd9acdc3e0c5b1442644474cf9956b9a02d9762a5f117ed8116f88c9269006",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-feasibility-v3.mjs",
+      "mode": "100644",
+      "size": 10921,
+      "sha256": "51671c8d1b782ccd56028f778983f686bc9dba49198a02d3c8be23f9c2b0ad42",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-feasibility-v4.mjs",
+      "mode": "100644",
+      "size": 9450,
+      "sha256": "70a9f97c4fd3e2517075b52d1e071bbf43944d8afc1a1048d56f4e53dd2817c5",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -706,6 +922,22 @@
       "mode": "100644",
       "size": 9572,
       "sha256": "8a55efe4c4c6f095391b58292301f3113ab3834e8f87a3345e7317183a9e7fd7",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-fps-and-visual-check.mjs",
+      "mode": "100644",
+      "size": 4088,
+      "sha256": "f6f7bb1ec71fd440de9974c11e87e41c1528c4c7391387237fc2d4cd9032b57a",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/_scratch-rendered-texture-fps-isolate.mjs",
+      "mode": "100644",
+      "size": 4409,
+      "sha256": "ba3d942f85f44c92d4d9e4aa2747663f7b44dfe43d692337e9b2662d5ceecbca",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -870,10 +1102,42 @@
       "license": "Apache-2.0"
     },
     {
-      "path": "tools/x3dom-spikes/spike-run-portal-renderer.mjs",
+      "path": "tools/x3dom-spikes/spike-run-rendered-texture-adapter.mjs",
       "mode": "100644",
-      "size": 1376,
-      "sha256": "a7b50105760714316554b3e2a99b267eda05147590f4492ceebf2b8c34f6dc2e",
+      "size": 1550,
+      "sha256": "eaa6043abb274dcda8ee48e62749ef383fb5623f56fd19156c6e531b314ce9ca",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-rendered-texture-attach-check.mjs",
+      "mode": "100644",
+      "size": 1233,
+      "sha256": "2245249526d7bf1e84c0f52e12dc092780a97eb4a64ccad398f9168200bccf48",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-rendered-texture-orientation-check.mjs",
+      "mode": "100644",
+      "size": 1559,
+      "sha256": "8719133cb8a14160976aaaab13170fa90f2e771a20dce456bff40002050e688d",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-rendered-texture-v2.mjs",
+      "mode": "100644",
+      "size": 2168,
+      "sha256": "c129147683d2059a7129c7b152c18ee552668130f393e959ab2ef587893ca3ce",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-rendered-texture-zfar-check.mjs",
+      "mode": "100644",
+      "size": 1460,
+      "sha256": "f193f8fe7655b9c1516566662b4d78f4e046ba3b8d3f1df85277e2fa453a8638",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -936,8 +1200,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-hosted-objects-wow-fetch.mjs",
       "mode": "100644",
-      "size": 7107,
-      "sha256": "a2e17e427c81488652ca41b16be33e493cfe25a3821623069ed6e4e69f46e30e",
+      "size": 6996,
+      "sha256": "43e7ad9e585f95fe67fdd2110770c97b47a6cc9e908f1dfcc8bac7cb4e0bfcc2",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -984,8 +1248,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-phase7-combined-load.mjs",
       "mode": "100644",
-      "size": 12555,
-      "sha256": "b75d0bd1c53c9a7772bc2624569ae9a1bd7e46c5d94dac8c5a627b423c71865d",
+      "size": 12511,
+      "sha256": "567c4f4d007283dbf54d4c3bfa3035c8b1fc96fc1eb953c0768d0bc0265faf7c",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1000,16 +1264,16 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-camera-glue.mjs",
       "mode": "100644",
-      "size": 6330,
-      "sha256": "f13e12904bece3cccdc6a1cdf4a06e01263635e87981e17c4075697b1373b5d3",
+      "size": 6584,
+      "sha256": "c81dd90bdcbf74d6eba848efaae77198fdc8607999b177007fd5c692a51beeb7",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-gating.mjs",
       "mode": "100644",
-      "size": 7160,
-      "sha256": "b083cf57436b2e98166a9f5069a18cc699ed0b4fcd2152716085aa2033b709a1",
+      "size": 6589,
+      "sha256": "6eab0d156f90941276b7a0991fdc69cc84502bf2167d938864490324fe5b7b54",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1024,8 +1288,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview.mjs",
       "mode": "100644",
-      "size": 6389,
-      "sha256": "185eca088316e6dd2e9b8cf1dc6e4519cdf2c4ded47d43bd592eafd0439e4a0c",
+      "size": 6312,
+      "sha256": "f2c8396ef2dad725f9155222e839d880a50eaa9e6be92eda659de2e995b04a6f",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1048,8 +1312,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-wall-solid.mjs",
       "mode": "100644",
-      "size": 3973,
-      "sha256": "abe26838ab6939055a5db25d5f37224268244f2a732795b10234530824d721ed",
+      "size": 6293,
+      "sha256": "81a7ff290e9d6488f34cf4a7037405a92560de98dac329e3fc062c06170872bd",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1672,8 +1936,8 @@
     {
       "path": "web/index.html",
       "mode": "100644",
-      "size": 125556,
-      "sha256": "f9dd4111e06c5db488fd83d53d8e7b85230203c46bee79bf7e5552769689f1ed",
+      "size": 126196,
+      "sha256": "567aa0e7f6bb9e5a324aec1cb24089ba56bb4d4eff50d98a652160431368b052",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -2232,8 +2496,8 @@
     {
       "path": "web/x3dom-live-mode.mjs",
       "mode": "100644",
-      "size": 11152,
-      "sha256": "06546d4138cc174cb269fc554841f95780da03b3a3e46b47fb5078c8590cfd57",
+      "size": 11123,
+      "sha256": "32855d52548cd3d666372938ba1dca33f075af7733954e275a071204c971141b",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -2262,18 +2526,10 @@
       "license": "Apache-2.0"
     },
     {
-      "path": "web/x3dom-portal-renderer.mjs",
-      "mode": "100644",
-      "size": 6637,
-      "sha256": "a1c4024748255610ea886937d41c0251ada05bf16a80f952256401e87360c8e6",
-      "classification": "browser-runtime",
-      "license": "Apache-2.0"
-    },
-    {
       "path": "web/x3dom-portal-traversal-glue.mjs",
       "mode": "100644",
-      "size": 39123,
-      "sha256": "f183e2319e603e9f1fdc999485a629016792a15d723cbc41e3b0dfbfc52bf2e3",
+      "size": 46391,
+      "sha256": "c1c634735baffb9365653594ed6c4053504b2999fa7b66a9e4affd05e83572f2",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -2288,8 +2544,8 @@
     {
       "path": "web/x3dom-spikes/spike-x3dom-attach.html",
       "mode": "100644",
-      "size": 4372,
-      "sha256": "49508e5f1843499f08d418b991970fa1799fb9686f3bc3293af64e4b97d8bacc",
+      "size": 4369,
+      "sha256": "c7801703002ca84dfe7dae48bd6d628f2900262591618282fe0111fc7b27e041",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -2406,18 +2662,50 @@
       "license": "Apache-2.0"
     },
     {
-      "path": "web/x3dom-spikes/spike-x3dom-portal-renderer.html",
-      "mode": "100644",
-      "size": 5629,
-      "sha256": "6633adefa00d05056dae94c88179c359ad2a2fd9bf79ac459053628ebf3421cc",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
       "path": "web/x3dom-spikes/spike-x3dom-portal.html",
       "mode": "100644",
       "size": 6160,
       "sha256": "f5143b3e4feddf1342d83f565fb209aab2eab22b31a28f98ffd280b12beb6c72",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture-adapter.html",
+      "mode": "100644",
+      "size": 6934,
+      "sha256": "f5be1999b2e7a15a9dfb1b0fa1854b75639967f47b8b2e080b6aded7bfa2dfc6",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture-attach-check.html",
+      "mode": "100644",
+      "size": 6362,
+      "sha256": "a5339a137e87b2587654990efd9af919f8ab153c2d9633fc02b5840dada64cb1",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture-orientation-check.html",
+      "mode": "100644",
+      "size": 5620,
+      "sha256": "b8b51bbc10ad745bae66877e300789ec249d7c3c86dbaa51bb5082f211a323a0",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture-v2.html",
+      "mode": "100644",
+      "size": 8501,
+      "sha256": "58c40171746fd8585cb731fe4e4940db6d4a06dddad202e2a2d98de53945f0d2",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-rendered-texture-zfar-check.html",
+      "mode": "100644",
+      "size": 5386,
+      "sha256": "dff735b16fd877bd6ca0b17abf689fd9e7679d72df5c144fc45bff0e3963c81e",
       "classification": "public-test",
       "license": "Apache-2.0"
     },

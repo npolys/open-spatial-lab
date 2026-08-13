@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>X3DOM RenderedTexture feasibility spike v2 (isolated adapter, no competing camera loop)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Genuinely empty on load — adapter.mount() builds the <x3d> host itself. Unlike the live app
+     (index.html), nothing here re-poses the camera every frame, so a one-off setCameraPose() call
+     sticks — the live app's own third-person camera-follow controller was confirmed (v4 spike) to
+     silently overwrite any external setCameraPose() call within the next render frame, which is why
+     earlier attempts hosted inside the live app never actually looked at the test content. -->
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(document.getElementById('mount'), { width: 1024, height: 768 });
+  await adapter.ready();
+  append('adapter ready');
+
+  const sceneRoot = adapter.sceneRoot;
+
+  // Destination content: a magenta box.
+  const destGroup = document.createElement('transform');
+  destGroup.setAttribute('def', 'rtDestGroup');
+  destGroup.setAttribute('translation', '0 0 -10');
+  const destShape = document.createElement('shape');
+  const destAppearance = document.createElement('appearance');
+  const destMaterial = document.createElement('material');
+  destMaterial.setAttribute('diffuseColor', '1 0 1');
+  destMaterial.setAttribute('emissiveColor', '1 0 1');
+  destAppearance.appendChild(destMaterial);
+  const destGeom = document.createElement('box');
+  destGeom.setAttribute('size', '4 4 4');
+  destShape.appendChild(destAppearance);
+  destShape.appendChild(destGeom);
+  destGroup.appendChild(destShape);
+  sceneRoot.appendChild(destGroup);
+
+  // Consumer: a plane at the origin, textured with a RenderedTexture whose `scene` field
+  // (containerField="scene") points at destGroup (not the whole main scene, so the consumer can
+  // never be self-referenced), and whose own nested viewpoint sits in front of the box.
+  const consumerTransform = document.createElement('transform');
+  consumerTransform.setAttribute('translation', '0 0 0');
+  const consumerShape = document.createElement('shape');
+  const consumerAppearance = document.createElement('appearance');
+  const consumerMaterial = document.createElement('material');
+  consumerMaterial.setAttribute('diffuseColor', '1 1 1');
+  consumerAppearance.appendChild(consumerMaterial);
+
+  const renderedTexture = document.createElement('renderedtexture');
+  renderedTexture.setAttribute('dimensions', '128 128 4');
+  renderedTexture.setAttribute('update', 'always');
+
+  const rtViewpoint = document.createElement('viewpoint');
+  rtViewpoint.setAttribute('containerField', 'viewpoint');
+  rtViewpoint.setAttribute('position', '0 0 -4');
+  rtViewpoint.setAttribute('orientation', '0 0 1 0');
+  rtViewpoint.setAttribute('fieldOfView', '0.8');
+  renderedTexture.appendChild(rtViewpoint);
+
+  const sceneRef = document.createElement('transform');
+  sceneRef.setAttribute('containerField', 'scene');
+  sceneRef.setAttribute('use', 'rtDestGroup');
+  renderedTexture.appendChild(sceneRef);
+
+  consumerAppearance.appendChild(renderedTexture);
+  const consumerGeom = document.createElement('plane');
+  consumerGeom.setAttribute('size', '3 3');
+  consumerShape.appendChild(consumerAppearance);
+  consumerShape.appendChild(consumerGeom);
+  consumerTransform.appendChild(consumerShape);
+  sceneRoot.appendChild(consumerTransform);
+
+  // Camera: no competing per-frame logic on this page, so this sticks.
+  adapter.setCameraPose(adapter.camera, { position: [0, 0, 5], lookAt: [0, 0, 0] });
+
+  window.__rtFeasibility = { adapter, destMaterial, destGroup, renderedTexture, rtViewpoint };
+  document.getElementById('status').textContent = 'setup complete';
+
+  // Diag as a separate microtask tick — MutationObserver-driven X3DOM registration runs async.
+  await new Promise((r) => setTimeout(r, 300));
+  const rtNode = renderedTexture._x3domNode;
+  const diag = {
+    hasX3domNode: !!rtNode,
+    sceneFieldNode: !!rtNode && !!rtNode._cf.scene.node,
+    sceneFieldIsMainScene: !!rtNode && rtNode._cf.scene.node === rtNode._nameSpace.doc._scene,
+    viewpointFieldNode: !!rtNode && !!rtNode._cf.viewpoint.node,
+    nodeBagCount: window.x3dom?.canvases?.[0]?.doc?._nodeBag?.renderTextures?.length ?? null,
+  };
+  append('DIAG: ' + JSON.stringify(diag));
+  window.__rtDiag = diag;
+
+  function sampleCenterPixel() {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    const region = ctx.getImageData(cx - 20, cy - 20, 40, 40).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+
+  await new Promise((r) => setTimeout(r, 1500));
+  const sample1 = sampleCenterPixel();
+  append('sample1: ' + JSON.stringify(sample1));
+
+  await new Promise((r) => setTimeout(r, 500));
+  const sample2 = sampleCenterPixel();
+  append('sample2: ' + JSON.stringify(sample2));
+
+  destMaterial.setAttribute('diffuseColor', '0.8 1 0');
+  destMaterial.setAttribute('emissiveColor', '0.8 1 0');
+  await new Promise((r) => setTimeout(r, 1000));
+  const sample3 = sampleCenterPixel();
+  append('sample3: ' + JSON.stringify(sample3));
+
+  // The harder case the plan's Stage 0 specifically calls out: a BRAND-NEW node, created and
+  // appended to the destination subtree well after the RenderedTexture already exists and is
+  // running — not just an existing node's attribute changing (sample3 above). This is the exact
+  // class of "dynamically-created nodes are unreliable" risk that broke Inline nodes elsewhere in
+  // this app (see x3dom-render-adapter.mjs's own createInlineAsset() comment).
+  destGroup.removeChild(destShape);
+  const newShape = document.createElement('shape');
+  const newAppearance = document.createElement('appearance');
+  const newMaterial = document.createElement('material');
+  newMaterial.setAttribute('diffuseColor', '0 1 1');
+  newMaterial.setAttribute('emissiveColor', '0 1 1');
+  newAppearance.appendChild(newMaterial);
+  const newGeom = document.createElement('sphere');
+  newGeom.setAttribute('radius', '2');
+  newShape.appendChild(newAppearance);
+  newShape.appendChild(newGeom);
+  destGroup.appendChild(newShape);
+  await new Promise((r) => setTimeout(r, 1000));
+  const sample4 = sampleCenterPixel();
+  append('sample4 (brand-new node, post-RT creation): ' + JSON.stringify(sample4));
+
+  const magentaish = (c) => c[0] > 120 && c[2] > 120 && c[1] < 120;
+  const yellowGreenish = (c) => c[0] > 120 && c[1] > 120 && c[2] < 120;
+  const cyanish = (c) => c[1] > 120 && c[2] > 120 && c[0] < 120;
+  const result = {
+    diag,
+    rendersDestinationContent: magentaish(sample1),
+    stableBeforeSwap: magentaish(sample2),
+    dynamicSwapPickedUp: yellowGreenish(sample3),
+    newNodePostRTCreationPickedUp: cyanish(sample4),
+    sample1, sample2, sample3, sample4,
+  };
+  result.ok = result.rendersDestinationContent && result.stableBeforeSwap && result.dynamicSwapPickedUp
+    && result.newNodePostRTCreationPickedUp;
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

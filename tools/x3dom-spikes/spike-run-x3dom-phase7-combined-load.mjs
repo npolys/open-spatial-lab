@@ -108,7 +108,7 @@ try {
         peerCount: (dbg.peer_players || []).filter((p) => p.co_present).length,
         previewCount: preview.length,
         previewAllReady: preview.every((r) => r.ready),
-        previewAllCaptured: preview.every((r) => typeof r.capturedUrl === "string" && r.capturedUrl.startsWith("data:")),
+        previewAllCaptured: preview.every((r) => r.textureAttached === true),
       };
     });
 

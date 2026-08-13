@@ -103,7 +103,6 @@ async function main() {
         adapter,
         liveAdapter,
         camera,
-        x3dom: window.x3dom,
         log: (line) => console.log(line),
     });
     portalGlue.mountWorldContent();

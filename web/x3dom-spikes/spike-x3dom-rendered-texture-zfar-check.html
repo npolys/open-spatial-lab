@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stage 1 risk check: does staging content far away balloon the main camera's auto zFar?</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { mountCanonicalWorldContent } from "/vendor/scene-core/canonical-world-content.js";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(document.getElementById('mount'), { width: 1024, height: 768 });
+  await adapter.ready();
+  append('adapter ready');
+
+  // A real, room-scale scene — same function the live app uses.
+  mountCanonicalWorldContent(adapter, adapter.sceneRoot, { location_id: 'location-a', color: '#3aa0ff' });
+  adapter.setCameraPose(adapter.camera, { position: [0, 1.6, 5], lookAt: [0, 1.2, 0] });
+
+  await new Promise((r) => setTimeout(r, 500));
+  const before = { zNear: adapter.camera._x3domNode._zNear, zFar: adapter.camera._x3domNode._zFar };
+  append('BEFORE staging (room-only scene), no explicit zNear/zFar set: ' + JSON.stringify(before));
+
+  // Stage destination content 1000 units away, same shape the Stage 2 production rewrite plans to
+  // use for real portal-preview content — the specific case this spike is checking.
+  const destGroup = adapter.createGroup('rtDestGroup');
+  destGroup.setAttribute('def', 'rtDestGroup');
+  adapter.setPosition(destGroup, 1000, 0, 0);
+  const destMesh = adapter.createMesh(
+    adapter.createGeometry({ type: 'box', width: 4, height: 4, depth: 4 }),
+    adapter.createMaterial({ type: 'standard', color: '#ff00ff' }),
+  );
+  adapter.add(destGroup, destMesh);
+  adapter.add(adapter.sceneRoot, destGroup);
+
+  await new Promise((r) => setTimeout(r, 500));
+  const afterNoFix = { zNear: adapter.camera._x3domNode._zNear, zFar: adapter.camera._x3domNode._zFar };
+  append('AFTER staging content 1000 units away, still no explicit zNear/zFar: ' + JSON.stringify(afterNoFix));
+
+  // The proposed fix: explicit zNear/zFar on the main viewpoint bypasses the automatic
+  // scene-bounding-volume computation entirely (confirmed via reading Viewpoint.getProjectionMatrix
+  // in x3dom-full.js: an explicit zFar>0 unconditionally overrides the auto-computed far value).
+  adapter.camera.setAttribute('zNear', '0.1');
+  adapter.camera.setAttribute('zFar', '200');
+  await new Promise((r) => setTimeout(r, 500));
+  const afterFix = { zNear: adapter.camera._x3domNode._zNear, zFar: adapter.camera._x3domNode._zFar };
+  append('AFTER setting explicit zNear=0.1/zFar=200 on the main viewpoint: ' + JSON.stringify(afterFix));
+
+  // Visibility check: with the explicit zFar=200 fix in place, is the staged content (1000 units
+  // away, well beyond zFar) actually invisible from the main camera now, even looking straight at it?
+  adapter.setCameraPose(adapter.camera, { position: [0, 1.6, 5], lookAt: [1000, 0, 0] });
+  await new Promise((r) => setTimeout(r, 800));
+  function sampleCenterPixel() {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    const region = ctx.getImageData(cx - 20, cy - 20, 40, 40).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+  const stagedContentSample = sampleCenterPixel();
+  append('sample looking straight at staged content, WITH explicit zFar=200: ' + JSON.stringify(stagedContentSample));
+  const magentaish = (c) => c[0] > 120 && c[2] > 120 && c[1] < 120;
+  const stagedContentVisible = magentaish(stagedContentSample);
+  append('staged content visible despite explicit zFar clip? ' + stagedContentVisible + ' (expect false)');
+
+  const result = {
+    before, afterNoFix, afterFix,
+    farBallooned: afterNoFix.zFar > before.zFar * 2,
+    fixHeld: afterFix.zFar === 200 && afterFix.zNear === 0.1,
+    stagedContentVisible,
+    stagedContentSample,
+  };
+  result.ok = result.farBallooned && result.fixHeld && !result.stagedContentVisible;
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS (risk confirmed + fix verified)' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

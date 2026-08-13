@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Rigorous orientation check: does the aperture's TOP show the destination content's TOP, not its bottom?</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Center-pixel sampling (every prior RenderedTexture spike) can't detect a vertical flip at all —
+     a uniformly-colored box looks identical either way. This uses an asymmetric destination scene
+     (a red box on TOP, a green box on BOTTOM) and samples the aperture's own top vs. bottom half
+     directly, so a flip is unambiguous: correct = red-on-top, green-on-bottom; flipped = reversed. -->
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(document.getElementById('mount'), { width: 1024, height: 768 });
+  await adapter.ready();
+  append('adapter ready');
+
+  const sceneRoot = adapter.sceneRoot;
+  const destGroup = adapter.createGroup('rtDestGroup');
+  adapter.setPosition(destGroup, 0, 0, -10);
+
+  // Red box on top (+Y), green box on bottom (-Y), lit via ambient+directional (not emissive) —
+  // matching the real destination room's own lighting shape, not a synthetic self-lit test.
+  const redMaterial = adapter.createMaterial({ type: 'standard', color: '#ff0000' });
+  const redMesh = adapter.createMesh(adapter.createGeometry({ type: 'box', width: 3, height: 1.4, depth: 0.5 }), redMaterial);
+  adapter.setPosition(redMesh, 0, 1, 0);
+  adapter.add(destGroup, redMesh);
+
+  const greenMaterial = adapter.createMaterial({ type: 'standard', color: '#00ff00' });
+  const greenMesh = adapter.createMesh(adapter.createGeometry({ type: 'box', width: 3, height: 1.4, depth: 0.5 }), greenMaterial);
+  adapter.setPosition(greenMesh, 0, -1, 0);
+  adapter.add(destGroup, greenMesh);
+
+  adapter.add(destGroup, adapter.createAmbientLight({ intensity: 0.75 }));
+  adapter.add(destGroup, adapter.createDirectionalLight({ intensity: 0.9, position: [1, 1, 1] }));
+  adapter.add(sceneRoot, destGroup);
+
+  const rt = adapter.createRenderedTexture({ dimensions: [128, 128, 4], update: 'always' });
+  adapter.setCameraPose(rt.viewpoint, { position: [0, 0, -4], lookAt: [0, 0, -10] });
+  // The real aperture material shape: transparent, double-sided, with the RenderedTexture map —
+  // exercising createMaterial()'s own TextureTransform-flip logic, not a hand-built alternative.
+  const consumerMaterial = adapter.createMaterial({ type: 'standard', color: '#8fd4ff', opacity: 0.55, transparent: true, side: 'double', map: rt });
+  const consumerMesh = adapter.createMesh(adapter.createGeometry({ type: 'plane', width: 3, height: 3 }), consumerMaterial);
+  adapter.add(sceneRoot, consumerMesh);
+  await adapter.bindRenderedTextureScene(rt, destGroup);
+  append('scene bound');
+
+  adapter.setCameraPose(adapter.camera, { position: [0, 0, 5], lookAt: [0, 0, 0] });
+
+  window.__rtOrientationTest = { adapter };
+  document.getElementById('status').textContent = 'setup complete';
+
+  function samplePixel(cx, cy) {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const region = ctx.getImageData(cx - 15, cy - 15, 30, 30).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+
+  await new Promise((r) => setTimeout(r, 2000));
+  const canvas = document.getElementById('mount').querySelector('canvas');
+  const cx = Math.floor(canvas.width / 2);
+  const cyTop = Math.floor(canvas.height / 2) - 40;
+  const cyBottom = Math.floor(canvas.height / 2) + 40;
+  const topSample = samplePixel(cx, cyTop);
+  const bottomSample = samplePixel(cx, cyBottom);
+  append('topSample (aperture upper half): ' + JSON.stringify(topSample));
+  append('bottomSample (aperture lower half): ' + JSON.stringify(bottomSample));
+
+  const reddish = (c) => c[0] > 100 && c[1] < 100 && c[2] < 100;
+  const greenish = (c) => c[1] > 100 && c[0] < 100 && c[2] < 100;
+  const correctOrientation = reddish(topSample) && greenish(bottomSample);
+  const flippedOrientation = greenish(topSample) && reddish(bottomSample);
+
+  const result = { topSample, bottomSample, correctOrientation, flippedOrientation };
+  result.ok = correctOrientation;
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS (correct orientation)' : (flippedOrientation ? 'FAIL (flipped!)' : 'FAIL (unclear)');
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

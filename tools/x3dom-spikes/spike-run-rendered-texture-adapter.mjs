@@ -7,14 +7,14 @@ const browser = await puppeteer.launch({
   executablePath,
   headless: "new",
   args: ["--no-sandbox", "--enable-webgl", "--ignore-gpu-blocklist", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  defaultViewport: { width: 900, height: 700 },
+  defaultViewport: { width: 1024, height: 768 },
 });
 try {
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  page.on("console", (m) => errors.push(`console[${m.type()}]: ${m.text()}`));
-  await page.goto("http://127.0.0.1:8143/x3dom-spikes/spike-x3dom-portal-renderer.html", { waitUntil: "networkidle0", timeout: 30000 });
+  page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errors.push(`console[${m.type()}]: ${m.text()}`); });
+  await page.goto("http://127.0.0.1:8143/x3dom-spikes/spike-x3dom-rendered-texture-adapter.html", { waitUntil: "networkidle0", timeout: 30000 });
   try {
     await page.waitForFunction(() => window.__testResult != null, { timeout: 30000 });
   } catch (waitErr) {
@@ -23,8 +23,10 @@ try {
   const result = await page.evaluate(() => window.__testResult || null);
   const logText = await page.evaluate(() => document.getElementById("log")?.textContent || "(no log el)");
   console.log("LOG:\n" + logText);
-  console.log("RESULT:", JSON.stringify(result, null, 2));
-  if (errors.length) console.log("PAGE ERRORS:\n" + errors.join("\n"));
+  const combined = { ...result, noPageErrors: errors.length === 0, errors };
+  combined.ok = !!(combined.ok && combined.noPageErrors);
+  console.log("RESULT:", JSON.stringify(combined, null, 2));
+  if (!combined.ok) process.exitCode = 1;
 } finally {
   await browser.close();
 }

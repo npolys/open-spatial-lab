@@ -1,5 +1,4 @@
 import { mountCanonicalWorldContent } from "./vendor/scene-core/canonical-world-content.js";
-import { X3DOMPortalRenderer } from "./x3dom-portal-renderer.mjs";
 import { buildWowScene } from "./wow-scene.mjs";
 import { syncHostedSceneObjectMeshesX3dom, disposeHostedSceneObjectMeshesX3dom } from "./x3dom-portal-hosted-objects.mjs";
 import { glueCameraThroughFrames, normalizeVec3, subtract3, addScaled3, dot3 } from "./live-adapter-portal-geometry.mjs";
@@ -22,30 +21,51 @@ import { mountAirportTerminalContentX3dom } from "./x3dom-airport-terminal-scene
 // canonical) world content for whichever world is now active and gives the portal a real,
 // findable position.
 //
-// Phase 6 added a live preview through the aperture, via the existing, previously-unwired
-// X3DOMPortalRenderer (X3DOM has no render-target/clipping-plane API like the three.js path's
-// second WebGLRenderTarget, so this uses its screenshot-polling approach instead — a second,
-// hidden <x3d> host renders a destination scene and its runtime.getScreenshot() output is pushed
-// into an ImageTexture on the aperture's material, throttled to ~10fps). Phase 6 shipped that
-// preview showing a fixed-color procedural placeholder room, matching SpatialPortalPreviewManager's
-// own DEFAULT behavior at the time (neither render path fetched real destination content yet).
+// Phase 6 added a live preview through the aperture. Originally built on X3DOMPortalRenderer — a
+// second, hidden <x3d> host rendering the destination world for real, with its
+// runtime.getScreenshot() output polled on a timer and pushed into an ImageTexture on the
+// aperture's material (X3DOM has no render-target primitive... or so this session originally
+// believed; see below). That mechanism is GONE as of the RenderedTexture rewrite (2026-08-13):
+// X3DOM's RenderedTexture node (Texturing component) turns out to be a genuine GPU render-to-
+// texture primitive after all — confirmed working via a dedicated Stage 0 feasibility spike
+// (tools/x3dom-spikes/spike-run-rendered-texture-v2.mjs) after two earlier, inconclusive attempts.
+// Destination-world content for each portal is now built directly in the SAME document as the main
+// scene — as a real child of the shared `adapter.sceneRoot`, staged at a large per-portal offset
+// (STAGING_OFFSET_BASE_M below) far outside the player's normal view — and a
+// createRenderedTexture() handle (X3DOMRenderAdapter, X3DOM-only, same category as
+// createClipPlane) attached as the aperture material's texture map renders that staged subtree
+// continuously (update="always"), with its own nested viewpoint driven every frame by the exact
+// same glueCameraThroughFrames() math the old architecture used. This closes every cost the old
+// pipeline had to accept: no second live WebGL context per portal, no PNG encode/decode round-
+// trip, no throttled capture cadence, no flash-to-black artifact (there's no intermediate canvas/
+// Image step left to race). It also unlocks one thing the old pipeline explicitly COULDN'T do: a
+// RenderedTexture's `update` field can be flipped to "none" when the aperture isn't on-screen
+// (see isPreviewEligible()/tick() below), genuinely pausing that portal's destination render pass
+// — the old hidden <x3d> host had no equivalent pause API and kept rendering internally regardless
+// of gating, a stated, unfixed limitation at the time.
 //
-// This was later upgraded to REAL destination content, mirroring what scene-runtime-controller.mjs
-// (`ensurePreviewManager`) actually wires for the three.js path in production — NOT a call-site
-// reuse of that wiring (confirmed by direct inspection: syncHostedSceneObjectMeshes hardcodes
-// ThreeRenderAdapter and reaches past it for raw material/geometry/visibility APIs X3DOM's plain-
-// DOM mesh handles don't have; mountAirportTerminalContent is 100% raw THREE with no adapter
-// indirection at all) — an X3DOM-native parallel path instead, reusing what's genuinely
-// engine-agnostic (`liveAdapter.resolvePortalDestinationContent()`, `buildWowScene`) and rebuilding
-// what isn't (`syncHostedSceneObjectMeshesX3dom` in x3dom-portal-hosted-objects.mjs). Two real,
-// documented gaps versus three.js remain: (1) the airport-bound portal (reachable via
-// location-lobby's third portal) shows the authored graph's real topology but not
-// mountAirportTerminalContent's storefront/gate set-dressing, and not real glTF assets
-// (mountWowSceneAssets) — a deliberate scope cut, not silent debt; (2) no proximity/projected-area
-// eligibility gating yet — the preview captures continuously whenever a portal exists in the
-// active world, not just when a player is close enough to see it (three.js's own gating function,
-// projectedPortalApertureDevicePixels, is raw THREE.Vector3/camera-matrix math, not reusable here —
-// tracked as a follow-on using X3DOMRenderAdapter.worldToScreen() instead).
+// The one real, non-obvious cost of sharing a single document: X3D's Viewpoint zNear/zFar default
+// to -1 ("automatic", recomputed every frame from the WHOLE scene's bounding volume) — staging
+// content hundreds of meters away balloons that computation and wrecks depth precision for
+// everything close to the player. Fixed by giving the MAIN viewpoint explicit zNear/zFar
+// (web/index.html's #x3dom-viewpoint) and each RenderedTexture's own nested viewpoint explicit
+// values too (X3DOMRenderAdapter.createRenderedTexture()'s fov/near/far options) — confirmed via a
+// dedicated spike (spike-run-rendered-texture-zfar-check.mjs) that this fully bypasses the
+// automatic computation and that staged content becomes genuinely invisible from the main camera
+// once it's beyond the explicit far plane, not just "usually out of frame."
+//
+// Destination content itself mirrors what scene-runtime-controller.mjs (`ensurePreviewManager`)
+// wires for the three.js path in production — NOT a call-site reuse of that wiring (confirmed by
+// direct inspection: syncHostedSceneObjectMeshes hardcodes ThreeRenderAdapter and reaches past it
+// for raw material/geometry/visibility APIs X3DOM's plain-DOM mesh handles don't have;
+// mountAirportTerminalContent is 100% raw THREE with no adapter indirection at all) — an
+// X3DOM-native parallel path instead, reusing what's genuinely engine-agnostic
+// (`liveAdapter.resolvePortalDestinationContent()`, `buildWowScene`) and rebuilding what isn't
+// (`syncHostedSceneObjectMeshesX3dom` in x3dom-portal-hosted-objects.mjs). One real, documented gap
+// versus three.js remains: the airport-bound portal (reachable via location-lobby's third portal)
+// shows the authored graph's real topology but not mountAirportTerminalContent's storefront/gate
+// set-dressing, and not real glTF assets (mountWowSceneAssets) — a deliberate scope cut, not
+// silent debt.
 //
 // resolvePortalDestinationContent()'s `subscribeHostedPoint` is NOT a real push: the
 // `hostedattachpoint` event it listens for only fires when something actually CALLS
@@ -79,9 +99,8 @@ const PORTAL_PREVIEW_PLACEHOLDER_COLOR = "#3aa0ff";
 const HOSTED_POINT_POLL_MS = 750;
 // Matches three.js's own HOSTED_POINT_RELOAD_MS (portal-render-controller.mjs) — this poll is for
 // the player's real, primary/active world, not a background preview, so it gets the same tighter
-// interval that module already uses. No PNG-encoding cost to throttle against here (unlike the
-// portal-preview capture path — see x3dom-portal-renderer.mjs's DEFAULT_CAPTURE_INTERVAL_MS
-// history), just a cheap JSON read plus box/sphere position-and-color sync.
+// interval that module already uses. No PNG-encoding cost to throttle against here (there never
+// was, on this poll specifically), just a cheap JSON read plus box/sphere position-and-color sync.
 const ACTIVE_HOSTED_POINT_POLL_MS = 100;
 // Matches three.js's own MIN_PROJECTED_PORTAL_AREA_DEVICE_PX (portal-spatial-preview.mjs, not
 // exported — restated here) — an intentionally low bar ("on screen at all, however small") rather
@@ -92,6 +111,15 @@ const MIN_PROJECTED_PORTAL_AREA_DEVICE_PX = 16;
 // Matches three.js's own RADIAL_CLIP_PLANE_COUNT (portal-spatial-preview.mjs, not exported —
 // restated here, same convention as the constants above).
 const RADIAL_CLIP_PLANE_COUNT = 20;
+// Where each portal's destination content gets staged within the SHARED main scene — far enough
+// past the main viewpoint's explicit zFar (300, see web/index.html) that it's genuinely clipped
+// from the player's own view (confirmed via spike-run-rendered-texture-zfar-check.mjs), not just
+// "usually out of frame." Spaced per portal by index purely for debuggability (each RenderedTexture
+// only ever renders its OWN scene-field-referenced subtree — see createRenderedTexture()'s own
+// comment — so distinct offsets aren't required for correctness, only to keep staged content from
+// visually coinciding if ever inspected directly).
+const STAGING_OFFSET_BASE_M = 2000;
+const STAGING_OFFSET_SPACING_M = 200;
 
 function portalFrameMatrix(frame) {
     const right = Array.isArray(frame.right) ? frame.right : [1, 0, 0];
@@ -189,13 +217,21 @@ function projectedApertureAreaPx(adapter, frame) {
     return clippedWidth * clippedHeight;
 }
 
-export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x3dom, log = () => { } }) {
+// Adds `offset` (a staging-group translation) onto a destination-local vector, needed everywhere
+// a value computed in the destination content's own local coordinate frame (clip-plane centers,
+// glueCameraThroughFrames() output, a content-kind's own default camera pose) gets written onto a
+// RenderedTexture's viewpoint — which resolves position/orientation directly, with NO ancestor-
+// transform composition (confirmed in Stage 0: createRenderedTexture()'s `scene` field takes the
+// getViewMatrix() branch that skips it entirely — see that primitive's own comment) — so it must
+// already be expressed in the SAME world-space frame the staging group's translation puts the
+// actual destination content into.
+function withStagingOffset(vec3, offset) {
+    return addScaled3(vec3, offset, 1);
+}
+
+export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, log = () => { } }) {
     let worldContentGroup = null;
     let portalGroup = null;
-    // x3dom is optional (every current call site passes it, but this keeps older/lighter-weight
-    // callers — e.g. any future test harness that only cares about world/aperture geometry —
-    // working without also standing up a live preview).
-    const portalRenderer = x3dom ? new X3DOMPortalRenderer(x3dom) : null;
     let previewRecords = [];
     let activeHostedGroup = null;
     let activeHostedMeshes = new Map();
@@ -223,10 +259,10 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
                 log(`[x3dom-portal-glue] failed to dispose portal preview content: ${err && err.message}`);
             }
             try {
-                portalRenderer.dispose(record.destAdapter);
+                adapter.disposeNode(record.stagingGroup);
             }
             catch (err) {
-                log(`[x3dom-portal-glue] failed to dispose portal preview: ${err && err.message}`);
+                log(`[x3dom-portal-glue] failed to dispose portal preview staging group: ${err && err.message}`);
             }
         }
     }
@@ -249,42 +285,48 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     // preview setup (boot + each crossing), not per frame — the awareness volume is anchored to the
     // portal's own fixed position, not the live camera.
     //
-    // Inserted BEFORE any destination content is mounted (called from setupPortalPreview() ahead of
-    // the content-kind branch), since X3D's ClipPlane scoping is traversal-order sensitive — it
-    // affects geometry that comes after it among its siblings, not geometry that precedes it.
+    // Mounted as children of `record.stagingGroup` — NOT of the shared `adapter.sceneRoot` — and
+    // deliberately using the volume's LOCAL (un-offset) center/forward, matching ordinary X3D
+    // transform-hierarchy semantics (a ClipPlane nested under a Transform is expressed in that
+    // Transform's own local space, same as any geometry node). This keeps the clip volume's scope
+    // structurally bounded to only this portal's own staged subtree — it can never affect sibling
+    // content elsewhere in the shared main scene, regardless of whether the `plane` field's
+    // coordinate-space semantics turned out to be local or world (verified live via screenshot, see
+    // Stage 2's verification notes — a wrong guess here would show up as a mis-clipped preview, not
+    // a leak into the real player-visible scene). Inserted BEFORE any destination content is
+    // mounted (called from setupPortalPreview() ahead of the content-kind branch), since X3D's
+    // ClipPlane scoping is traversal-order sensitive — it affects geometry that comes after it
+    // among its siblings, not geometry that precedes it.
     function mountAwarenessClipPlanes(record, portal) {
         const volume = portalAwarenessVolume(null, portal);
         if (!volume.valid)
             return;
         const center = volume.center;
         const forward = normalizeVec3(volume.forward, [0, 0, 1]);
-        const forwardPlane = record.destAdapter.createClipPlane({
+        const forwardPlane = adapter.createClipPlane({
             normal: forward,
             constant: -dot3(forward, center) + volume.plane_setback_m,
         });
-        record.destAdapter.add(record.destAdapter.sceneRoot, forwardPlane);
+        adapter.add(record.stagingGroup, forwardPlane);
         for (let index = 0; index < RADIAL_CLIP_PLANE_COUNT; index += 1) {
             const y = 1 - (index / (RADIAL_CLIP_PLANE_COUNT - 1)) * 2;
             const radial = Math.sqrt(Math.max(0, 1 - y * y));
             const theta = index * Math.PI * (3 - Math.sqrt(5));
             const outward = [Math.cos(theta) * radial, y, Math.sin(theta) * radial];
-            const plane = record.destAdapter.createClipPlane({
+            const plane = adapter.createClipPlane({
                 normal: [-outward[0], -outward[1], -outward[2]],
                 constant: dot3(outward, center) + volume.radius_m,
             });
-            record.destAdapter.add(record.destAdapter.sceneRoot, plane);
+            adapter.add(record.stagingGroup, plane);
         }
     }
 
     function applyPlaceholderContent(record, portal) {
-        const destCamera = record.destAdapter.createPerspectiveCamera({ fov: 55, near: 0.1, far: 30 });
-        record.destAdapter.sceneRoot.appendChild(destCamera);
-        record.destAdapter.setCameraPose(destCamera, { position: [0, 1.6, 5], lookAt: [0, 1.2, 0] });
-        mountCanonicalWorldContent(record.destAdapter, record.destAdapter.sceneRoot, {
+        mountCanonicalWorldContent(adapter, record.stagingGroup, {
             location_id: portal.target_location_id || null,
             color: PORTAL_PREVIEW_PLACEHOLDER_COLOR,
         });
-        record.destCamera = destCamera;
+        setInitialViewpointPose(record, [0, 1.6, 5], [0, 1.2, 0]);
         record.contentKind = "placeholder";
     }
 
@@ -295,22 +337,18 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     // via this glue's own poll timer (see the header comment on why a poll timer, not a passive
     // subscription).
     function applyLegacyWorldContent(record, content) {
-        const destCamera = record.destAdapter.createPerspectiveCamera({ fov: 55, near: 0.1, far: 30 });
-        record.destAdapter.sceneRoot.appendChild(destCamera);
-        record.destAdapter.setCameraPose(destCamera, { position: [0, 1.6, 5], lookAt: [0, 1.2, 0] });
-        record.destCamera = destCamera;
-
-        mountCanonicalWorldContent(record.destAdapter, record.destAdapter.sceneRoot, content.world);
+        setInitialViewpointPose(record, [0, 1.6, 5], [0, 1.2, 0]);
+        mountCanonicalWorldContent(adapter, record.stagingGroup, content.world);
         const hostedMeshes = new Map();
-        const hostedGroup = record.destAdapter.createGroup("x3dom-portal-preview-hosted-objects");
-        record.destAdapter.add(record.destAdapter.sceneRoot, hostedGroup);
+        const hostedGroup = adapter.createGroup("x3dom-portal-preview-hosted-objects");
+        adapter.add(record.stagingGroup, hostedGroup);
         let hostedPointVersion = null;
         const applyHostedPoint = (attachPoint) => {
             if (!attachPoint || attachPoint.version === hostedPointVersion)
                 return;
             hostedPointVersion = attachPoint.version;
             syncHostedSceneObjectMeshesX3dom({
-                adapter: record.destAdapter,
+                adapter,
                 meshes: hostedMeshes,
                 parent: hostedGroup,
                 objects: attachPoint.value?.objects || [],
@@ -329,7 +367,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
             unsubscribe?.();
             if (pollHandle != null)
                 clearInterval(pollHandle);
-            disposeHostedSceneObjectMeshesX3dom(record.destAdapter, hostedMeshes);
+            disposeHostedSceneObjectMeshesX3dom(adapter, hostedMeshes);
         };
         record.contentKind = "legacy_world";
         record.hostedGroup = hostedGroup;
@@ -338,37 +376,99 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     // authored_wow_graph destinations — only the airport today (reachable via location-lobby's
     // third portal). buildWowScene is genuinely engine-agnostic (only calls A.createGroup/
     // createMesh/createGeometry/add/etc., all implemented on X3DOMRenderAdapter) and, critically,
-    // builds directly onto whatever `A.sceneRoot` the passed createAdapter() factory returns — so
-    // the factory here must return the ALREADY-MOUNTED destination adapter, not a fresh instance
-    // (X3DOMRenderAdapter.sceneRoot is null until mount()/attach() runs; three.js's own equivalent
-    // factory gets away with `() => new ThreeRenderAdapter(THREE)` only because THREE.Scene() works
-    // standalone). mountAirportTerminalContentX3dom (x3dom-airport-terminal-scene.mjs) mounts the
-    // real terminal geometry on top of buildWowScene's own root, same order three.js's own
-    // portal-preview path uses (buildWowScene, then mountAirportTerminalContent on the same
-    // `built`) — buildWowScene's generic floor/grid/lights stay as-is underneath, matching what
-    // the live three.js path already tolerates (hideStageDebugVisuals only hides GridHelper/gizmo
-    // markers, never the generic floor). Stage 1 of X3DOM airport parity — still does NOT call
-    // mountWowSceneAssets (real glTF asset loading for NPC/staff avatars) or the entity-runtime
-    // manifest cards; those are staged as separate follow-ons, not attempted here.
+    // builds directly onto whatever `A.sceneRoot` the passed createAdapter() factory returns —
+    // which must be `record.stagingGroup`, not the shared adapter's real sceneRoot. Since
+    // buildWowScene is the one call in this file that reads `.sceneRoot` internally rather than
+    // taking an explicit parent param (unlike mountCanonicalWorldContent/
+    // mountAirportTerminalContentX3dom below, both of which do), `stagingView` is a minimal
+    // prototype-delegating proxy: every method call (createGroup/createMesh/add/...) falls through
+    // to the real `adapter` via the JS prototype chain, but its OWN `sceneRoot` getter is shadowed
+    // to return the staging group instead — cheaper and less invasive than teaching buildWowScene
+    // (shared with the three.js path) about an explicit mount point it doesn't otherwise need.
+    // mountAirportTerminalContentX3dom (x3dom-airport-terminal-scene.mjs) mounts the real terminal
+    // geometry on top of buildWowScene's own root, same order three.js's own portal-preview path
+    // uses (buildWowScene, then mountAirportTerminalContent on the same `built`) — buildWowScene's
+    // generic floor/grid/lights stay as-is underneath, matching what the live three.js path already
+    // tolerates (hideStageDebugVisuals only hides GridHelper/gizmo markers, never the generic
+    // floor). Stage 1 of X3DOM airport parity — still does NOT call mountWowSceneAssets (real glTF
+    // asset loading for NPC/staff avatars) or the entity-runtime manifest cards; those are staged
+    // as separate follow-ons, not attempted here.
     function applyAuthoredGraphContent(record, content) {
-        const built = buildWowScene(content.graph, () => record.destAdapter, {
+        const stagingView = Object.create(adapter);
+        Object.defineProperty(stagingView, "sceneRoot", { get: () => record.stagingGroup });
+        const built = buildWowScene(content.graph, () => stagingView, {
             width: PORTAL_PREVIEW_SIZE_PX,
             height: PORTAL_PREVIEW_SIZE_PX,
             source: "portal_preview_x3dom_authored_wow_graph",
         });
-        record.destAdapter.add(record.destAdapter.sceneRoot, built.camera);
-        record.destCamera = built.camera;
-        record.disposeContent = null;
+        // buildWowScene builds its own default framing-shot <viewpoint> (built.camera), picked from
+        // the graph's own bounds — reused here purely as a source of pose data for the
+        // RenderedTexture's own viewpoint (position offset into the staging area; orientation
+        // copied as-is, since a rotation isn't affected by translation), then discarded: nothing
+        // renders through built.camera independently anymore.
+        const [px, py, pz] = (built.camera.getAttribute("position") || "0 0 0").trim().split(/\s+/).map(Number);
+        const worldPosition = withStagingOffset([px, py, pz], record.stagingOffset);
+        record.rt.viewpoint.setAttribute("position", worldPosition.join(" "));
+        record.rt.viewpoint.setAttribute("orientation", built.camera.getAttribute("orientation") || "0 0 1 0");
         record.contentKind = "authored_wow_graph";
-        mountAirportTerminalContentX3dom(content.graph, record.destAdapter, { parent: record.destAdapter.sceneRoot, document });
+        mountAirportTerminalContentX3dom(content.graph, adapter, { parent: record.stagingGroup, document });
     }
 
-    async function setupPortalPreview(portal, material) {
-        const destAdapter = portalRenderer.createDestinationAdapter({ width: PORTAL_PREVIEW_SIZE_PX, height: PORTAL_PREVIEW_SIZE_PX });
-        const record = { destAdapter, destCamera: null, material, portal, busy: false, disposed: false, disposeContent: null };
+    // Sets the RenderedTexture viewpoint's initial pose (before any real crossing-based camera glue
+    // takes over — see updateCameraGlue below) from a position/lookAt pair expressed in the
+    // destination content's own LOCAL coordinates, offsetting into the staging area first.
+    function setInitialViewpointPose(record, position, lookAt) {
+        adapter.setCameraPose(record.rt.viewpoint, {
+            position: withStagingOffset(position, record.stagingOffset),
+            lookAt: withStagingOffset(lookAt, record.stagingOffset),
+        });
+    }
+
+    async function setupPortalPreview(portal, material, index) {
+        const stagingOffset = [STAGING_OFFSET_BASE_M + index * STAGING_OFFSET_SPACING_M, 0, 0];
+        // The `def` attribute here is purely for debuggability (matches previewDebugState()'s
+        // debug hooks and live DOM inspection) — the RenderedTexture's `scene` field is bound via a
+        // direct node-reference assignment below (bindRenderedTextureScene()), NOT DOM DEF/USE.
+        const stagingDefName = `x3dom-portal-staging-${index}`;
+        const stagingGroup = adapter.createGroup(stagingDefName);
+        stagingGroup.setAttribute("def", stagingDefName);
+        adapter.setPosition(stagingGroup, stagingOffset[0], stagingOffset[1], stagingOffset[2]);
+        adapter.add(adapter.sceneRoot, stagingGroup);
+
+        // Created up front, before any destination content exists — the aperture gets a live
+        // RenderedTexture handle from the start, the same shape the old architecture had (a
+        // destination adapter created+readied first, populated once content resolved), just with
+        // no separate document/context to wait on. Starts at update="none", NOT "always": until
+        // bindRenderedTextureScene() below completes, the `scene` field is unset, which falls back
+        // to rendering the MAIN scene (including the consuming aperture itself) — a real,
+        // confirmed-live `GL_INVALID_OPERATION: Feedback loop formed between Framebuffer and active
+        // Texture` during that window when this defaulted to "always". Flipped to "always" only
+        // once binding actually succeeds.
+        const rt = adapter.createRenderedTexture({
+            dimensions: [PORTAL_PREVIEW_SIZE_PX, PORTAL_PREVIEW_SIZE_PX, 4],
+            update: "none",
+        });
+        material.appearanceEl.appendChild(rt.el);
+
+        const record = {
+            stagingGroup, stagingOffset, stagingDefName, rt, updateMode: "none",
+            material, portal, disposed: false, disposeContent: null, contentKind: null, hostedGroup: null,
+        };
         previewRecords.push(record);
         try {
-            await destAdapter.ready();
+            // Must complete before this RT is allowed to render at all — an unbound `scene` field
+            // falls back to rendering the MAIN scene (see createRenderedTexture()'s own comment on
+            // why the DOM USE/DEF path was replaced, and the update="none" comment just above).
+            try {
+                await adapter.bindRenderedTextureScene(rt, stagingGroup);
+                if (record.disposed)
+                    return;
+                rt.el.setAttribute("update", "always");
+                record.updateMode = "always";
+            }
+            catch (err) {
+                log(`[x3dom-portal-glue] bindRenderedTextureScene failed for portal preview ${index}: ${err && err.message}`);
+            }
             if (record.disposed)
                 return;
             mountAwarenessClipPlanes(record, portal);
@@ -398,6 +498,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         clearGroup(portalGroup);
         portalGroup = adapter.createGroup("x3dom-portal-apertures");
         adapter.add(adapter.sceneRoot, portalGroup);
+        let previewIndex = 0;
         for (const portal of worldPortals(liveAdapter.world)) {
             const frame = portal && portal.frame;
             if (!frame || !Array.isArray(frame.position))
@@ -411,8 +512,8 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
             const mesh = adapter.createMesh(geometry, material);
             adapter.setLocalMatrix(mesh, portalFrameMatrix(frame));
             adapter.add(portalGroup, mesh);
-            if (portalRenderer)
-                setupPortalPreview(portal, material);
+            setupPortalPreview(portal, material, previewIndex);
+            previewIndex += 1;
 
             // Decorative frame, matching three.js's own dest-portal-ring (portal-spatial-preview.mjs)
             // — a glowing emissive torus around the aperture, colored per destination world.
@@ -431,17 +532,17 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         }
     }
 
-    // Glues the destination camera to the main camera's REAL pose every tick, via
+    // Glues the RenderedTexture's own viewpoint to the main camera's REAL pose every tick, via
     // glueCameraThroughFrames (live-adapter-portal-geometry.mjs — genuinely pure vector math, no
-    // engine coupling, the same function the three.js path uses for its own camera gluing). Gives
-    // real walk-past parallax through the aperture. Deliberately does NOT attempt three.js's
-    // pixel-perfect on-screen crop (THREE.Camera.setViewOffset + a custom crop shader sampling a
-    // live render-target texture) — X3DOM exposes no live render-target texture to crop in a
-    // shader, only getScreenshot()'s data: URI snapshot, so there's no raw texture to crop against.
-    // The aperture shows the destination camera's whole view mapped onto the captured texture,
-    // now correctly parallaxing as the player moves, not a pixel-accurate window.
+    // engine coupling, the same function the three.js path uses for its own camera gluing), offset
+    // into the staging area. Gives real walk-past parallax through the aperture. Deliberately does
+    // NOT attempt three.js's pixel-perfect on-screen crop (THREE.Camera.setViewOffset + a custom
+    // crop shader sampling a live render-target texture) — RenderedTexture has no equivalent
+    // viewport-offset field to reach for the same trick with. The aperture shows the destination
+    // viewpoint's whole view mapped onto the texture, correctly parallaxing as the player moves,
+    // not a pixel-accurate window.
     function updateCameraGlue(record) {
-        if (!record.destCamera || !record.portal?.frame || !record.portal?.target_frame)
+        if (!record.portal?.frame || !record.portal?.target_frame)
             return;
         const pose = camera.currentPose();
         if (!pose)
@@ -451,18 +552,20 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
         if (!glued)
             return;
         const lookAt = addScaled3(glued.position, glued.forward, 2.5);
-        record.destAdapter.setCameraPose(record.destCamera, { position: glued.position, lookAt });
+        adapter.setCameraPose(record.rt.viewpoint, {
+            position: withStagingOffset(glued.position, record.stagingOffset),
+            lookAt: withStagingOffset(lookAt, record.stagingOffset),
+        });
     }
 
-    // Proximity/visibility gating: skips both camera-gluing and capture()/getScreenshot() entirely
-    // when the portal aperture isn't visible enough to matter (three.js's own gate is purely
-    // geometric/on-screen too, not real-world distance — see projectedApertureAreaPx's header
-    // comment). Real, meaningful savings: without this, a hidden host keeps polling
-    // getScreenshot() at ~10fps regardless of whether the player is even looking anywhere near the
-    // portal. NOT full parity with three.js's render-target approach, though: X3DOM has no adapter
-    // method to pause a mounted <x3d> host's own underlying render loop, so the hidden scene keeps
-    // rendering internally regardless — this only stops the wasteful polling/compositing step on
-    // top of that, a real but partial saving, stated plainly rather than implied away.
+    // Proximity/visibility gating: skips camera-gluing AND flips the RenderedTexture's own `update`
+    // field to "none" (genuinely pausing that portal's destination render pass — confirmed via
+    // x3dom-full.js's renderRTPass(), which returns immediately for update="none") whenever the
+    // aperture isn't visible enough to matter (three.js's own gate is purely geometric/on-screen
+    // too, not real-world distance — see projectedApertureAreaPx's header comment). A genuine
+    // capability improvement over the old hidden-host architecture, which had no adapter method to
+    // pause a mounted <x3d> host's own render loop and kept rendering internally regardless of
+    // gating — stated at the time as a partial, not full, saving. RenderedTexture closes that gap.
     function isPreviewEligible(record) {
         if (!record.portal?.frame)
             return true; // no frame to test against — fail open rather than silently going dark
@@ -470,27 +573,18 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     }
 
     function tick() {
-        if (!portalRenderer)
-            return;
         for (const record of previewRecords) {
-            if (record.disposed || !record.destCamera)
+            if (record.disposed || !record.rt)
                 continue;
-            if (!isPreviewEligible(record))
+            const eligible = isPreviewEligible(record);
+            const desiredUpdateMode = eligible ? "always" : "none";
+            if (record.updateMode !== desiredUpdateMode) {
+                record.rt.el.setAttribute("update", desiredUpdateMode);
+                record.updateMode = desiredUpdateMode;
+            }
+            if (!eligible)
                 continue;
             updateCameraGlue(record);
-            if (record.busy)
-                continue;
-            record.busy = true;
-            record.captureAttempts = (record.captureAttempts || 0) + 1;
-            portalRenderer.capture(record.destAdapter, record.destCamera, PORTAL_PREVIEW_SIZE_PX, PORTAL_PREVIEW_SIZE_PX, adapter)
-                .then((result) => {
-                if (record.disposed)
-                    return;
-                if (!record.material.appearanceEl.contains(result.texture.el))
-                    record.material.appearanceEl.appendChild(result.texture.el);
-            })
-                .catch((err) => log(`[x3dom-portal-glue] portal preview capture failed: ${err && err.message}`))
-                .finally(() => { record.busy = false; });
         }
     }
 
@@ -514,9 +608,13 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
             version: attachPoint.version,
             // Real WoW-negotiated asset representations for the ACTIVE world's own hosted objects
             // only — portal-preview destinations (applyHostedPoint above) stay on synthetic
-            // geometry: X3DOM's <Inline> only reliably loads when seeded in the page's original
-            // static parse (x3dom-inline-pool.js), and the hidden destination host is created
-            // entirely dynamically at runtime, so Inline-based loading isn't safely usable there.
+            // geometry. Originally because the destination content lived in a fully separate
+            // document with no pre-seeded Inline pool at all; since the RenderedTexture rewrite,
+            // staged destination content shares the SAME document (and the same pool) as the
+            // active world, so that specific constraint no longer applies — this just hasn't been
+            // revisited to turn portal-preview hosted objects on too. A real, cheap follow-on if
+            // ever wanted, not attempted here (scope discipline, not a limitation of the new
+            // architecture).
             fetchWowRepresentation: true,
             wowAssetBaseUrl: liveAdapter.endpoint.proxy_base,
         });
@@ -597,7 +695,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     liveAdapter.addEventListener("crossing", handleCrossing);
 
     // For tests/diagnostics only — avatar/equipment glTF assets embed their own real
-    // <imagetexture> elements internally (baseColor/normal/etc. maps), so counting imagetexture
+    // <imagetexture> elements internally (baseColor/normal/etc. maps), so counting texture
     // elements anywhere in the document isn't a reliable signal of THIS preview mechanism
     // specifically; this reports on the actual preview records instead. Deliberately returns only
     // plain, JSON-serializable fields — a caller that does `page.evaluate(() =>
@@ -607,26 +705,28 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, x
     // `destSceneRoot` here directly and it silently broke an existing spike that returns this
     // array as-is). Use debugDestSceneRoot()/debugHostedGroup() below for DOM access instead,
     // always processed to plain data within the SAME evaluate() call before returning.
+    //
+    // `ready` means real destination content has been applied (contentKind set) — true from
+    // setupPortalPreview() creating the RenderedTexture immediately, before resolvePortalDestinationContent()
+    // resolves. `viewpointPosition` replaces the old architecture's `destCameraPosition` (same
+    // shape — a trimmed "x y z" string — just reading the RenderedTexture's own nested viewpoint
+    // instead of a separate destination adapter's camera). `updateMode`/`textureAttached` replace
+    // `capturedUrl`/`captureAttempts`: there's no discrete capture step anymore to count attempts
+    // of, so gating is verified directly via whether `update` is currently "always" or "none".
     function previewDebugState() {
         return previewRecords.map((record) => ({
-            ready: !!record.destCamera,
-            capturedUrl: record.material.appearanceEl.querySelector("imagetexture")?.getAttribute("url") || null,
+            ready: !!record.contentKind,
+            textureAttached: !!record.rt && record.material.appearanceEl.contains(record.rt.el),
+            updateMode: record.updateMode || null,
             contentKind: record.contentKind || null,
-            destCameraPosition: record.destCamera ? (record.destCamera.getAttribute("position") || "").trim() : null,
-            // A monotonically increasing counter of actual capture() calls (not skipped by
-            // gating) — a timing-independent signal for tests: unlike capturedUrl, which can stay
-            // byte-identical across ticks for legitimately static content (see the header comment
-            // on spike-run-x3dom-portal-preview.mjs), this always advances when a capture actually
-            // ran, so it can prove gating is/isn't suppressing captures without depending on
-            // content happening to change.
-            captureAttempts: record.captureAttempts || 0,
+            viewpointPosition: record.rt ? (record.rt.viewpoint.getAttribute("position") || "").trim() : null,
             eligible: record.portal?.frame ? isPreviewEligible(record) : null,
         }));
     }
 
     // For tests/diagnostics only — live DOM references. Must be walked/reduced to plain data
     // within the SAME page.evaluate() call that fetches them; never return them as-is.
-    function debugDestSceneRoot(index) { return previewRecords[index]?.destAdapter.sceneRoot || null; }
+    function debugDestSceneRoot(index) { return previewRecords[index]?.stagingGroup || null; }
     function debugHostedGroup(index) { return previewRecords[index]?.hostedGroup || null; }
 
     return {

@@ -1,24 +1,37 @@
-// Stage 0 of the RenderedTexture-replaces-screenshot-polling plan — a CORRECTED retry of the
-// earlier feasibility spike (_scratch-rendered-texture-feasibility.mjs), which hit a real
-// RangeError: Maximum call stack size exceeded traced to a genuine structural bug, not a false
-// alarm: excluding the whole consumer <transform> (via excludeNodes DEF/USE) is inherently
-// recursive, because that transform's own subtree (shape > appearance > renderedtexture) CONTAINS
-// the very USE reference doing the excluding — a true cycle, not just "referencing an ancestor"
-// (which excludeNodes must support in general, e.g. mirrors excluding their own frame). The fix:
-// exclude the GEOMETRY LEAF node specifically (a bare <plane>, no children of its own) instead of
-// the whole Transform/Shape/Appearance chain — referencing a leaf can't recurse into anything that
-// contains the RenderedTexture.
+// Stage 0 of the RenderedTexture-replaces-screenshot-polling plan — v3, built on a real root cause
+// found by reading x3dom-full.js's own renderRTPass()/getViewMatrix() directly (not guessed):
 //
-// Built via runtime DOM APIs throughout (document.createElement/appendChild), matching how this
-// app's real content is always constructed dynamically — not a static-markup baseline, which
-// wouldn't be representative of the real integration point in x3dom-portal-traversal-glue.mjs.
+// v2 (excludeNodes via DEF/USE on the consumer's geometry leaf) threw no error but never showed the
+// destination content (flat ~(10,11,12) reading, unchanged across samples). Tracing renderRTPass()
+// in the vendored source explains why, and reveals a BETTER mechanism than excludeNodes entirely:
 //
-// Tests, in the order the plan's Stage 0 requires:
-// (a) no feedback-loop GL error with excludeNodes referencing only the consumer's geometry leaf
-// (b) the aperture plane actually shows the destination content (not blank/background)
-// (c) update="always" gives genuinely continuous updates (sample multiple times, not just once)
-// (d) content built/swapped AFTER the RenderedTexture already exists (matching real per-crossing
-//     world changes) is picked up correctly — the "dynamically-created nodes are unreliable" risk
+//   var v = i._cf.scene.node;
+//   if (v && v !== r) { /* recollect drawables from v's OWN subtree, isolated from the main scene */ }
+//   else { /* reuse the MAIN scene's already-collected drawableCollection (includes the consumer!) */ }
+//
+// RenderedTexture has an SFNode `scene` field (X3DNode) — if set, the RT renders ONLY that
+// referenced subtree's drawables, never the main scene at all, so the consumer aperture is never in
+// the render regardless of excludeNodes. That's architecturally cleaner than excludeNodes (no
+// feedback-loop risk to manage at all) AND fixes a second bug excludeNodes-based v2 had: with `scene`
+// unset, getViewMatrix() composes the viewpoint's view matrix with `s.getCurrentTransform().inverse()`
+// — correct ONLY for a viewpoint truly embedded in the normal Transform hierarchy, but since our
+// nested <viewpoint> lives under <renderedtexture>/<appearance>/<shape>/<transform>, X3DOM's field-
+// parent walk picks up that enclosing consumer transform as an "ancestor" and wrongly offsets the
+// camera by it. With `scene` SET to something other than the main document scene, getViewMatrix()
+// takes a different branch (`r = s.getViewMatrix()` directly, no ancestor composition) — sidestepping
+// that bug too.
+//
+// The DOM-to-field binding for `scene` (X3DNode — matches literally anything) is ambiguous by node
+// type alone (a <transform> could just as easily bind to nothing/first-match), so this uses the
+// explicit `containerField` attribute (confirmed present in x3dom-full.js's setupTree: every child
+// element's containerField attribute is read and passed straight into addChild()) rather than relying
+// on type-based inference.
+//
+// Tests, matching the plan's Stage 0 order:
+// (a) no feedback-loop/GL error (this design has no exclusion cycle to trigger one in the first place)
+// (b) the aperture plane actually shows the destination content
+// (c) update="always" gives genuinely continuous updates (sampled, not just present once)
+// (d) content built/swapped AFTER the RenderedTexture already exists is picked up correctly
 import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -55,10 +68,11 @@ try {
     const adapter = window.__x3domLiveMode.adapter;
     const sceneRoot = adapter.sceneRoot;
 
-    // Destination content: a magenta box, a genuine SIBLING of the consumer (not nested inside
-    // it) — far from real scene content so anything captured unambiguously came from here.
-    const destBox = document.createElement("transform");
-    destBox.setAttribute("translation", "20 20 20");
+    // Destination subtree: a DEF'd transform containing a magenta box, far from real scene content —
+    // a genuine sibling of everything else, not nested inside the consumer.
+    const destGroup = document.createElement("transform");
+    destGroup.setAttribute("def", "rtDestGroup");
+    destGroup.setAttribute("translation", "20 20 20");
     const destShape = document.createElement("shape");
     const destAppearance = document.createElement("appearance");
     const destMaterial = document.createElement("material");
@@ -69,12 +83,12 @@ try {
     destGeom.setAttribute("size", "4 4 4");
     destShape.appendChild(destAppearance);
     destShape.appendChild(destGeom);
-    destBox.appendChild(destShape);
-    sceneRoot.appendChild(destBox);
+    destGroup.appendChild(destShape);
+    sceneRoot.appendChild(destGroup);
 
-    // Consumer: a visible plane in front of the main camera, textured with a RenderedTexture.
-    // The excluded node is the plane GEOMETRY ITSELF (a leaf, DEF'd), referenced via USE from
-    // inside the RenderedTexture — no recursive containment, unlike excluding the whole transform.
+    // Consumer: a visible plane in front of the main camera, textured with a RenderedTexture whose
+    // `scene` field (via containerField="scene") points at destGroup — NOT the whole main scene, so
+    // the consumer itself is architecturally never part of what gets rendered into the texture.
     const consumerTransform = document.createElement("transform");
     consumerTransform.setAttribute("translation", "0 1.5 -3");
     const consumerShape = document.createElement("shape");
@@ -86,43 +100,46 @@ try {
     const renderedTexture = document.createElement("renderedtexture");
     renderedTexture.setAttribute("dimensions", "128 128 4");
     renderedTexture.setAttribute("update", "always");
+
     const rtViewpoint = document.createElement("viewpoint");
+    rtViewpoint.setAttribute("containerField", "viewpoint");
     rtViewpoint.setAttribute("position", "20 20 25");
     rtViewpoint.setAttribute("orientation", "0 0 1 0");
-    rtViewpoint.setAttribute("fieldofview", "0.8");
+    rtViewpoint.setAttribute("fieldOfView", "0.8");
     renderedTexture.appendChild(rtViewpoint);
-    consumerAppearance.appendChild(renderedTexture);
 
+    const sceneRef = document.createElement("transform");
+    sceneRef.setAttribute("containerField", "scene");
+    sceneRef.setAttribute("use", "rtDestGroup");
+    renderedTexture.appendChild(sceneRef);
+
+    consumerAppearance.appendChild(renderedTexture);
     const consumerGeom = document.createElement("plane");
-    consumerGeom.setAttribute("def", "rtConsumerGeom");
     consumerGeom.setAttribute("size", "2 2");
     consumerShape.appendChild(consumerAppearance);
     consumerShape.appendChild(consumerGeom);
     consumerTransform.appendChild(consumerShape);
     sceneRoot.appendChild(consumerTransform);
 
-    // Leaf-only exclusion (the fix this file's header describes): reference the consumer's bare
-    // geometry leaf via USE, not the whole Transform/Shape/Appearance chain that contains the
-    // RenderedTexture itself — a leaf has no children to recurse into.
-    const excludeRef = document.createElement("plane");
-    excludeRef.setAttribute("use", "rtConsumerGeom");
-    renderedTexture.appendChild(excludeRef);
-
-    window.__rtFeasibility = { destMaterial, destBox, renderedTexture, rtViewpoint };
+    window.__rtFeasibility = { destMaterial, destGroup, renderedTexture, rtViewpoint };
+    return { added: true };
   });
 
+  // Diag read as a SEPARATE round trip (not in the same evaluate() as construction above) —
+  // MutationObserver callbacks that register the new nodes with X3DOM run as a microtask, not
+  // synchronously within the script that appended them; reading _x3domNode immediately in the same
+  // evaluate() call sees pre-registration state (confirmed empirically: first attempt read all
+  // fields as false/0 despite construction succeeding).
+  await new Promise((r) => setTimeout(r, 300));
   const diag = await page.evaluate(() => {
-    const { renderedTexture, rtViewpoint } = window.__rtFeasibility;
-    const rt = renderedTexture._x3domNode || renderedTexture._xmlNode?._x3domNode || null;
+    const { renderedTexture } = window.__rtFeasibility;
+    const rtNode = renderedTexture._x3domNode;
     return {
-      hasXmlNode: !!renderedTexture._xmlNode,
-      hasX3domNodeDirect: !!renderedTexture._x3domNode,
-      constructorName: renderedTexture.constructor?.name,
-      // X3DOM typically stashes the live node instance on `._x3domNode` once registered — dump
-      // whatever's actually there, plus check the doc's own renderTextures bag directly.
+      hasX3domNode: !!rtNode,
+      sceneFieldNode: !!rtNode && !!rtNode._cf.scene.node,
+      sceneFieldIsMainScene: !!rtNode && rtNode._cf.scene.node === rtNode._nameSpace.doc._scene,
+      viewpointFieldNode: !!rtNode && !!rtNode._cf.viewpoint.node,
       nodeBagCount: window.x3dom?.canvases?.[0]?.doc?._nodeBag?.renderTextures?.length ?? null,
-      viewpointHasX3domNode: !!rtViewpoint._x3domNode,
-      rtOuterHTML: renderedTexture.outerHTML?.slice(0, 300),
     };
   });
   console.log("DIAG:", JSON.stringify(diag, null, 2));
@@ -150,9 +167,7 @@ try {
   // magenta destination content.
   const sample1 = await sampleCenterPixel();
 
-  // (c) continuous live updates: sample repeatedly, un-changed content, to see whether the texture
-  // is a live GPU render (should be byte/color identical across samples for STATIC content — the
-  // real liveness proof is (d) below, changing content) vs check it isn't just a one-shot blank.
+  // (c) continuous live updates: sample again with unchanged content.
   await new Promise((r) => setTimeout(r, 500));
   const sample2 = await sampleCenterPixel();
 
@@ -165,11 +180,12 @@ try {
   await new Promise((r) => setTimeout(r, 1000));
   const sample3 = await sampleCenterPixel();
 
-  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v2.png") });
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v3.png") });
 
   const magentaish = (c) => c[0] > 120 && c[2] > 120 && c[1] < 120;
   const yellowGreenish = (c) => c[0] > 120 && c[1] > 120 && c[2] < 120;
   const result = {
+    diag,
     noFeedbackLoopOrErrors: errors.length === 0,
     rendersDestinationContent: magentaish(sample1),
     stableBeforeSwap: magentaish(sample2),
@@ -178,7 +194,7 @@ try {
     errors,
   };
   result.ok = result.noFeedbackLoopOrErrors && result.rendersDestinationContent && result.stableBeforeSwap && result.dynamicSwapPickedUp;
-  writeFileSync(join(OUT_DIR, "rt-feasibility-v2.json"), JSON.stringify(result, null, 2));
+  writeFileSync(join(OUT_DIR, "rt-feasibility-v3.json"), JSON.stringify(result, null, 2));
   console.log("RESULT:", JSON.stringify(result, null, 2));
   if (!result.ok) process.exitCode = 1;
 } catch (err) {

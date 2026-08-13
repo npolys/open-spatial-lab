@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stage 1/2: X3DOMRenderAdapter.createRenderedTexture() + bindRenderedTextureScene() (adapter primitive, not raw DOM)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Same isolated-page shape as the Stage 0 feasibility spike (spike-x3dom-rendered-texture-v2.html)
+     — no competing per-frame camera logic — but this one exercises the real adapter primitives
+     (createRenderedTexture() + bindRenderedTextureScene()) instead of hand-building the DOM
+     directly, proving the primitives themselves work end to end. bindRenderedTextureScene() (not
+     a DOM DEF/USE reference) is the mechanism as of the real-app black-aperture investigation — see
+     x3dom-render-adapter.mjs's own comment on why. -->
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(document.getElementById('mount'), { width: 1024, height: 768 });
+  await adapter.ready();
+  append('adapter ready');
+
+  const sceneRoot = adapter.sceneRoot;
+
+  // Destination content, staged far from the origin (matching x3dom-portal-traversal-glue.mjs's
+  // real STAGING_OFFSET_BASE_M) and lit via ambient+directional lights only (matching
+  // mountCanonicalWorldContent's real walls/floor) — not a self-lit/emissive material — to prove
+  // lights mounted INSIDE the referenced subtree actually reach the RenderedTexture's own isolated
+  // render pass, not just self-lit geometry.
+  const destGroup = adapter.createGroup('rtDestGroup');
+  adapter.setPosition(destGroup, 2000, 0, 0);
+  const destMaterial = adapter.createMaterial({ type: 'standard', color: '#ff00ff' });
+  const destMesh = adapter.createMesh(adapter.createGeometry({ type: 'box', width: 4, height: 4, depth: 4 }), destMaterial);
+  adapter.add(destGroup, destMesh);
+  adapter.add(destGroup, adapter.createAmbientLight({ intensity: 0.75 }));
+  adapter.add(destGroup, adapter.createDirectionalLight({ intensity: 0.9, position: [1, 1, 1] }));
+  adapter.add(sceneRoot, destGroup);
+
+  // Consumer: a plane at the origin, textured via the adapter's createRenderedTexture() primitive,
+  // with the SAME transparency/opacity/double-sided material shape as the real portal aperture
+  // (PORTAL_APERTURE_MATERIAL) — not a plain opaque white material.
+  const rt = adapter.createRenderedTexture({ dimensions: [128, 128, 4], update: 'always' });
+  adapter.setCameraPose(rt.viewpoint, { position: [1994, 0, 0], lookAt: [2000, 0, 0] });
+  const consumerMaterial = adapter.createMaterial({ type: 'standard', color: '#8fd4ff', opacity: 0.55, transparent: true, side: 'double', map: rt });
+  const consumerMesh = adapter.createMesh(adapter.createGeometry({ type: 'plane', width: 3, height: 3 }), consumerMaterial);
+  adapter.add(sceneRoot, consumerMesh);
+  await adapter.bindRenderedTextureScene(rt, destGroup);
+  append('scene bound');
+
+  // Camera: no competing per-frame logic on this page, so this sticks.
+  adapter.setCameraPose(adapter.camera, { position: [0, 0, 5], lookAt: [0, 0, 0] });
+
+  window.__rtAdapterTest = { adapter, destMaterial, destGroup, rt };
+  document.getElementById('status').textContent = 'setup complete';
+
+  function sampleCenterPixel() {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    const region = ctx.getImageData(cx - 20, cy - 20, 40, 40).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+
+  await new Promise((r) => setTimeout(r, 1500));
+  const sample1 = sampleCenterPixel();
+  append('sample1: ' + JSON.stringify(sample1));
+
+  await new Promise((r) => setTimeout(r, 500));
+  const sample2 = sampleCenterPixel();
+  append('sample2: ' + JSON.stringify(sample2));
+
+  destMaterial.materialEl.setAttribute('diffuseColor', '0.8 1 0');
+  await new Promise((r) => setTimeout(r, 1000));
+  const sample3 = sampleCenterPixel();
+  append('sample3 (color swap): ' + JSON.stringify(sample3));
+
+  // Brand-new node appended to the destination subtree after the RenderedTexture is already live and
+  // bound — the harder Stage 0 case, re-verified through the adapter primitive.
+  adapter.remove(destGroup, destMesh);
+  const newMesh = adapter.createMesh(adapter.createGeometry({ type: 'sphere', radius: 2 }), adapter.createMaterial({ type: 'standard', color: '#00ffff' }));
+  adapter.add(destGroup, newMesh);
+  await new Promise((r) => setTimeout(r, 1000));
+  const sample4 = sampleCenterPixel();
+  append('sample4 (brand-new node post-RT creation): ' + JSON.stringify(sample4));
+
+  // Lit (ambient 0.75 + directional 0.9 + double-sided transparent consumer material), not
+  // self-lit/emissive — thresholds are lower than a pure-255 emissive check would need, still
+  // clearly distinguishing hue.
+  const magentaish = (c) => c[0] > 60 && c[2] > 60 && c[1] < c[0] * 0.6 && c[1] < c[2] * 0.6;
+  const yellowGreenish = (c) => c[0] > 60 && c[1] > 60 && c[2] < c[0] * 0.6 && c[2] < c[1] * 0.6;
+  const cyanish = (c) => c[1] > 60 && c[2] > 60 && c[0] < c[1] * 0.6 && c[0] < c[2] * 0.6;
+  const result = {
+    rendersDestinationContent: magentaish(sample1),
+    stableBeforeSwap: magentaish(sample2),
+    dynamicSwapPickedUp: yellowGreenish(sample3),
+    newNodePostRTCreationPickedUp: cyanish(sample4),
+    sample1, sample2, sample3, sample4,
+  };
+  result.ok = result.rendersDestinationContent && result.stableBeforeSwap && result.dynamicSwapPickedUp
+    && result.newNodePostRTCreationPickedUp;
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

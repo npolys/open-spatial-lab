@@ -1,0 +1,8 @@
+{
+  "idleFps": 1.8349970640062023,
+  "nearPortalFps": 5.350975336874042,
+  "errors": [
+    "console: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "console: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

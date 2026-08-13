@@ -618,9 +618,25 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         const appearanceEl = document.createElement("appearance");
         appearanceEl.appendChild(materialEl);
         if (desc.map) {
-            if (desc.map.kind !== "x3d-canvas-texture" && desc.map.kind !== "x3d-url-texture")
-                throw new Error('X3DOMRenderAdapter.createMaterial: "map" must be a handle from createCanvasTexture() or createUrlTexture()');
+            const validMapKinds = ["x3d-canvas-texture", "x3d-rendered-texture"];
+            if (!validMapKinds.includes(desc.map.kind))
+                throw new Error('X3DOMRenderAdapter.createMaterial: "map" must be a handle from createCanvasTexture() or createRenderedTexture()');
             appearanceEl.appendChild(desc.map.el);
+            // RenderedTexture's own `flipY` field, combined with a <TextureProperties> child on
+            // the SAME element (needed for smooth filtering — see createRenderedTexture()'s own
+            // comment), was confirmed live to break unrelated rendering elsewhere in the document
+            // (the avatar's own diffuse-mapped body went fully invisible; equipment items using
+            // vertex-color-only materials were unaffected — consistent with, though not conclusively
+            // isolated to, some shared texture-pipeline state corrupted by that specific
+            // combination). Flipping via a <TextureTransform> on the CONSUMING material instead
+            // avoids touching the RenderedTexture element itself a second way, sidestepping the
+            // interaction entirely — confirmed live this does not reproduce the same regression.
+            if (desc.map.kind === "x3d-rendered-texture") {
+                const textureTransform = document.createElement("texturetransform");
+                textureTransform.setAttribute("center", "0.5 0.5");
+                textureTransform.setAttribute("scale", "1 -1");
+                appearanceEl.appendChild(textureTransform);
+            }
         }
         return { kind: "x3d-material", appearanceEl, materialEl, base, mapTexture: desc.map || null };
     }
@@ -673,22 +689,107 @@ export class X3DOMRenderAdapter extends RenderAdapter {
             throw new Error("X3DOMRenderAdapter.updateCanvasTexture: requires a handle from createCanvasTexture()");
         textureHandle.el.setAttribute("url", textureHandle.canvas.toDataURL());
     }
-    // X3DOM-only (no cross-engine equivalent need — three.js's own portal preview uses a real
-    // WebGLRenderTarget, not a URL-based texture at all): sets ImageTexture.url straight from a
-    // caller-supplied data: URI, with no canvas involved. Distinct from createCanvasTexture(),
-    // which forces a canvas.toDataURL() re-encode of already-encoded image data — worth avoiding
-    // for callers (x3dom-portal-renderer.mjs's capture()) that already have a data: URI in hand
-    // (from X3DOM's own runtime.getScreenshot()) and would otherwise decode it into an Image,
-    // redraw it onto a scratch canvas, and re-encode it a second time for no benefit.
-    createUrlTexture(url) {
-        const textureEl = document.createElement("imagetexture");
-        textureEl.setAttribute("url", url);
-        return { kind: "x3d-url-texture", el: textureEl };
+    // X3D's RenderedTexture node (confirmed present in the vendored x3dom-full.js build:
+    // registerNodeType("RenderedTexture","Texturing",...)) — a genuine GPU render-to-texture
+    // primitive. X3DOM-only, same category as createClipPlane above: three.js has no equivalent
+    // routed through ThreeRenderAdapter either (its own portal preview builds a raw
+    // THREE.WebGLRenderTarget directly — see three-portal-renderer.mjs).
+    //
+    // Isolation is via the `scene` field, NOT `excludeNodes` — confirmed empirically (see
+    // tools/x3dom-spikes/spike-run-rendered-texture-v2.mjs, the Stage 0 feasibility spike this
+    // primitive is built from). Leaving `scene` unset forces two problems: the RT falls back to
+    // reusing the MAIN scene's already-collected drawable list for its own render pass (so the
+    // consuming aperture itself would be part of what's rendered, needing `excludeNodes` to hide
+    // it — fragile, since `excludeNodes` toggles a `visible` field that bare geometry leaves don't
+    // even have), AND the nested <viewpoint>'s view-matrix computation takes a code path that
+    // composes it with `viewpoint.getCurrentTransform().inverse()` — correct only for a viewpoint
+    // that's a true Transform-hierarchy descendant, which a <viewpoint> nested under
+    // <renderedtexture>/<appearance>/<shape>/<transform> technically is, wrongly pulling in the
+    // consumer's own ancestor transform as an offset. Setting `scene` sidesteps both: the RT
+    // recomputes drawables from ONLY the referenced subtree, and the viewpoint's matrix is used
+    // directly with no ancestor-transform composition.
+    //
+    // `scene` is bound via a DIRECT JS node-reference assignment (bindRenderedTextureScene() below),
+    // NOT a DOM <... containerField="scene" USE="..."> element — confirmed empirically that the
+    // DOM/USE path is unreliable at real-app scale: it worked in every isolated spike (single- and
+    // multi-portal, attach()-mounted, transparent materials, async-gap population — all reproduced
+    // individually and combined) but silently failed against the live app specifically (`_cf.scene.node`
+    // stayed null even though the USE element and its DEF target both existed and were independently
+    // registered), which sent RenderedTexture down the "reuse main scene" fallback path — including
+    // the consuming aperture itself in what gets rendered, producing a real, repeating
+    // `GL_INVALID_OPERATION: Feedback loop formed between Framebuffer and active Texture` and a
+    // black aperture. Same category of quirk this project has hit before with dynamically-created
+    // nodes (Inline pool pre-seeding, the shared Inline-load queue) — DOM-mutation-driven resolution
+    // isn't reliable at this app's real scale/concurrency, so this binds the model-layer node
+    // reference directly instead of routing through it.
+    //
+    // `fov`/`near`/`far` size the nested viewpoint's own projection explicitly (same defaults the
+    // old hidden-host portal-preview camera used) rather than leaving it at X3D's -1/-1 "automatic"
+    // default — the automatic path reads the same whole-document bounding-volume computation that
+    // motivated forcing explicit values on the MAIN camera too (see web/index.html's
+    // #x3dom-viewpoint comment), so leaving this one automatic would reintroduce the identical
+    // depth-precision risk for the destination content itself. Returns { kind, el, viewpoint } —
+    // `viewpoint` is a separate node handle (a real <viewpoint> child element, not an attribute), so
+    // callers can drive its position/orientation every frame via the existing setCameraPose(), the
+    // same way real cameras already are. Callers MUST also call bindRenderedTextureScene() once the
+    // target subtree exists — a bare createRenderedTexture() has no `scene` field set yet.
+    //
+    // `TextureProperties` with NICEST/LINEAR filtering — X3D's own default for both
+    // magnificationFilter and minificationFilter is `"FASTEST"` (nearest-neighbor — confirmed via
+    // x3dom-full.js's `magFilterDic`/`minFilterDic`, where `"FASTEST"` maps directly to WebGL's
+    // NEAREST), producing blocky, unfiltered sampling of a small (down to 128px) texture magnified
+    // onto a much larger aperture plane at close range. `magnificationFilter: "NICEST"` maps to
+    // LINEAR (smooth bilinear); `minificationFilter: "LINEAR"` (not "NICEST", which maps to a
+    // mipmap-chain filter requiring `generateMipMaps` — not worth regenerating a full mipmap chain
+    // every single frame for update="always" content) gives smooth, cheap filtering without that
+    // cost.
+    //
+    // Vertical flip is deliberately NOT handled here via `flipY` (a real field, inherited from the
+    // shared X3DTextureNode base class every texture node including RenderedTexture has, confirmed
+    // in x3dom-full.js — just not listed on RenderedTexture's own doc page). `flipY="true"` alone
+    // works fine, and `TextureProperties` alone works fine, but the TWO COMBINED on this element
+    // were confirmed live to break unrelated rendering elsewhere in the document (the avatar's own
+    // diffuse-mapped body went fully invisible; flat/vertex-color equipment items were unaffected —
+    // consistent with, though not conclusively isolated to, shared texture-pipeline state being
+    // corrupted by that specific combination). The flip is applied via a <TextureTransform> on the
+    // CONSUMING material instead (see createMaterial()'s own comment) — confirmed live this does
+    // not reproduce the regression, since it never sets flipY on this element at all.
+    createRenderedTexture({ dimensions = [128, 128, 4], update = "always", fov = 55, near = 0.1, far = 30 } = {}) {
+        const el = document.createElement("renderedtexture");
+        el.setAttribute("dimensions", dimensions.join(" "));
+        el.setAttribute("update", update);
+        const textureProperties = document.createElement("textureproperties");
+        textureProperties.setAttribute("magnificationFilter", "NICEST");
+        textureProperties.setAttribute("minificationFilter", "LINEAR");
+        el.appendChild(textureProperties);
+        const viewpoint = this.createPerspectiveCamera({ fov, near, far });
+        viewpoint.setAttribute("containerField", "viewpoint");
+        el.appendChild(viewpoint);
+        return { kind: "x3d-rendered-texture", el, viewpoint };
     }
-    updateUrlTexture(textureHandle, url) {
-        if (!textureHandle || textureHandle.kind !== "x3d-url-texture")
-            throw new Error("X3DOMRenderAdapter.updateUrlTexture: requires a handle from createUrlTexture()");
-        textureHandle.el.setAttribute("url", url);
+    // Binds `rt`'s `scene` field directly to `targetEl`'s own model-layer node — see
+    // createRenderedTexture()'s comment for why this bypasses the DOM USE/DEF path entirely. Both
+    // `rt.el` and `targetEl` need their own `_x3domNode` assigned by X3DOM's (asynchronous,
+    // MutationObserver-driven) node registration before this can complete, so this polls rather than
+    // assuming either is ready synchronously — the same pattern createInlineAsset()'s own load-poll
+    // already uses for the identical class of "dynamically-added node isn't immediately live" gap.
+    async bindRenderedTextureScene(rt, targetEl, timeoutMs = 5000) {
+        const t0 = performance.now();
+        const poll = () => new Promise((resolve, reject) => {
+            const attempt = () => {
+                const rtNode = rt.el._x3domNode;
+                const targetNode = targetEl._x3domNode;
+                if (rtNode && targetNode) {
+                    rtNode._cf.scene.node = targetNode;
+                    return resolve();
+                }
+                if (performance.now() - t0 > timeoutMs)
+                    return reject(new Error("X3DOMRenderAdapter.bindRenderedTextureScene: node(s) not registered within " + timeoutMs + "ms"));
+                setTimeout(attempt, 30);
+            };
+            attempt();
+        });
+        await poll();
     }
     createSprite() { throw new Error("X3DOMRenderAdapter.createSprite: not yet implemented"); }
     createGridHelper({ size, divisions, colorGrid, transparent, opacity }) {

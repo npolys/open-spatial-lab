@@ -1087,7 +1087,13 @@
             '<script src="./vendor/scene-core/vendor/x3dom/x3dom-full.js"><' + '/script>' +
             '<x3d id="x3dom-host" width="' + w + 'px" height="' + h + 'px">' +
               '<scene>' +
-                '<viewpoint id="x3dom-viewpoint" position="0 6 10" orientation="1 0 0 -0.35"></viewpoint>' +
+                // Explicit zNear/zFar, not X3D's -1/-1 "automatic" default — X3DOM recomputes both
+                // every frame from the scene's WHOLE bounding volume otherwise, which balloons badly
+                // once portal-preview content is staged far away (see x3dom-portal-traversal-glue.mjs's
+                // STAGING_OFFSET_BASE_M): measured zNear/zFar jumping from ~0.002/19 to ~0.12/1200 the
+                // moment 1000m-distant content entered the scene, a real depth-precision hit for
+                // everything close-up. 300 covers the largest real content (the ~86m airport concourse).
+                '<viewpoint id="x3dom-viewpoint" position="0 6 10" orientation="1 0 0 -0.35" zNear="0.1" zFar="300"></viewpoint>' +
                 '<script src="./vendor/scene-core/render-adapter/x3dom-inline-pool.js"><' + '/script>' +
               '</scene>' +
             '</x3d>'

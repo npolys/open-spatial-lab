@@ -39,7 +39,7 @@ try {
     return Array.isArray(state) && state.length === 2 && state.every((r) => r.ready);
   }, { timeout: 20000 });
 
-  const before = await page.evaluate(() => window.__x3domLiveMode.portalGlue.previewDebugState().map((r) => r.destCameraPosition));
+  const before = await page.evaluate(() => window.__x3domLiveMode.portalGlue.previewDebugState().map((r) => r.viewpointPosition));
 
   // Force a deterministic main-camera pose change (a different orbit azimuth/polar/distance + a
   // big deltaSeconds so any orbit damping fully converges in one step()) rather than relying on
@@ -63,7 +63,7 @@ try {
   // wait real time for several of those frames to run and pick up the new pose.
   await new Promise((r) => setTimeout(r, 400));
 
-  const after = await page.evaluate(() => window.__x3domLiveMode.portalGlue.previewDebugState().map((r) => r.destCameraPosition));
+  const after = await page.evaluate(() => window.__x3domLiveMode.portalGlue.previewDebugState().map((r) => r.viewpointPosition));
 
   // Lightweight frame-rate sanity check: count real onEnterFrame calls over a 1s window (the
   // adapter already exposes onEnterFrame() for registering callbacks).
@@ -78,16 +78,19 @@ try {
   const positionsChanged = before.length === after.length && before.length > 0 &&
     before.every((pos, i) => pos !== after[i] && pos != null && after[i] != null);
   const seededPoseValid = !!seeded?.position;
-  // location-a has TWO portals, so TWO extra hidden <x3d> WebGL contexts are live simultaneously
-  // alongside the main scene — x3dom-portal-renderer.mjs's own header comment already documents
-  // (from this project's Phase 0 fps spikes) that a SINGLE extra concurrently-polled WebGL context
-  // causes "severe contention" under headless/SwiftShare software rendering; two makes it worse
-  // still. An initial run measured ~5.3fps here, well below a naive "10fps" floor — not a Stage 2
-  // regression (confirmed: positionsChanged is the actual correctness signal for camera gluing,
-  // and it passes) but this environment's already-known WebGL-context-contention cost. This floor
-  // is deliberately just a "still alive and progressing, not hung/deadlocked" sanity check, not a
-  // real performance target — a rigorous before/after comparison would need isolating gluing from
-  // the pre-existing multi-host rendering cost, not attempted here.
+  // location-a has TWO portals, each with its own continuously-updating RenderedTexture render pass
+  // (see x3dom-portal-traversal-glue.mjs's own header comment on the RenderedTexture rewrite) — all
+  // within the SAME single WebGL context now (no more separate hidden <x3d> hosts), but still real
+  // extra per-frame render work under this environment's headless/SwiftShader software rasterizer.
+  // Measured fps here has stayed in the same rough single-digit range across both the old
+  // screenshot-polling architecture and the RenderedTexture rewrite (a dedicated isolation check
+  // found pausing both RenderedTextures only recovered ~7% fps in this specific environment — see
+  // the RenderedTexture portal-preview architecture memory) — not a Stage 2 regression (confirmed:
+  // positionsChanged is the actual correctness signal for camera gluing, and it passes), just this
+  // environment's own rendering cost. This floor is deliberately just a "still alive and
+  // progressing, not hung/deadlocked" sanity check, not a real performance target — a rigorous
+  // before/after comparison would need isolating gluing from the RenderedTexture render-pass cost
+  // itself, not attempted here.
   const frameRateOk = frameRate.frames >= 3;
   const noErrors = errors.length === 0;
   const ok = positionsChanged && seededPoseValid && frameRateOk && noErrors;

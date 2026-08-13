@@ -39,9 +39,9 @@ async function run() {
   adapter.attach(x3dEl);
   append('attach() returned synchronously');
 
-  // No x3dom.reload() call here on purpose — the whole point of attach() vs. the
-  // X3DOMPortalRenderer hidden-host case is that this element was already in the static markup
-  // X3DOM's own one-time discovery scans, so ready() should resolve without it.
+  // No x3dom.reload() call here on purpose — the whole point of attach() vs. mount()ing a
+  // dynamically-created host is that this element was already in the static markup X3DOM's own
+  // one-time discovery scans, so ready() should resolve without it.
   await adapter.ready();
   const readyMs = performance.now() - t0;
   append('ready() resolved in ' + readyMs.toFixed(0) + 'ms without calling x3dom.reload()');

@@ -83,8 +83,7 @@ try {
     const adapter = new X3DOMRenderAdapter(window.x3dom);
     adapter.mount(mount, { width: 64, height: 64 });
     // X3DOM's <x3d>-element discovery only runs once at document load — a dynamically-created
-    // host needs an explicit reload() to get picked up and attached a runtime (same pattern
-    // X3DOMPortalRenderer.createDestinationAdapter() already uses for its hidden preview hosts).
+    // host needs an explicit reload() to get picked up and attached a runtime.
     window.x3dom.reload();
     await adapter.ready();
     const parent = adapter.createGroup("fixture-test-parent");

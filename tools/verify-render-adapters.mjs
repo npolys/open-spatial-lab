@@ -31,7 +31,6 @@ const REGRESSION_SPIKES = [
     "spike-run-humanoid-attach-item.mjs",
     "spike-run-inline-pool.mjs",
     "spike-run-attach.mjs",
-    "spike-run-portal-renderer.mjs",
     "spike-run-three-portal-renderer.mjs",
     "spike-run-asset-negotiation.mjs", // no browser needed, but still requires the server running
     "spike-run-x3dom-live-mode.mjs", // exercises the real live app's ?renderer=x3dom entry point, not a spike page
@@ -43,7 +42,7 @@ const REGRESSION_SPIKES = [
     "spike-run-x3dom-peer-avatars.mjs", // Phase 3.5b parity: bidirectional peer avatar detection + spawn + mirrored equipment
     "spike-run-x3dom-renderer-selector.mjs", // Phase 5 parity: renderer-selector toggle, localStorage persistence, explicit query-param override
     "spike-run-x3dom-wall-solid.mjs", // Phase 6: plane/`solid` bridging fix — double-sided material requests now produce solid="false" on the geometry element
-    "spike-run-x3dom-portal-preview.mjs", // Phase 6: live portal-aperture preview via the previously-unwired X3DOMPortalRenderer screenshot-polling mechanism
+    "spike-run-x3dom-portal-preview.mjs", // Phase 6, rewritten 2026-08-13: live portal-aperture preview via a RenderedTexture attached to the aperture material, staged content in the shared main scene (see x3dom-portal-traversal-glue.mjs)
     "spike-run-x3dom-phase7-combined-load.mjs", // Phase 7: cross-phase consolidation — co-present peers + portal preview + a real crossing all running together, including peer eviction on departure
     "spike-run-x3dom-portal-hosted-objects.mjs", // Portal-preview real-content Stage 0: syncHostedSceneObjectMeshesX3dom create/update/dispose lifecycle
     "spike-run-x3dom-portal-preview-real-content.mjs", // Portal-preview real-content Stage 1: real destination color + live hosted-object sync (legacy_world) and real authored-graph topology (airport, minus terminal set-dressing)
@@ -51,6 +50,10 @@ const REGRESSION_SPIKES = [
     "spike-run-x3dom-portal-preview-gating.mjs", // Portal-preview real-content Stage 3: proximity/visibility gating skips capture+glue when the aperture isn't on-screen, via canvas-clipped worldToScreen projection
     "spike-run-x3dom-hosted-objects-wow-fetch.mjs", // WoW API compliance: real negotiated /wow/asset/primitive-<id> representations for active-world hosted objects (X3D XML via Inline), with fallback-to-synthetic on the demo's own restricted/hidden 403/404 objects and fixture-object exclusion
     "spike-run-x3dom-airport-terminal.mjs", // Airport parity Stage 1: real terminal geometry (walls/columns/storefronts/gate/signage) mounts for both the active-world case (?active=airport) and the portal-preview case (?active=lobby), not the generic canonical room
+    "spike-run-rendered-texture-v2.mjs", // RenderedTexture Stage 0: isolated-page feasibility gate — scene-field isolation, continuous update, dynamic content swap AND brand-new nodes created after the RenderedTexture already exists
+    "spike-run-rendered-texture-adapter.mjs", // RenderedTexture Stage 1: X3DOMRenderAdapter.createRenderedTexture() adapter primitive, same checks as Stage 0 but through the real API
+    "spike-run-rendered-texture-zfar-check.mjs", // RenderedTexture Stage 2 risk check: staging content far away balloons X3D's automatic zNear/zFar unless explicit values are set; confirms the fix holds and staged content is genuinely clipped from the main camera
+    "spike-run-rendered-texture-orientation-check.mjs", // RenderedTexture visual-quality fix: confirms the vertical-flip correction (TextureTransform on the consuming material, NOT flipY on the RenderedTexture itself — that combination was confirmed live to break unrelated avatar rendering) actually produces correct top/bottom orientation, via an asymmetric red-top/green-bottom destination scene no center-pixel sample could have caught
 ];
 
 function run(script, args = []) {

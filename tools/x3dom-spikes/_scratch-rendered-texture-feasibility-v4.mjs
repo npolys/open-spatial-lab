@@ -1,24 +1,22 @@
-// Stage 0 of the RenderedTexture-replaces-screenshot-polling plan — a CORRECTED retry of the
-// earlier feasibility spike (_scratch-rendered-texture-feasibility.mjs), which hit a real
-// RangeError: Maximum call stack size exceeded traced to a genuine structural bug, not a false
-// alarm: excluding the whole consumer <transform> (via excludeNodes DEF/USE) is inherently
-// recursive, because that transform's own subtree (shape > appearance > renderedtexture) CONTAINS
-// the very USE reference doing the excluding — a true cycle, not just "referencing an ancestor"
-// (which excludeNodes must support in general, e.g. mirrors excluding their own frame). The fix:
-// exclude the GEOMETRY LEAF node specifically (a bare <plane>, no children of its own) instead of
-// the whole Transform/Shape/Appearance chain — referencing a leaf can't recurse into anything that
-// contains the RenderedTexture.
+// Stage 0 of the RenderedTexture-replaces-screenshot-polling plan — v4.
 //
-// Built via runtime DOM APIs throughout (document.createElement/appendChild), matching how this
-// app's real content is always constructed dynamically — not a static-markup baseline, which
-// wouldn't be representative of the real integration point in x3dom-portal-traversal-glue.mjs.
+// v3 fixed two real, source-confirmed bugs (containerField-based `scene`/`viewpoint` field binding,
+// avoiding the ancestor-transform bug in getViewMatrix() when `scene` is unset) but STILL read a
+// flat, unchanging (10,11,12) at screen-center — identical across v1/v2/v3 despite structurally
+// different RenderedTexture setups. That invariance across unrelated changes is itself the signal:
+// it means center-screen sampling was never actually looking at OUR test plane at all. The live app
+// scene (window.__x3domLiveMode) already has 36 real children in sceneRoot (room walls, floor,
+// avatar, ...) by the time this spike injects content — a plane placed at a hardcoded (0,1.5,-3)
+// can easily be occluded by, or embedded inside, that real geometry, so the sample was reading real
+// room content the whole time, not our texture.
 //
-// Tests, in the order the plan's Stage 0 requires:
-// (a) no feedback-loop GL error with excludeNodes referencing only the consumer's geometry leaf
-// (b) the aperture plane actually shows the destination content (not blank/background)
-// (c) update="always" gives genuinely continuous updates (sample multiple times, not just once)
-// (d) content built/swapped AFTER the RenderedTexture already exists (matching real per-crossing
-//     world changes) is picked up correctly — the "dynamically-created nodes are unreliable" risk
+// Fix: stop guessing where the camera is looking. Use the adapter's own setCameraPose() (a real,
+// already-proven method — every third/first-person camera update in this app goes through it) to
+// point the MAIN camera directly at a test plane placed far from any real content (100,1.5,100 —
+// nowhere near the ~12x12 room the live scene actually occupies), guaranteeing an unobstructed view
+// regardless of what real scene content exists. The RenderedTexture's own destination box sits
+// further along the same far-away area, in a different direction from the consumer so the two don't
+// spatially overlap.
 import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -55,10 +53,11 @@ try {
     const adapter = window.__x3domLiveMode.adapter;
     const sceneRoot = adapter.sceneRoot;
 
-    // Destination content: a magenta box, a genuine SIBLING of the consumer (not nested inside
-    // it) — far from real scene content so anything captured unambiguously came from here.
-    const destBox = document.createElement("transform");
-    destBox.setAttribute("translation", "20 20 20");
+    // Destination subtree: a DEF'd transform containing a magenta box, far out at (100,1.5,80) —
+    // "north" of the consumer plane below, in clear open space nowhere near the real room.
+    const destGroup = document.createElement("transform");
+    destGroup.setAttribute("def", "rtDestGroup");
+    destGroup.setAttribute("translation", "100 1.5 80");
     const destShape = document.createElement("shape");
     const destAppearance = document.createElement("appearance");
     const destMaterial = document.createElement("material");
@@ -69,14 +68,14 @@ try {
     destGeom.setAttribute("size", "4 4 4");
     destShape.appendChild(destAppearance);
     destShape.appendChild(destGeom);
-    destBox.appendChild(destShape);
-    sceneRoot.appendChild(destBox);
+    destGroup.appendChild(destShape);
+    sceneRoot.appendChild(destGroup);
 
-    // Consumer: a visible plane in front of the main camera, textured with a RenderedTexture.
-    // The excluded node is the plane GEOMETRY ITSELF (a leaf, DEF'd), referenced via USE from
-    // inside the RenderedTexture — no recursive containment, unlike excluding the whole transform.
+    // Consumer: a plane at (100,1.5,100), textured with a RenderedTexture whose `scene` field
+    // (containerField="scene") points at destGroup, and whose own nested viewpoint sits at
+    // (100,1.5,84) looking north at the magenta box.
     const consumerTransform = document.createElement("transform");
-    consumerTransform.setAttribute("translation", "0 1.5 -3");
+    consumerTransform.setAttribute("translation", "100 1.5 100");
     const consumerShape = document.createElement("shape");
     const consumerAppearance = document.createElement("appearance");
     const consumerMaterial = document.createElement("material");
@@ -86,43 +85,45 @@ try {
     const renderedTexture = document.createElement("renderedtexture");
     renderedTexture.setAttribute("dimensions", "128 128 4");
     renderedTexture.setAttribute("update", "always");
-    const rtViewpoint = document.createElement("viewpoint");
-    rtViewpoint.setAttribute("position", "20 20 25");
-    rtViewpoint.setAttribute("orientation", "0 0 1 0");
-    rtViewpoint.setAttribute("fieldofview", "0.8");
-    renderedTexture.appendChild(rtViewpoint);
-    consumerAppearance.appendChild(renderedTexture);
 
+    const rtViewpoint = document.createElement("viewpoint");
+    rtViewpoint.setAttribute("containerField", "viewpoint");
+    rtViewpoint.setAttribute("position", "100 1.5 84");
+    rtViewpoint.setAttribute("orientation", "0 0 1 0");
+    rtViewpoint.setAttribute("fieldOfView", "0.8");
+    renderedTexture.appendChild(rtViewpoint);
+
+    const sceneRef = document.createElement("transform");
+    sceneRef.setAttribute("containerField", "scene");
+    sceneRef.setAttribute("use", "rtDestGroup");
+    renderedTexture.appendChild(sceneRef);
+
+    consumerAppearance.appendChild(renderedTexture);
     const consumerGeom = document.createElement("plane");
-    consumerGeom.setAttribute("def", "rtConsumerGeom");
     consumerGeom.setAttribute("size", "2 2");
     consumerShape.appendChild(consumerAppearance);
     consumerShape.appendChild(consumerGeom);
     consumerTransform.appendChild(consumerShape);
     sceneRoot.appendChild(consumerTransform);
 
-    // Leaf-only exclusion (the fix this file's header describes): reference the consumer's bare
-    // geometry leaf via USE, not the whole Transform/Shape/Appearance chain that contains the
-    // RenderedTexture itself — a leaf has no children to recurse into.
-    const excludeRef = document.createElement("plane");
-    excludeRef.setAttribute("use", "rtConsumerGeom");
-    renderedTexture.appendChild(excludeRef);
+    // Point the MAIN camera directly at the consumer plane — sidesteps any uncertainty about the
+    // live app's own camera pose or intervening real-room geometry entirely.
+    adapter.setCameraPose(adapter.camera, { position: [100, 1.5, 104], lookAt: [100, 1.5, 100] });
 
-    window.__rtFeasibility = { destMaterial, destBox, renderedTexture, rtViewpoint };
+    window.__rtFeasibility = { destMaterial, destGroup, renderedTexture, rtViewpoint };
+    return { added: true };
   });
 
+  await new Promise((r) => setTimeout(r, 300));
   const diag = await page.evaluate(() => {
-    const { renderedTexture, rtViewpoint } = window.__rtFeasibility;
-    const rt = renderedTexture._x3domNode || renderedTexture._xmlNode?._x3domNode || null;
+    const { renderedTexture } = window.__rtFeasibility;
+    const rtNode = renderedTexture._x3domNode;
     return {
-      hasXmlNode: !!renderedTexture._xmlNode,
-      hasX3domNodeDirect: !!renderedTexture._x3domNode,
-      constructorName: renderedTexture.constructor?.name,
-      // X3DOM typically stashes the live node instance on `._x3domNode` once registered — dump
-      // whatever's actually there, plus check the doc's own renderTextures bag directly.
+      hasX3domNode: !!rtNode,
+      sceneFieldNode: !!rtNode && !!rtNode._cf.scene.node,
+      sceneFieldIsMainScene: !!rtNode && rtNode._cf.scene.node === rtNode._nameSpace.doc._scene,
+      viewpointFieldNode: !!rtNode && !!rtNode._cf.viewpoint.node,
       nodeBagCount: window.x3dom?.canvases?.[0]?.doc?._nodeBag?.renderTextures?.length ?? null,
-      viewpointHasX3domNode: !!rtViewpoint._x3domNode,
-      rtOuterHTML: renderedTexture.outerHTML?.slice(0, 300),
     };
   });
   console.log("DIAG:", JSON.stringify(diag, null, 2));
@@ -146,17 +147,12 @@ try {
     });
   }
 
-  // (a) + (b): no feedback-loop error (checked via `errors` at the end), and the plane shows the
-  // magenta destination content.
   const sample1 = await sampleCenterPixel();
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v4-sample1.png") });
 
-  // (c) continuous live updates: sample repeatedly, un-changed content, to see whether the texture
-  // is a live GPU render (should be byte/color identical across samples for STATIC content — the
-  // real liveness proof is (d) below, changing content) vs check it isn't just a one-shot blank.
   await new Promise((r) => setTimeout(r, 500));
   const sample2 = await sampleCenterPixel();
 
-  // (d) dynamic content swap AFTER the RenderedTexture already exists — the real risk category.
   await page.evaluate(() => {
     const { destMaterial } = window.__rtFeasibility;
     destMaterial.setAttribute("diffuseColor", "0.8 1 0");
@@ -165,11 +161,12 @@ try {
   await new Promise((r) => setTimeout(r, 1000));
   const sample3 = await sampleCenterPixel();
 
-  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v2.png") });
+  await page.screenshot({ path: join(OUT_DIR, "rt-feasibility-v4-sample3.png") });
 
   const magentaish = (c) => c[0] > 120 && c[2] > 120 && c[1] < 120;
   const yellowGreenish = (c) => c[0] > 120 && c[1] > 120 && c[2] < 120;
   const result = {
+    diag,
     noFeedbackLoopOrErrors: errors.length === 0,
     rendersDestinationContent: magentaish(sample1),
     stableBeforeSwap: magentaish(sample2),
@@ -178,7 +175,7 @@ try {
     errors,
   };
   result.ok = result.noFeedbackLoopOrErrors && result.rendersDestinationContent && result.stableBeforeSwap && result.dynamicSwapPickedUp;
-  writeFileSync(join(OUT_DIR, "rt-feasibility-v2.json"), JSON.stringify(result, null, 2));
+  writeFileSync(join(OUT_DIR, "rt-feasibility-v4.json"), JSON.stringify(result, null, 2));
   console.log("RESULT:", JSON.stringify(result, null, 2));
   if (!result.ok) process.exitCode = 1;
 } catch (err) {

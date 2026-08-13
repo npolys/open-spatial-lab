@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Diagnostic: does createRenderedTexture() work through attach() + the Inline pool, like the real app?</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Same shape as the real app's index.html: a statically-declared <x3d>/<scene>/<viewpoint> plus
+     the Inline pool script, bound via attach() — NOT mount(), which every prior RenderedTexture
+     spike used. Testing whether that specific combination is what breaks scene-field resolution. -->
+<div id="mount">
+  <x3d id="static-host" width="1024px" height="768px">
+    <scene>
+      <viewpoint DEF="authored-viewpoint" position="0 0 5" orientation="0 0 1 0"></viewpoint>
+      <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+    </scene>
+  </x3d>
+</div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const x3dEl = document.getElementById('static-host');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.attach(x3dEl);
+  await adapter.ready();
+  append('adapter ready via attach()');
+
+  const sceneRoot = adapter.sceneRoot;
+
+  // TWO portal setups back-to-back, synchronously, mirroring mountPortalApertures()'s real loop
+  // (which calls setupPortalPreview() for each portal without awaiting between them) — the one
+  // combination not yet tested in isolation.
+  const rts = {};
+  // Async function, NOT awaited by its caller below — the exact calling shape
+  // mountPortalApertures() uses for setupPortalPreview() (fire-and-forget from a for-loop).
+  async function buildOneAsync(index, color) {
+    const defName = 'rtDestGroup' + index;
+    const destGroup = adapter.createGroup(defName);
+    destGroup.setAttribute('def', defName);
+    adapter.setPosition(destGroup, index * 20, 0, -10);
+    const destMaterial = adapter.createMaterial({ type: 'standard', color, emissive: color, emissiveIntensity: 1 });
+    const destMesh = adapter.createMesh(adapter.createGeometry({ type: 'box', width: 4, height: 4, depth: 4 }), destMaterial);
+    adapter.add(destGroup, destMesh);
+    adapter.add(sceneRoot, destGroup);
+
+    const consumerMaterial = adapter.createMaterial({ type: 'standard', color: '#ffffff', opacity: 0.55, transparent: true, side: 'double' });
+    const consumerMesh = adapter.createMesh(adapter.createGeometry({ type: 'plane', width: 3, height: 3 }), consumerMaterial);
+    adapter.setPosition(consumerMesh, index * 2 - 1, 0, 0);
+    adapter.add(sceneRoot, consumerMesh);
+
+    const rt = adapter.createRenderedTexture({ dimensions: [128, 128, 4], update: 'always', sceneDefName: defName });
+    adapter.setCameraPose(rt.viewpoint, { position: [index * 20, 0, -4], lookAt: [index * 20, 0, -10] });
+    consumerMaterial.appearanceEl.appendChild(rt.el);
+    rts[index] = rt;
+
+    // A real await, matching setupPortalPreview()'s own resolvePortalDestinationContent() gap —
+    // simulated with a network-ish delay via fetch to the same server this page is served from.
+    await new Promise((r) => setTimeout(r, 50 + index * 30));
+    for (let i = 0; i < 21; i += 1) {
+      const cp = document.createElement('clipplane');
+      cp.setAttribute('plane', '0 0 1 100');
+      cp.setAttribute('enabled', 'false');
+      destGroup.appendChild(cp);
+    }
+    destGroup.appendChild(adapter.createAmbientLight({ intensity: 0.75 }));
+    destGroup.appendChild(adapter.createDirectionalLight({ intensity: 0.9, position: [1, 1, 1] }));
+  }
+  for (let i = 0; i < 2; i += 1) {
+    buildOneAsync(i, i === 0 ? '#ff00ff' : '#00ff00'); // NOT awaited, matching the real loop
+  }
+  await new Promise((r) => setTimeout(r, 400)); // let both async tails finish
+  const rt0 = rts[0];
+  const rt1 = rts[1];
+
+  adapter.setCameraPose(adapter.camera, { position: [0, 0, 5], lookAt: [0, 0, 0] });
+
+  await new Promise((r) => setTimeout(r, 500));
+  const rtNode0 = rt0.el._x3domNode;
+  const rtNode1 = rt1.el._x3domNode;
+  const diagBefore = {
+    sceneFieldNode0: !!rtNode0 && !!rtNode0._cf.scene.node,
+    sceneFieldNode1: !!rtNode1 && !!rtNode1._cf.scene.node,
+  };
+  append('DIAG before delayed population: ' + JSON.stringify(diagBefore));
+
+  const diag = {
+    ...diagBefore,
+    sceneFieldNode0After: !!rtNode0 && !!rtNode0._cf.scene.node,
+    sceneFieldNode1After: !!rtNode1 && !!rtNode1._cf.scene.node,
+    stagingChildCount0: sceneRoot.querySelector('[def=rtDestGroup0]').children.length,
+  };
+  append('DIAG: ' + JSON.stringify(diag));
+
+  function sampleCenterPixel() {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    const region = ctx.getImageData(cx - 20, cy - 20, 40, 40).data;
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < region.length; i += 4) { r += region[i]; g += region[i + 1]; b += region[i + 2]; n += 1; }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+  await new Promise((r) => setTimeout(r, 1000));
+  const sample = sampleCenterPixel();
+  append('sample: ' + JSON.stringify(sample));
+
+  const result = { diag, sample, ok: diag.sceneFieldNode0After && diag.sceneFieldNode1After };
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>
