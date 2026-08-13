@@ -256,24 +256,20 @@ For the current status, run `npm run render-adapter-check` (results: `tools/x3do
 
 These are future enhancements, not additional setup steps for the current demo, and no delivery dates are promised.
 
-- Smoother continuous portal transitions and automatic two-way return paths
-- Deeper Denver Skyport continuity and multi-world presence
+- Smoother continuous portal transitions and deeper Denver Skyport / multi-world continuity
 - Clearer navigation, a more focused home launcher, and a spatial avatar carousel
 - User, avatar, and storefront identity profiles with previews and proximity exchange
-- Richer airport experiences, including interactive storefronts, a Gate A12 journey, and moving travelers
-- Airport localization, spatial-content discovery, and augmented-reality overlays
-- Broader multi-machine, real-device, unhappy-path, and sample-world coverage
-- Closing the X3DOM render-engine path's remaining, deliberately-scoped gaps (bone-level equipment attachment, real airport-terminal HUD content, the full inspector panel, real destination-world content in the portal preview) — see [Render-engine adapter](#render-engine-adapter-three-js--x3dom)
+- A richer airport experience: interactive storefronts, a Gate A12 journey, moving travelers, localization, spatial-content discovery, and AR overlays
+- Broader multi-machine, real-device, unhappy-path, and sample-world test coverage
+- Closing the X3DOM render-engine path's remaining, deliberately-scoped gaps (bone-level equipment attachment, real airport-terminal HUD content, the full inspector panel, pixel-perfect portal-preview cropping) — see [Render-engine adapter](#render-engine-adapter-threejs--x3dom)
 
-## Production hardening (planned)
+## Production hardening
 
-The shipped demo is a trusted, single-machine, single-user local app: `src/serve.js` binds to `127.0.0.1` only, and each world server in `runtime/world-server/` holds one global mutable avatar per process rather than per-user session state. A 2026-08 security/architecture review for a public, multi-user deployment found that state model — not missing headers or CORS config — is the binding constraint; those are still real gaps but secondary.
+The shipped demo is a trusted, single-machine, single-user local app: `src/serve.js` binds to `127.0.0.1` only, and each world server holds one global mutable avatar per process rather than per-user session state — a 2026-08 security review found that state model, not missing headers or CORS config, is the binding constraint for a public, multi-user deployment; those are still real gaps but secondary.
 
-Planned approach: authenticate via OAuth at the gateway, then thread the authenticated identity into per-user session state in `runtime-state.js` (replacing the single global `state.avatar` and the unauthenticated, free-text `player_id` in the presence registry). Perimeter hardening (CORS allowlisting, security headers, rate limiting, WebSocket auth) and `wow-spec` schema tightening follow once that identity-aware state model is in place.
+**Landed:** two stored-XSS fixes in the HUD's HTML rendering, peer-supplied avatar-equipment fields validated against the fixed catalog, a depth cap plus try/catch on spatial-graph node writes to remove an unauthenticated-crash path, a fix for a connection-leaking oversized-request handler, and a process-level crash guard around the four world servers.
 
-Already landed ahead of the OAuth work, since they don't depend on it: two stored-XSS fixes in the HUD's HTML rendering, peer-supplied avatar-equipment fields are now validated against the fixed equipment catalog instead of trusted as-is, a depth cap on spatial-graph node payloads (and the request handler that creates/updates nodes is wrapped in try/catch) to remove an unauthenticated-crash path, a fix for an oversized-request body handler that could leak open connections, and a process-level crash guard around the four world servers (they currently share one Node process).
-
-No delivery dates are set; see [Planned improvements](#planned-improvements) for the rest of the roadmap.
+**Planned:** OAuth at the gateway feeding per-user session state in `runtime-state.js` (replacing the single global `state.avatar` and the unauthenticated, free-text `player_id`), then perimeter hardening (CORS allowlisting, security headers, rate limiting, WebSocket auth) and `wow-spec` schema tightening once that identity-aware state model is in place. No delivery dates are set; see [Planned improvements](#planned-improvements) for the rest.
 
 ## License and security
 
