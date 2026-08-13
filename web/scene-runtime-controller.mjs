@@ -234,7 +234,7 @@ export function createSceneRuntimeController({ THREE, SceneClass, PortalPreviewM
                             unsubscribe?.();
                         }
                         catch { }
-                        disposeHostedSceneObjectMeshes(hostedMeshes);
+                        disposeHostedSceneObjectMeshes(THREE, hostedMeshes);
                     };
                     return composition;
                 }

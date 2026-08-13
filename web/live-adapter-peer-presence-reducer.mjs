@@ -1,9 +1,28 @@
 import { clonePosition, roundNumber, roundVec3, } from "./live-adapter-portal-geometry.mjs";
+import { equipmentCatalog } from "./equipment-view.js";
 const PLAYER_POSE_MIN_INTERVAL_MS = 66;
 const PLAYER_POSE_MIN_POSITION_DELTA_M = 0.005;
 const PLAYER_POSE_MIN_YAW_DELTA_RAD = 0.005;
 const PEER_PLAYER_POSE_STALE_MS = 4000;
 const CHANNEL_NAME = "open-spatial-lab-peer-presence";
+const MAX_PEER_EQUIPPED_ITEMS = 8;
+const EQUIPMENT_BY_ITEM_ID = new Map(equipmentCatalog().map((item) => [item.itemId, item]));
+// Peer messages are untrusted (cross-window today, cross-network once real multiplayer relay lands):
+// never trust a peer's assetUri/attachmentPoint/mode/localTransform, only use itemId as a lookup
+// key into our own fixed catalog, so a peer can't point another client's loader at an arbitrary URL.
+function sanitizePeerEquippedItems(items) {
+    if (!Array.isArray(items))
+        return [];
+    const sanitized = [];
+    for (const raw of items) {
+        if (sanitized.length >= MAX_PEER_EQUIPPED_ITEMS)
+            break;
+        const catalogItem = raw && typeof raw.itemId === "string" ? EQUIPMENT_BY_ITEM_ID.get(raw.itemId) : null;
+        if (catalogItem)
+            sanitized.push({ ...catalogItem });
+    }
+    return sanitized;
+}
 export function createPeerPresenceReducer({ clientMode, clientId, controlledIdentity, getContext, defaultAvatarVariant, createBroadcastChannel = typeof BroadcastChannel !== "undefined"
     ? (name) => new BroadcastChannel(name)
     : null, nowMs = () => Date.now(), onEmit = () => { }, onArrival = () => { }, onDepartureMirror = () => { }, onArrivalMirror = () => { }, onResolveEquipment = () => Promise.resolve(null), onEquipmentStatus = () => { }, onExternalPresenceDeparture = () => ({}), } = {}) {
@@ -143,13 +162,14 @@ export function createPeerPresenceReducer({ clientMode, clientId, controlledIden
             avatar.avatar_variant = message.avatar_variant;
         }
         if (Array.isArray(message.equippedItems)) {
-            const incoming = JSON.stringify(message.equippedItems.map((item) => item.itemId).sort());
+            const sanitizedItems = sanitizePeerEquippedItems(message.equippedItems);
+            const incoming = JSON.stringify(sanitizedItems.map((item) => item.itemId).sort());
             const existing = JSON.stringify((Array.isArray(avatar.equippedItems) ? avatar.equippedItems : [])
                 .map((item) => item.itemId)
                 .sort());
             if (incoming !== existing) {
-                avatar.equippedItems = message.equippedItems;
-                onResolveEquipment(message.equippedItems)
+                avatar.equippedItems = sanitizedItems;
+                onResolveEquipment(sanitizedItems)
                     .then((status) => { onEquipmentStatus(status); onEmit(); })
                     .catch(() => { });
             }
@@ -209,7 +229,7 @@ export function createPeerPresenceReducer({ clientMode, clientId, controlledIden
             position: clonePosition(message.position, [0, 0, 0]),
             rotation_y: Number(message.rotation_y) || 0,
             avatar_variant: message.avatar_variant || defaultAvatarVariant,
-            equippedItems: Array.isArray(message.equippedItems) ? message.equippedItems : [],
+            equippedItems: sanitizePeerEquippedItems(message.equippedItems),
             locomotion: message.locomotion && typeof message.locomotion === "object"
                 ? { ...message.locomotion }
                 : {},

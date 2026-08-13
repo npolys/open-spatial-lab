@@ -1885,9 +1885,9 @@ function renderEquipment(status, avatar) {
                     : `${r.message} · visible fallback ${r.visible_fallback ? "ON" : "OFF"}`;
             const cls = r && r.fetch_ok === false ? "equipment-bad" : "equipment-ok";
             return `<div class="equipment-row ${cls}" data-reconcile-key="equipment:${escapeHtml(item.itemId)}:${escapeHtml(item.attachmentPoint)}">
-          <div><b>${item.mode}</b> ${item.itemId}</div>
-          <div>${item.attachmentPoint}</div>
-          <div>${fetchText}</div>
+          <div><b>${escapeHtml(item.mode)}</b> ${escapeHtml(item.itemId)}</div>
+          <div>${escapeHtml(item.attachmentPoint)}</div>
+          <div>${escapeHtml(fetchText)}</div>
         </div>`;
         }).join("")
         : `<div class="equipment-row" data-reconcile-key="equipment-empty">No equipment manifest on this view yet.</div>`;
@@ -2113,6 +2113,7 @@ portalRenderController = createPortalRenderController({
         activeEndpointKey: adapterVisualRuntimeSnapshot()?.activeEndpointKey,
         previewEndpointKey: adapterVisualRuntimeSnapshot()?.previewEndpointKey,
         world: adapterVisualRuntimeSnapshot()?.world,
+        demoProxyBase: (key) => adapter.demoProxyBase(key),
         demoReadAttachPoint: (key) => adapter.demoReadAttachPoint(key),
         demoReadPortalView: (key, resolution) => adapter.demoReadPortalView(key, resolution),
         demoMoveSceneObject: (key, id, position) => adapter.demoMoveSceneObject(key, id, position),
@@ -3926,7 +3927,7 @@ function updateFabricPrefetchPortalList(keyed) {
             : machine.presence && machine.presence.occupancy
                 ? (machine.presence.occupancy.avatars || []).length
                 : null;
-        lines.push(`<div class="kv" data-reconcile-key="portal:${escapeHtml(key)}"><span class="k">${key}</span><span class="v">${machine.status} · ${dest} · ${machine.zone && machine.zone.distance_m != null ? machine.zone.distance_m + " m" : "—"}${occCount != null ? ` · ${occCount} there` : ""}${marks ? ` · ${marks}` : ""}</span></div>`);
+        lines.push(`<div class="kv" data-reconcile-key="portal:${escapeHtml(key)}"><span class="k">${escapeHtml(key)}</span><span class="v">${escapeHtml(String(machine.status))} · ${escapeHtml(dest)} · ${machine.zone && machine.zone.distance_m != null ? machine.zone.distance_m + " m" : "—"}${occCount != null ? ` · ${occCount} there` : ""}${marks ? ` · ${marks}` : ""}</span></div>`);
     }
     reconcileKeyedHtml(host, lines.join(""));
 }

@@ -1,24 +1,60 @@
 import { ThreeRenderAdapter } from "./vendor/scene-core/render-adapter/three-render-adapter.mjs";
+import { GLTFLoader } from "./vendor-three-examples/loaders/GLTFLoader.js";
 const HOSTED_POINT_RELOAD_MS = 100;
 const CLIENT_READ_INTERVAL_MIN_MS = 100;
 const CLIENT_READ_INTERVAL_MAX_MS = 10000;
 const DRAG_POST_THROTTLE_MS = 120;
 const DEMO_DRAG_LIMIT_M = 5.4;
-function disposeMesh(mesh) {
+// Injected into ThreeRenderAdapter.createInlineAsset() for real WoW-negotiated hosted-object
+// loads — matches the exact pattern three-vrm-humanoid-provider.mjs already uses (that provider
+// isn't wired into the live app, but the injected-loadGltf convention it establishes is the
+// right one to follow here too, per RenderAdapter's own base-class doc comment anticipating this
+// exact feature). Explicit Accept header, even though the server's own no-Accept-header default
+// representation already happens to be model/gltf+json (first entry in wow-asset.js's
+// primitiveRepresentations()) — this is what makes it a real negotiation, not an accident of
+// offer ordering.
+function loadHostedObjectGltf(url) {
+    return new GLTFLoader().setRequestHeader({ Accept: "model/gltf+json, model/gltf-binary;q=0.9" }).loadAsync(url).then((gltf) => gltf.scene);
+}
+// Disposal needs a real THREE reference (to build a ThreeRenderAdapter), not just the mesh — a
+// dedicated WoW-fetch-path bug fix, not cosmetic: a fetched hosted object's node is
+// createInlineAsset()'s wrapper Group (nested glTF scene inside), which has no `.geometry`/
+// `.material` of its own, so the old shallow disposal silently disposed nothing for it, leaking
+// every buffer on every removal. ThreeRenderAdapter.disposeNode()'s real traverse()-based dispose
+// is a strict superset of the old behavior, safe for the pre-existing flat-mesh case too (e.g.
+// the portal drag handle, still built via A.createMesh() directly).
+function disposeMesh(THREE, mesh) {
     try {
         if (mesh.parent)
             mesh.parent.remove(mesh);
-        mesh.geometry?.dispose?.();
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        materials.forEach((material) => material?.dispose?.());
+        new ThreeRenderAdapter(THREE).disposeNode(mesh);
     }
     catch { }
 }
-export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, version = null, layer = null, setLayerRecursive = null, preservePositionForId = null, configureMesh = null, }) {
+function buildSyntheticThreeMesh(A, objectId, shape, sizeM, color) {
+    const geometry = shape === "sphere"
+        ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
+        : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM });
+    const mesh = A.createMesh(geometry, A.createMaterial({
+        type: "standard",
+        color,
+        roughness: 0.55,
+        metalness: 0.1,
+        emissive: A.multiplyColorScalar(color, 0.18),
+    }));
+    A.setName(mesh, `demo-scene-object-${objectId}`);
+    return mesh;
+}
+// See x3dom-portal-hosted-objects.mjs's identical helper/comment — same reasoning applies here.
+function wowStatusMap(meshes) {
+    return meshes.__wowStatus || (meshes.__wowStatus = new Map());
+}
+export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, version = null, layer = null, setLayerRecursive = null, preservePositionForId = null, configureMesh = null, fetchWowRepresentation = false, wowAssetBaseUrl = null, }) {
     if (!parent || !(meshes instanceof Map)) {
         return { object_ids: [], created: 0, removed: 0, geometry_updated: 0, structure_changed: false };
     }
     const A = new ThreeRenderAdapter(THREE);
+    const statusMap = wowStatusMap(meshes);
     const seen = new Set();
     let created = 0;
     let removed = 0;
@@ -31,38 +67,72 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
         const sizeM = Math.max(0.15, Number(definition.size_m) || 0.5);
         const color = A.createColor(String(definition.color || "#8899aa"));
         seen.add(objectId);
+        // See x3dom-portal-hosted-objects.mjs's identical check/comment — density-fixture objects
+        // always stay synthetic regardless of fetchWowRepresentation.
+        const isFixture = !!(definition.fixture || definition.synthetic_density_fixture);
+        const wantsWowFetch = fetchWowRepresentation && !isFixture && !!wowAssetBaseUrl;
         let mesh = meshes.get(objectId);
-        if (!mesh) {
-            const geometry = shape === "sphere"
-                ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
-                : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM });
-            mesh = A.createMesh(geometry, A.createMaterial({
-                type: "standard",
-                color,
-                roughness: 0.55,
-                metalness: 0.1,
-                emissive: A.multiplyColorScalar(color, 0.18),
-            }));
+        if (!mesh && wantsWowFetch) {
+            const url = `${wowAssetBaseUrl}/wow/asset/primitive-${encodeURIComponent(objectId)}`;
+            const claim = A.createInlineAsset(url, { loadGltf: loadHostedObjectGltf });
+            mesh = claim.node;
             A.setName(mesh, `demo-scene-object-${objectId}`);
-            mesh.userData.demoDrag = { kind: "scene-object", object_id: objectId };
-            mesh.userData.portalDynamicBounds = true;
-            if (layer != null && typeof setLayerRecursive === "function")
-                setLayerRecursive(mesh, layer);
             A.add(parent, mesh);
             meshes.set(objectId, mesh);
+            statusMap.set(objectId, { status: "loading" });
+            created += 1;
+            claim.ready.then((node) => {
+                const entry = statusMap.get(objectId);
+                if (entry)
+                    entry.status = "loaded";
+                // Defensive propagation: portal-spatial-preview.mjs reads userData.portalDynamicBounds
+                // per-visited-node during its bounds/clipping composition — guarantee every descendant
+                // of the loaded glTF scene carries it, rather than relying on a parent-walk existing.
+                node.traverse((o) => { o.userData.portalDynamicBounds = true; });
+            }).catch((err) => {
+                // 403/404/406 (the demo's own first-two-objects-per-location restricted/hidden
+                // convention — see wow-asset.js — makes this the COMMON case here, not an edge
+                // case) or any other fetch/parse failure: drop the failed claim, rebuild as
+                // synthetic geometry, same as if fetchWowRepresentation had never been requested.
+                if (meshes.get(objectId) !== mesh)
+                    return;
+                disposeMesh(THREE, mesh);
+                const fallback = buildSyntheticThreeMesh(A, objectId, shape, sizeM, color);
+                fallback.userData.demoDrag = { kind: "scene-object", object_id: objectId };
+                fallback.userData.portalDynamicBounds = true;
+                if (layer != null && typeof setLayerRecursive === "function")
+                    setLayerRecursive(fallback, layer);
+                A.add(parent, fallback);
+                meshes.set(objectId, fallback);
+                statusMap.set(objectId, { status: "denied-or-error", error: err && err.message });
+            });
+        }
+        if (!mesh) {
+            mesh = buildSyntheticThreeMesh(A, objectId, shape, sizeM, color);
+            A.add(parent, mesh);
+            meshes.set(objectId, mesh);
+            statusMap.set(objectId, { status: "synthetic" });
             created += 1;
         }
-        else if (mesh.userData.hostedSceneObject?.shape !== shape ||
-            mesh.userData.hostedSceneObject?.size_m !== sizeM) {
-            if (mesh.geometry)
-                A.disposeGeometry(mesh.geometry);
-            A.setGeometry(mesh, shape === "sphere"
-                ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
-                : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM }));
-            geometryUpdated += 1;
+        const entry = statusMap.get(objectId);
+        const isWowManaged = entry && (entry.status === "loading" || entry.status === "loaded");
+        mesh.userData.demoDrag = { kind: "scene-object", object_id: objectId };
+        mesh.userData.portalDynamicBounds = true;
+        if (layer != null && typeof setLayerRecursive === "function")
+            setLayerRecursive(mesh, layer);
+        if (!isWowManaged) {
+            if (mesh.userData.hostedSceneObject?.shape !== shape ||
+                mesh.userData.hostedSceneObject?.size_m !== sizeM) {
+                if (mesh.geometry)
+                    A.disposeGeometry(mesh.geometry);
+                A.setGeometry(mesh, shape === "sphere"
+                    ? A.createGeometry({ type: "sphere", radius: sizeM / 2, widthSegments: 24, heightSegments: 18 })
+                    : A.createGeometry({ type: "box", width: sizeM, height: sizeM, depth: sizeM }));
+                geometryUpdated += 1;
+            }
+            mesh.material?.color?.copy?.(color);
+            mesh.material?.emissive?.copy?.(color)?.multiplyScalar?.(0.18);
         }
-        mesh.material?.color?.copy?.(color);
-        mesh.material?.emissive?.copy?.(color)?.multiplyScalar?.(0.18);
         if (preservePositionForId !== objectId) {
             const position = Array.isArray(definition.position) ? definition.position : [0, 0, 0];
             A.setPosition(mesh, Number(position[0]) || 0, Number(position[1]) || 0, Number(position[2]) || 0);
@@ -77,6 +147,7 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
             geometry_type: mesh.geometry?.type || null,
             material_type: mesh.material?.type || null,
             material_authority: "shared_hosted_scene_object_standard_material_v1",
+            wow_status: entry ? entry.status : "synthetic",
         };
         mesh.visible = true;
         if (typeof configureMesh === "function")
@@ -85,8 +156,9 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
     for (const [id, mesh] of [...meshes.entries()]) {
         if (seen.has(id))
             continue;
-        disposeMesh(mesh);
+        disposeMesh(THREE, mesh);
         meshes.delete(id);
+        statusMap.delete(id);
         removed += 1;
     }
     return {
@@ -97,12 +169,14 @@ export function syncHostedSceneObjectMeshes({ THREE, meshes, parent, objects, ve
         structure_changed: created > 0 || removed > 0,
     };
 }
-export function disposeHostedSceneObjectMeshes(meshes) {
+export function disposeHostedSceneObjectMeshes(THREE, meshes) {
     if (!(meshes instanceof Map))
         return 0;
     const count = meshes.size;
-    meshes.forEach(disposeMesh);
+    meshes.forEach((mesh) => disposeMesh(THREE, mesh));
     meshes.clear();
+    if (meshes.__wowStatus)
+        meshes.__wowStatus.clear();
     return count;
 }
 export function createPortalRenderController({ THREE, isPlayer, getPortalHost, getScene, getServerViewMode, alignPortalVisualToTrigger, setPortalVisualAlignment, setLayerRecursive, childFabricLayer, lookup, documentTarget, windowTarget, nowMs, nowIso, logLine, writeDebugText, vec3Label, fixed3, isTypingTarget, }) {
@@ -178,8 +252,10 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
     }
     function clearMeshMap(map, remove = false) {
         if (remove)
-            map.forEach(disposeMesh);
+            map.forEach((mesh) => disposeMesh(THREE, mesh));
         map.clear();
+        if (map.__wowStatus)
+            map.__wowStatus.clear();
     }
     function ensurePortalDragHandle() {
         const live = portalHost();
@@ -379,6 +455,15 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
                         mesh.visible = !suppressAirportWowProxy;
                         mesh.userData.airportWowProxySuppressed = suppressAirportWowProxy;
                     },
+                    // Real WoW-negotiated asset representations for the ACTIVE world's own hosted
+                    // objects only — the isDestinationWorld branch below (and
+                    // scene-runtime-controller.mjs's own destination-preview call site) stay on
+                    // synthetic geometry, matching X3DOM's equal scoping decision (see
+                    // x3dom-portal-traversal-glue.mjs's applyActiveHostedPoint) — kept symmetric
+                    // between engines rather than an asymmetric partial implementation, even
+                    // though three.js's GLTFLoader has no equivalent restriction to X3DOM's.
+                    fetchWowRepresentation: true,
+                    wowAssetBaseUrl: typeof live.demoProxyBase === "function" ? live.demoProxyBase(key) : null,
                 });
             }
             const trigger = attachPoint.portal_pose?.trigger_position || null;
@@ -897,7 +982,7 @@ export function createPortalRenderController({ THREE, isPlayer, getPortalHost, g
         clearMeshMap(state.rootMeshes, true);
         clearMeshMap(state.childMeshes, true);
         if (state.portalHandle)
-            disposeMesh(state.portalHandle);
+            disposeMesh(THREE, state.portalHandle);
         state.portalHandle = null;
         state.rootSceneImpl = null;
         state.childGroupRef = null;

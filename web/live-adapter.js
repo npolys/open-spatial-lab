@@ -1782,6 +1782,7 @@ export class LiveAdapter extends EventTarget {
                 kind: "authored_wow_graph",
                 location_id: endpoint.location_id,
                 world_id: endpoint.world_id,
+                endpoint_key: endpointKey,
                 graph,
                 graph_url: graphUrl,
                 base_url: endpoint.proxy_base,
@@ -1793,6 +1794,7 @@ export class LiveAdapter extends EventTarget {
             kind: "legacy_world",
             location_id: endpoint.location_id,
             world_id: endpoint.world_id,
+            endpoint_key: endpointKey,
             revision: `${endpoint.location_id}:${wowWorld?.content?.version ?? "live"}:` +
                 `hosted-${hostedPoint?.version ?? "unknown"}`,
             world: {

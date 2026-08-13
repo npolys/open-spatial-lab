@@ -24,6 +24,11 @@ function startWorld(role, portByLocation) {
         });
     });
 }
+function logUnexpectedError(kind, error) {
+    console.error(`[orchestrator] ${kind} (world servers share one process; continuing): ${error && error.stack ? error.stack : error}`);
+}
+process.on('uncaughtException', (error) => logUnexpectedError('uncaughtException', error));
+process.on('unhandledRejection', (reason) => logUnexpectedError('unhandledRejection', reason));
 async function main() {
     if ((process.argv[2] || 'serve-backends') !== 'serve-backends') {
         throw new Error('usage: node src/orchestrator.js serve-backends');

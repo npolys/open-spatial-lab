@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Portal preview real-content Stage 0: syncHostedSceneObjectMeshesX3dom (throwaway test harness)</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 320px; height: 240px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { syncHostedSceneObjectMeshesX3dom, disposeHostedSceneObjectMeshesX3dom } from "/x3dom-portal-hosted-objects.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const mountEl = document.getElementById('mount');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.mount(mountEl, { width: 320, height: 240 });
+  await adapter.ready();
+  append('adapter ready, backend: ' + adapter.runtime.backendName());
+
+  const parent = adapter.createGroup('hosted-objects-test-parent');
+  adapter.add(adapter.sceneRoot, parent);
+  const meshes = new Map();
+
+  // --- Round 1: create two objects (one box, one sphere). ---
+  const r1 = syncHostedSceneObjectMeshesX3dom({
+    adapter, meshes, parent, version: 1,
+    objects: [
+      { object_id: 'obj-box', shape: 'box', size_m: 0.6, color: '#ff6644', position: [1, 0.3, 0] },
+      { object_id: 'obj-sphere', shape: 'sphere', size_m: 0.4, color: '#44aaff', position: [-1, 0.2, 0.5] },
+    ],
+  });
+  const afterCreate = {
+    meshCount: meshes.size,
+    boxTag: meshes.get('obj-box')?._x3dShape?.querySelector(':scope > *:not(appearance)')?.tagName?.toLowerCase() || null,
+    sphereTag: meshes.get('obj-sphere')?._x3dShape?.querySelector(':scope > *:not(appearance)')?.tagName?.toLowerCase() || null,
+    boxPosition: (meshes.get('obj-box')?.getAttribute('translation') || '').trim(),
+    spherePosition: (meshes.get('obj-sphere')?.getAttribute('translation') || '').trim(),
+    boxInParent: meshes.get('obj-box')?.parentNode === parent,
+  };
+
+  // --- Round 2: move the box, recolor it, drop the sphere (should dispose it), add a third object. ---
+  const r2 = syncHostedSceneObjectMeshesX3dom({
+    adapter, meshes, parent, version: 2,
+    objects: [
+      { object_id: 'obj-box', shape: 'box', size_m: 0.6, color: '#22ff88', position: [2, 0.3, 0] },
+      { object_id: 'obj-third', shape: 'box', size_m: 0.5, color: '#ffcc00', position: [0, 0.25, -1] },
+    ],
+  });
+  const sphereStillInDom = !!meshes.get('obj-sphere') || Array.from(parent.children).some((c) => c.name === 'demo-scene-object-obj-sphere');
+  const afterUpdate = {
+    meshCount: meshes.size,
+    hasSphere: meshes.has('obj-sphere'),
+    hasThird: meshes.has('obj-third'),
+    boxPositionMoved: (meshes.get('obj-box')?.getAttribute('translation') || '').trim(),
+    parentChildCount: parent.children.length,
+  };
+
+  const disposedCount = disposeHostedSceneObjectMeshesX3dom(adapter, meshes);
+  const afterDispose = { meshMapSize: meshes.size, parentChildCount: parent.children.length };
+
+  append('r1: ' + JSON.stringify(r1));
+  append('afterCreate: ' + JSON.stringify(afterCreate));
+  append('r2: ' + JSON.stringify(r2));
+  append('sphereStillInDom: ' + sphereStillInDom);
+  append('afterUpdate: ' + JSON.stringify(afterUpdate));
+  append('disposedCount: ' + disposedCount);
+  append('afterDispose: ' + JSON.stringify(afterDispose));
+
+  const ok =
+    r1.created === 2 && r1.removed === 0 &&
+    afterCreate.meshCount === 2 && afterCreate.boxTag === 'box' && afterCreate.sphereTag === 'sphere' &&
+    afterCreate.boxPosition === '1 0.3 0' && afterCreate.spherePosition === '-1 0.2 0.5' && afterCreate.boxInParent &&
+    r2.created === 1 && r2.removed === 1 &&
+    !sphereStillInDom &&
+    afterUpdate.meshCount === 2 && !afterUpdate.hasSphere && afterUpdate.hasThird &&
+    afterUpdate.boxPositionMoved === '2 0.3 0' && afterUpdate.parentChildCount === 2 &&
+    disposedCount === 2 && afterDispose.meshMapSize === 0 && afterDispose.parentChildCount === 0;
+
+  window.__testResult = { ok, r1, afterCreate, r2, sphereStillInDom, afterUpdate, disposedCount, afterDispose };
+  document.getElementById('status').textContent = ok ? 'PASS' : 'FAIL';
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

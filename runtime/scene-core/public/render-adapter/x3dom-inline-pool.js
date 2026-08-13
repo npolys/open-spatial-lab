@@ -18,7 +18,18 @@
     var X3DOM_INLINE_POOL_SIZE = window.__X3DOM_INLINE_POOL_SIZE_OVERRIDE || 32;
     var X3DOM_INLINE_POOL_PLACEHOLDER_URL = "/assets/equip-crown.glb";
     for (var i = 0; i < X3DOM_INLINE_POOL_SIZE; i += 1) {
-        document.write("<transform>" +
+        // render="false" on the wrapper: every slot needs one real load to become reliably
+        // reloadable later (see the file header), but an unclaimed slot has no reason to be
+        // visible in the meantime — without this, every idle slot sat at the origin rendering a
+        // full-size, un-scaled copy of the placeholder asset, visible in the main scene ("lots of
+        // crowns being drawn" — a live-QA report, since the placeholder happens to be
+        // equip-crown.glb). createInlineAsset() only sets render="true" back once the claimed
+        // slot's url has actually swapped to the caller's real target content (NOT immediately on
+        // claim — an earlier version did that and re-introduced the same visible-crown symptom for
+        // the whole swap-and-load window, which became multi-second-visible once WoW-negotiated
+        // asset fetches started claiming slots); disposeNode() sets it back to "false" on release,
+        // alongside the existing url reset.
+        document.write("<transform render=\"false\">" +
             "<inline id=\"x3dom-inline-slot-" + i + "\" " +
             "nameSpaceName=\"x3dom-inline-slot-" + i + "-ns\" " +
             "url=\"" + X3DOM_INLINE_POOL_PLACEHOLDER_URL + "\" " +

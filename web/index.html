@@ -1061,15 +1061,25 @@
     <main>
       <div id="scene-mount" tabindex="-1" aria-label="Interactive spatial world">
         <script>
-        // X3DOM preview mode (?renderer=x3dom): the <x3d> host + Inline slot pool MUST be part of
-        // the page's original static-parse markup stream (see the README's Render-engine adapter
-        // section — a dynamically document.createElement()'d Inline node never completes its
-        // first load). A classic (non-module) script executing synchronously during the initial
-        // HTML parse is the only point document.write() can still inject real static markup —
-        // demo-shell-bootstrap.mjs (a module script) runs too late for this. Default (no param)
-        // page load: this block is a no-op, nothing extra is written or loaded.
+        // X3DOM preview mode (?renderer=x3dom, or a saved preference — see Phase 5 of the parity
+        // plan / OSL_RENDERER_PREFERENCE_KEY in demo-shell-bootstrap.mjs): the <x3d> host + Inline
+        // slot pool MUST be part of the page's original static-parse markup stream (see the
+        // README's Render-engine adapter section — a dynamically document.createElement()'d
+        // Inline node never completes its first load). A classic (non-module) script executing
+        // synchronously during the initial HTML parse is the only point document.write() can
+        // still inject real static markup — demo-shell-bootstrap.mjs (a module script) runs too
+        // late for this. Default (no param, no stored preference) page load: this block is a
+        // no-op, nothing extra is written or loaded. An explicit ?renderer= query param always
+        // wins over the stored preference, even to explicitly force three.js (?renderer=three)
+        // despite a stored x3dom preference — this mirrors demo-shell-bootstrap.mjs's own
+        // precedence and must stay in sync with it by hand (a classic script can't import a
+        // shared helper from a module).
         (function () {
-          if (new URLSearchParams(location.search).get("renderer") !== "x3dom") return;
+          var explicitRenderer = new URLSearchParams(location.search).get("renderer");
+          var storedRenderer = null;
+          try { storedRenderer = localStorage.getItem("osl-renderer-preference-v1"); } catch (e) { }
+          var wantsX3dom = explicitRenderer ? explicitRenderer === "x3dom" : storedRenderer === "x3dom";
+          if (!wantsX3dom) return;
           var w = window.innerWidth || 1280;
           var h = window.innerHeight || 800;
           document.write(
@@ -1725,6 +1735,12 @@
     }
   </script>
   <div id="demo-launcher-mount" hidden></div>
+  <button id="btn-renderer-preference" type="button" data-testid="renderer-preference-toggle"
+          title="Toggle the experimental X3DOM renderer preview (reloads the page)"
+          style="position:fixed; bottom:10px; left:10px; z-index:2147483647; padding:6px 10px;
+                 background:rgba(8,12,26,0.82); color:#dbe8ff; border:1px solid rgba(43,212,255,0.4);
+                 border-radius:8px; font:600 11px ui-monospace,Menlo,monospace; letter-spacing:0.02em;
+                 cursor:pointer;">Renderer: three.js</button>
   <script type="module" src="./demo-shell-bootstrap.mjs?v=1"></script>
 </body>
 </html>

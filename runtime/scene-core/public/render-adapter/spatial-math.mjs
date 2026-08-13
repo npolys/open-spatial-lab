@@ -99,4 +99,25 @@ export function decomposeTRS(m) {
     }
     return { translation, quaternion: [qx, qy, qz, qw], scale: [sx, sy, sz] };
 }
+/**
+ * The inverse of decomposeTRS: builds a flat column-major matrix from separate translation/
+ * quaternion/scale components (three.js's Matrix4.compose formula — the same convention this
+ * file's header documents matching). Exists for callers that receive TRS-shaped authored data
+ * (e.g. the equipment catalog's { position, quaternion, scale } items) but need to hand a matrix
+ * to a RenderAdapter.setLocalMatrix() call.
+ */
+export function composeTRS(translation, quaternion, scale) {
+    const [x, y, z, w] = quaternion;
+    const x2 = x + x, y2 = y + y, z2 = z + z;
+    const xx = x * x2, xy = x * y2, xz = x * z2;
+    const yy = y * y2, yz = y * z2, zz = z * z2;
+    const wx = w * x2, wy = w * y2, wz = w * z2;
+    const [sx, sy, sz] = scale;
+    return [
+        (1 - (yy + zz)) * sx, (xy + wz) * sx, (xz - wy) * sx, 0,
+        (xy - wz) * sy, (1 - (xx + zz)) * sy, (yz + wx) * sy, 0,
+        (xz + wy) * sz, (yz - wx) * sz, (1 - (xx + yy)) * sz, 0,
+        translation[0], translation[1], translation[2], 1,
+    ];
+}
 export const IDENTITY_MAT4 = Object.freeze([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);

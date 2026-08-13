@@ -23,9 +23,11 @@ try {
   // "Permissions policy violation: unload is not allowed" is a known, benign headless-Chrome
   // artifact seen across every spike in this suite (X3DOM registers an unload listener headless
   // Chrome's permissions policy blocks) — not a real error, filtered the same way
-  // verify-demo.mjs filters its own known-benign noise.
+  // verify-demo.mjs filters its own known-benign noise. The 403/404 "Failed to load resource"
+  // pattern is the WoW-negotiated-asset feature's own expected noise — the demo's first two
+  // hosted objects at every location are always restricted/hidden (see wow-asset.js).
   page.on("console", (m) => {
-    if (m.type() === "error" && !/Permissions policy violation: unload is not allowed/i.test(m.text()))
+    if (m.type() === "error" && !/Permissions policy violation: unload is not allowed|Failed to load resource: the server responded with a status of (403|404)/i.test(m.text()))
       errors.push(`console[error]: ${m.text()}`);
   });
   // networkidle0 never resolves here on purpose (LiveAdapter opens a persistent runtime-state
@@ -36,6 +38,10 @@ try {
   // usually last) means it's competing with whatever's left of prior spikes' software-rendering
   // load — seen taking meaningfully longer under that contention than standalone.
   await page.waitForFunction(() => window.__x3domLiveMode != null, { timeout: 45000 });
+  // The glTF avatar load (real network fetch + Inline-pool URL swap/poll) can comfortably exceed
+  // 1s under headless/software rendering — wait for the actual readiness signal (avatarReady)
+  // rather than a fixed guess, so the WASD/DOM-sync assertions below don't race a slow load.
+  await page.evaluate(() => window.__x3domLiveMode.avatarReady);
 
   const before = await page.evaluate(() => {
     const m = window.__x3domLiveMode;

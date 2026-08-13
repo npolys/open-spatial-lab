@@ -72,6 +72,54 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         this._runtime = null;
         this._frameCallbacks = [];
         this._mountEl = null;
+        // Confirmed empirically (X3DOM parity Phase 3.5a): letting two createInlineAsset() calls
+        // have their url-swap-and-load-poll in flight at the same time — even from unrelated pool
+        // slots — intermittently throws inside X3DOM's own addNameSpace/onreadystatechange
+        // internals. Not catchable from here (it's inside a vendor event handler, off the call
+        // stack this code runs on). This queue guarantees at most one Inline load is ever in
+        // flight app-wide, no matter which caller (avatar spawn, equipment, peer avatars, hosted
+        // objects) issues it or in what order — a structural fix, not a "remember to await in
+        // order" convention callers have to maintain themselves.
+        //
+        // Priority-aware (added alongside the WoW-negotiated hosted-object asset feature): an
+        // explicit array + single active-task flag, not a plain promise chain, so a `priority: true`
+        // claim (avatar/equipment) can jump ahead of already-queued-but-not-yet-started `priority:
+        // false` claims (hosted objects). Needed once hosted-object WoW-fetch claims — which can
+        // legitimately take several real seconds each on the demo's deliberately-common 403/404
+        // denial path — started sharing this same queue: without reordering, avatar equipment could
+        // sit invisible behind 2-3 hosted-object claims it has no real dependency on, then pop in
+        // all at once once they finally cleared (confirmed live: ~10s of a bare, un-equipped avatar
+        // before hat/torch/hammer all appeared together). Does NOT preempt an already-in-flight
+        // low-priority task (can't cancel mid-load) — only reorders what's still pending.
+        this._inlineQueueItems = [];
+        this._inlineQueueActive = false;
+    }
+    /** Runs `task` only after every previously-enqueued Inline load has settled (see the
+     * constructor comment) — except a `priority: true` task, which runs ahead of any pending
+     * (not yet started) `priority: false` tasks, though still behind whatever is currently
+     * in flight. One failure never blocks subsequent loads; `task`'s real outcome (including
+     * rejection) is still returned to its caller via the returned promise. */
+    _enqueueInlineLoad(task, { priority = false } = {}) {
+        return new Promise((resolve, reject) => {
+            const item = { task, resolve, reject };
+            if (priority)
+                this._inlineQueueItems.unshift(item);
+            else
+                this._inlineQueueItems.push(item);
+            this._pumpInlineQueue();
+        });
+    }
+    _pumpInlineQueue() {
+        if (this._inlineQueueActive)
+            return;
+        const item = this._inlineQueueItems.shift();
+        if (!item)
+            return;
+        this._inlineQueueActive = true;
+        Promise.resolve().then(item.task).then(item.resolve, item.reject).then(() => {
+            this._inlineQueueActive = false;
+            this._pumpInlineQueue();
+        });
     }
     get kind() { return "x3dom"; }
     get raw() { return null; }
@@ -79,6 +127,18 @@ export class X3DOMRenderAdapter extends RenderAdapter {
     get runtime() { return this._runtime; }
     /** Non-interface accessor for call sites still mid-migration (direct X3D element access). */
     get camera() { return this._cameraEl; }
+    /** Current canvas pixel dimensions — same fallback chain pickViewCenter() already uses
+     * internally (clientWidth/clientHeight, falling back to the width/height attributes). Public
+     * because worldToScreen()'s returned canvas-pixel coordinates are only meaningful relative to
+     * these bounds — a caller doing on-screen visibility/eligibility checks (not just picking a
+     * single point) needs them too. */
+    get canvasSize() {
+        if (!this._x3dEl)
+            return { width: 0, height: 0 };
+        const width = this._x3dEl.clientWidth || parseInt(this._x3dEl.getAttribute("width"), 10) || 0;
+        const height = this._x3dEl.clientHeight || parseInt(this._x3dEl.getAttribute("height"), 10) || 0;
+        return { width, height };
+    }
     mount(containerEl, options = {}) {
         const width = options.width || containerEl.clientWidth || 640;
         const height = options.height || containerEl.clientHeight || 420;
@@ -199,26 +259,65 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         if (position)
             camera.setAttribute("position", `${position[0]} ${position[1]} ${position[2]}`);
         if (position && lookAt) {
-            // X3D Viewpoint has no lookAt(); derive an orientation (axis-angle) that points
-            // -Z (the viewpoint's default forward) at the target, matching THREE.Camera.lookAt.
+            // X3D Viewpoint has no lookAt(); derive an orientation quaternion from a proper
+            // right/up/forward basis (Gram-Schmidt against world-up) — NOT a single shortest-arc
+            // rotation from the default forward to the target forward. That simpler approach
+            // (this method's original implementation) is roll-free only when azimuth or polar is
+            // zero in isolation; combining both (ordinary orbit navigation does this essentially
+            // all the time) tilts the shortest-arc rotation axis off-horizontal, which rolls the
+            // up vector out of the vertical plane — confirmed both by direct derivation and by a
+            // live roll-DOF bug report. This construction (the same one three.js's Matrix4.lookAt/
+            // OpenGL's gluLookAt use) keeps "up" maximally aligned with world-up by constraining
+            // it via cross products instead of a single free rotation, so azimuth (yaw) and polar
+            // (pitch) combine with zero roll by construction.
+            //
+            // Not built on X3D Viewpoint's own `centerOfRotation` field (doc.x3dom.org/author/
+            // Navigation/Viewpoint.html): that field only feeds X3DOM's own built-in EXAMINE
+            // navigation, which this app doesn't use — X3DOM's internal canvas swallows every
+            // mousemove via stopPropagation regardless of NavigationInfo type (confirmed directly,
+            // see x3dom-movement-camera-controller.mjs's attachPointerControls()), so orbit/
+            // first-person camera control is fully hand-rolled here, driven by explicit position/
+            // lookAt every frame. orbit-camera-controller.mjs's own `focus` state is this app's
+            // equivalent of a rotation center, computed independently of anything X3DOM tracks.
             const dir = [lookAt[0] - position[0], lookAt[1] - position[1], lookAt[2] - position[2]];
             const len = Math.hypot(...dir) || 1;
             const fwd = [dir[0] / len, dir[1] / len, dir[2] / len];
-            const defaultFwd = [0, 0, -1];
-            const dot = Math.max(-1, Math.min(1, fwd[0] * defaultFwd[0] + fwd[1] * defaultFwd[1] + fwd[2] * defaultFwd[2]));
-            const axis = [
-                defaultFwd[1] * fwd[2] - defaultFwd[2] * fwd[1],
-                defaultFwd[2] * fwd[0] - defaultFwd[0] * fwd[2],
-                defaultFwd[0] * fwd[1] - defaultFwd[1] * fwd[0],
+            const worldUp = [0, 1, 0];
+            let right = [
+                fwd[1] * worldUp[2] - fwd[2] * worldUp[1],
+                fwd[2] * worldUp[0] - fwd[0] * worldUp[2],
+                fwd[0] * worldUp[1] - fwd[1] * worldUp[0],
             ];
-            const axisLen = Math.hypot(...axis);
-            const angle = Math.acos(dot);
-            if (axisLen < 1e-6) {
-                camera.setAttribute("orientation", dot > 0 ? "0 1 0 0" : "0 1 0 3.14159");
+            let rightLen = Math.hypot(...right);
+            if (rightLen < 1e-6) {
+                // fwd is (near-)parallel to world-up (looking straight up/down) — cross product
+                // against world-up is degenerate, fall back to a fixed alternate reference axis.
+                const altUp = [0, 0, 1];
+                right = [
+                    fwd[1] * altUp[2] - fwd[2] * altUp[1],
+                    fwd[2] * altUp[0] - fwd[0] * altUp[2],
+                    fwd[0] * altUp[1] - fwd[1] * altUp[0],
+                ];
+                rightLen = Math.hypot(...right) || 1;
             }
-            else {
-                camera.setAttribute("orientation", `${axis[0] / axisLen} ${axis[1] / axisLen} ${axis[2] / axisLen} ${angle}`);
-            }
+            right = [right[0] / rightLen, right[1] / rightLen, right[2] / rightLen];
+            const up = [
+                right[1] * fwd[2] - right[2] * fwd[1],
+                right[2] * fwd[0] - right[0] * fwd[2],
+                right[0] * fwd[1] - right[1] * fwd[0],
+            ];
+            // Column-major rotation matrix (this file's own convention — see spatial-math.mjs's
+            // header comment): local +X = right, local +Y = up, local +Z = -forward (X3D/three.js
+            // cameras look down their own local -Z by default).
+            const rotationMatrix = [
+                right[0], right[1], right[2], 0,
+                up[0], up[1], up[2], 0,
+                -fwd[0], -fwd[1], -fwd[2], 0,
+                0, 0, 0, 1,
+            ];
+            const { quaternion } = decomposeTRS(rotationMatrix);
+            const [ax, ay, az, angle] = quaternionToAxisAngle(quaternion);
+            camera.setAttribute("orientation", `${ax} ${ay} ${az} ${angle}`);
         }
     }
     // Confirmed empirically (not from docs — calcCanvasPos gave no signal for a point behind the
@@ -338,7 +437,12 @@ export class X3DOMRenderAdapter extends RenderAdapter {
     // node that already completed one real load (from the static parse-time markup — see
     // x3dom-inline-pool.js) can have its `url` swapped and reliably reload with new content. So
     // this claims a slot from that pre-seeded pool rather than creating a node from scratch.
-    createInlineAsset(url, options = {}, timeoutMs = 15000) {
+    // `priority`: true for avatar/equipment claims (player-visible, should never sit invisible
+    // behind background hosted-object claims — see the queue's own comment in the constructor),
+    // false (default) for everything else, including hosted-object WoW-fetch claims.
+    createInlineAsset(url, options = {}, timeoutMs = 15000, priority = false) {
+        // Slot claiming stays synchronous/immediate (unchanged) — only the actual url-swap and
+        // load-poll below is queued, so callers still get a real node handle right away.
         const slot = document.querySelector('inline[data-x3dom-inline-pool-slot="free"]');
         if (!slot)
             throw new Error("X3DOMRenderAdapter.createInlineAsset: Inline slot pool exhausted — all slots are claimed (see x3dom-inline-pool.js)");
@@ -347,18 +451,21 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         wrapper.userData = wrapper.userData || {};
         wrapper._x3domPoolSlot = slot;
         const namesOf = () => Array.from(slot.children).map((c) => c.getAttribute && c.getAttribute("def")).join(",");
-        const t0 = performance.now();
-        const pollUntil = (predicate) => new Promise((resolve, reject) => {
-            const poll = () => {
-                if (predicate())
-                    return resolve();
-                if (performance.now() - t0 > timeoutMs)
-                    return reject(new Error(`X3DOMRenderAdapter.createInlineAsset: "${url}" did not load within ${timeoutMs}ms`));
-                setTimeout(poll, 50);
-            };
-            poll();
-        });
-        const ready = (async () => {
+        const ready = this._enqueueInlineLoad(async () => {
+            // Timeout is measured from when this task actually starts running, not from when
+            // createInlineAsset() was called — a load queued behind several others shouldn't
+            // spuriously time out just from waiting its turn.
+            const t0 = performance.now();
+            const pollUntil = (predicate) => new Promise((resolve, reject) => {
+                const poll = () => {
+                    if (predicate())
+                        return resolve();
+                    if (performance.now() - t0 > timeoutMs)
+                        return reject(new Error(`X3DOMRenderAdapter.createInlineAsset: "${url}" did not load within ${timeoutMs}ms`));
+                    setTimeout(poll, 50);
+                };
+                poll();
+            });
             // With many pool slots primed concurrently at page-parse time, the specific slot
             // just claimed may not have finished ITS placeholder load yet — swapping url while
             // that first load is still in flight risks racing it. Wait for real content first.
@@ -366,8 +473,17 @@ export class X3DOMRenderAdapter extends RenderAdapter {
             const namesBefore = namesOf();
             slot.setAttribute("url", url);
             await pollUntil(() => slot.children.length > 0 && namesOf() !== namesBefore);
+            // Only flip visible once the slot is actually showing the requested content — doing
+            // this on claim instead (as this used to) left the pool's own placeholder
+            // (equip-crown.glb, see x3dom-inline-pool.js) visibly rendered at the caller's
+            // already-applied target transform for the whole swap-and-load window. That window
+            // was near-instant for small local assets (avatar/equipment), but became a real,
+            // multi-second visible "crown" flash once WoW-negotiated asset fetches (real HTTP
+            // round-trips, with an explicit multi-second timeout on the deliberately-common
+            // 403/404 fallback path) started using this same method.
+            wrapper.setAttribute("render", "true");
             return wrapper;
-        })();
+        }, { priority });
         return { node: wrapper, ready };
     }
     createColor(value) { return parseColor(value); }
@@ -472,7 +588,7 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         // also drive emissiveColor from the same color (there's no separate "unlit" material
         // type in this X3DOM build to reach for instead).
         const emissive = desc.type === "line" ? color : desc.emissive !== undefined ? parseColor(desc.emissive) : { r: 0, g: 0, b: 0 };
-        const base = { color, emissive, emissiveIntensity: desc.emissiveIntensity ?? 1 };
+        const base = { color, emissive, emissiveIntensity: desc.emissiveIntensity ?? 1, side: desc.side };
         materialEl.setAttribute("diffuseColor", colorToFieldString(base.color));
         materialEl.setAttribute("emissiveColor", colorToFieldString(this.multiplyColorScalar(base.emissive, base.emissiveIntensity)));
         if (desc.opacity !== undefined || desc.transparent)
@@ -487,6 +603,12 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         return { kind: "x3d-material", appearanceEl, materialEl, base, mapTexture: desc.map || null };
     }
     _wrapShape(geometry, material) {
+        // Bridges createMaterial()'s `side` field onto the geometry element: X3DOM's geometry
+        // nodes (Plane included) inherit a `solid` SFBool field from X3DGeometryNode, default
+        // true (backface-culled), with no material-level equivalent — so "double-sided" has to be
+        // expressed on the geometry side even though callers request it on the material desc.
+        if (material.base?.side === "double" && typeof geometry.setAttribute === "function")
+            geometry.setAttribute("solid", "false");
         const shape = document.createElement("shape");
         shape.appendChild(material.appearanceEl);
         shape.appendChild(geometry);
@@ -497,6 +619,11 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         return transform;
     }
     createMesh(geometry, material) { return this._wrapShape(geometry, material); }
+    // Note: unlike createMesh(), this doesn't re-apply the side->solid bridge above (no material
+    // handle is available here to read `side` from) — fine for every current caller (only
+    // wow-scene.mjs's floor-resize path uses setGeometry, and the floor's material never requests
+    // side:"double"), but a future setGeometry() caller needing double-sided geometry would need
+    // to set `solid="false"` on the geometry element itself before calling this.
     setGeometry(mesh, geometry) {
         const shape = mesh._x3dShape;
         const old = shape.querySelector(":scope > *:not(appearance)");
@@ -637,6 +764,9 @@ export class X3DOMRenderAdapter extends RenderAdapter {
             const placeholderUrl = slot.getAttribute("data-x3dom-inline-pool-placeholder-url") || slot.getAttribute("url");
             slot.setAttribute("url", placeholderUrl);
             slot.setAttribute("data-x3dom-inline-pool-slot", "free");
+            // Hide it again — a freed slot goes back to being an idle, unclaimed pool member (see
+            // the render="true" set on claim, and x3dom-inline-pool.js's own comment).
+            node.setAttribute("render", "false");
             delete node._x3domPoolSlot;
             return;
         }

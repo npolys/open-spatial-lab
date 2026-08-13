@@ -1,0 +1,1165 @@
+{
+  "three": {
+    "renderer": "three",
+    "errors": [],
+    "roleChip": {
+      "text": "PLAYER",
+      "appClassName": "role-player rail-collapsed"
+    },
+    "defaultFps": {
+      "frames": 48,
+      "elapsedMs": 3029.2999999999065,
+      "fps": 15.845244776021353,
+      "maxGapMs": 116.69999999999982
+    },
+    "defaultShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/three-default.png",
+    "portalShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/three-near-portal.png",
+    "nearPortalFps": {
+      "frames": 35,
+      "elapsedMs": 3089.099999999813,
+      "fps": 11.3301608882853,
+      "maxGapMs": 133.29999999999927
+    },
+    "previewDebug": {
+      "_claim": "runtime full-fidelity bounded portal windows — shared canonical destination composition, transformed-bounds awareness, fragment clipping, direct-density targets, strict full-or-absent peers; local validation layer, spatial_render_standard_conformance:false",
+      "avatar_representation_create_count": 0,
+      "avatar_representation_dispose_count": 0,
+      "records": {
+        "location-a-portal": {
+          "portal_key": "location-a-portal",
+          "active": true,
+          "camera_mapped": false,
+          "shared_edge_identity": {
+            "available": false,
+            "reason": "region_portal_pending",
+            "portal_key": "location-a-portal",
+            "expected_edge_id": "edge--location-a--location-b"
+          },
+          "viewer_side": "front",
+          "clip_plane_side": "target_frame_forward",
+          "both_sides_render": "one proper 180deg isometry serves front AND back viewers; the awareness half-space remains target-frame-forward for both source viewer sides",
+          "perimeter_gate": {
+            "live": false,
+            "inside": false,
+            "distance_m": 4.252,
+            "radius_m": 3,
+            "exit_radius_m": 3.45,
+            "hysteresis_ratio": 1.15,
+            "rule": "region/presence subscription stays live only while the prefetch controller's zone.inside is true; runtime canonical portal rendering is independent",
+            "validation": {
+              "perimeter_gate_standard_conformance": false,
+              "application_level": true
+            },
+            "reason": "outside_portal_perimeter"
+          },
+          "projection": "screen_space_projective_window",
+          "camera_mapping": "portal-frame 180deg rotation glue (shared with the crossing remap)",
+          "glue_convention": "proper_rotation_180deg_about_up",
+          "destination_coordinates": "raw destination world space (no re-basing)",
+          "canonical_content_status": "ready",
+          "canonical_content_error": null,
+          "canonical_content_source": "shared_canonical_legacy_world_builder",
+          "canonical_content_revision": "location-b:demo-room-b:hosted-4566",
+          "canonical_inventory": [
+            "canonical-world-floor",
+            "canonical-world-debug-grid",
+            "canonical-world-wall-z",
+            "canonical-world-wall-x",
+            "demo-scene-object-obj-b-cube-1",
+            "demo-scene-object-obj-b-sphere-1",
+            "demo-scene-object-obj-b-cube-2"
+          ],
+          "canonical_object_count": 7,
+          "entity_mesh_count": 7,
+          "avatar_proxy_count": 0,
+          "avatar_full_count": 0,
+          "avatar_representation_count": 0,
+          "avatar_fault": null,
+          "avatar_representations": [],
+          "controlled_identity_filter": {
+            "controlled_player_id": "player-1786581918334-87fbazp4o44",
+            "input_player_ids": [],
+            "suppressed_player_ids": [],
+            "rendered_player_ids": [],
+            "source": "snapshot_fallback",
+            "applied_at": "2026-08-13T00:45:31.919Z"
+          },
+          "last_avatar_reconcile": {
+            "at": "2026-08-13T00:45:31.919Z",
+            "at_ms": 1786581931919,
+            "previous_player_ids": [],
+            "next_player_ids": [],
+            "removed_player_ids": [],
+            "added_player_ids": []
+          },
+          "awareness_volume": {
+            "valid": true,
+            "center": [
+              2.8,
+              1.35,
+              -2.8
+            ],
+            "forward": [
+              -1,
+              0,
+              0
+            ],
+            "radius_m": 5,
+            "radius_source": "portal.zones.prefetch.matching_destination_circle.radius_m",
+            "half_space": "target_frame_forward",
+            "plane_setback_m": 0.1
+          },
+          "awareness_clip_plane_count": 21,
+          "radial_fragment_clip": true,
+          "object_culling": {
+            "eligible_count": 2,
+            "culled_count": 5,
+            "objects": [
+              {
+                "id": "canonical-world-floor",
+                "reason": "bounds_intersect_awareness_and_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    -1.3322676295501878e-15,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    1.3322676295501878e-15,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-debug-grid",
+                "reason": "bounds_intersect_awareness_and_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    0,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-wall-z",
+                "reason": "outside_portal_camera_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    5,
+                    -6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-wall-x",
+                "reason": "outside_awareness_radius",
+                "bounds": {
+                  "min": [
+                    -6.000000000000002,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    -5.999999999999998,
+                    5,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "demo-scene-object-obj-b-cube-1",
+                "reason": "outside_awareness_radius",
+                "bounds": {
+                  "min": [
+                    -2.9144407028950727,
+                    -5.960464455334602e-9,
+                    -1.4239223898784616
+                  ],
+                  "max": [
+                    -2.1144406909741438,
+                    0.8000000059604645,
+                    -0.6239223779575327
+                  ]
+                },
+                "dynamic_bounds": true,
+                "hosted_scene_object": {
+                  "object_id": "obj-b-cube-1",
+                  "shape": "box",
+                  "size_m": 0.8,
+                  "color": "#ff8c42",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic"
+                }
+              },
+              {
+                "id": "demo-scene-object-obj-b-sphere-1",
+                "reason": "outside_portal_camera_frustum",
+                "bounds": {
+                  "min": [
+                    1.4081190973512074,
+                    5.960464455334602e-9,
+                    1.2234903926592786
+                  ],
+                  "max": [
+                    2.1081190854302783,
+                    0.6999999940395355,
+                    1.9234903807383497
+                  ]
+                },
+                "dynamic_bounds": true,
+                "hosted_scene_object": {
+                  "object_id": "obj-b-sphere-1",
+                  "shape": "sphere",
+                  "size_m": 0.7,
+                  "color": "#ffd166",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "SphereGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic"
+                }
+              },
+              {
+                "id": "demo-scene-object-obj-b-cube-2",
+                "reason": "outside_awareness_radius",
+                "bounds": {
+                  "min": [
+                    -1.306926135521308,
+                    -1.1920928966180355e-8,
+                    2.464106903966124
+                  ],
+                  "max": [
+                    -0.7069261116794501,
+                    0.600000011920929,
+                    3.0641069278079818
+                  ]
+                },
+                "dynamic_bounds": true,
+                "hosted_scene_object": {
+                  "object_id": "obj-b-cube-2",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#c65ccd",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic"
+                }
+              }
+            ]
+          },
+          "avatar_culling": [],
+          "frames_rendered": 94,
+          "render_target": {
+            "width": 21,
+            "height": 549,
+            "sizing_rule": "projected aperture device-pixel crop at direct drawing-buffer density",
+            "fixed_low_resolution": false
+          },
+          "projected_aperture": {
+            "visible": false,
+            "reason": "aperture_outside_frustum"
+          },
+          "last_camera": {
+            "position": [
+              7.953321483134154,
+              1.9705163284774931,
+              -0.7130180009083928
+            ],
+            "target": [
+              4.352728887495161,
+              0.8267074280581508,
+              0.6013008947752807
+            ],
+            "rotation_y": -1.2207963267948965,
+            "source_local": {
+              "x": -2.086981999091607,
+              "y": 0.620516328477493,
+              "z": 5.153321483134154
+            },
+            "viewer_side": "front"
+          },
+          "room_dressing": {
+            "source": "shared_canonical_legacy_world_builder",
+            "world_color": "#3aa0ff",
+            "floor_color": "#2062a0",
+            "wall_color": "#2a7ac4",
+            "semantic_inventory": [
+              "canonical-world-floor",
+              "canonical-world-debug-grid",
+              "canonical-world-wall-z",
+              "canonical-world-wall-x"
+            ],
+            "presentation_policy": "shared_canonical_legacy_world_presentation_v1",
+            "product_grid_name": "canonical-world-debug-grid",
+            "debug_grid_included": true,
+            "hosted_objects": {
+              "attach_point_id": "um-attach-point-location-b",
+              "version": 4566,
+              "refresh_owner": "PortalRenderController existing bounded client pull",
+              "refresh_cadence_ms": 100,
+              "streaming": false,
+              "objects": [
+                {
+                  "object_id": "obj-b-cube-1",
+                  "shape": "box",
+                  "size_m": 0.8,
+                  "color": "#ff8c42",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic",
+                  "scene_name": "demo-scene-object-obj-b-cube-1",
+                  "position": [
+                    -2.212656091069498,
+                    0.4,
+                    -1.2948802391788712
+                  ],
+                  "instance_count": 1
+                },
+                {
+                  "object_id": "obj-b-sphere-1",
+                  "shape": "sphere",
+                  "size_m": 0.7,
+                  "color": "#ffd166",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "SphereGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic",
+                  "scene_name": "demo-scene-object-obj-b-sphere-1",
+                  "position": [
+                    1.3484069876429159,
+                    0.35,
+                    1.7214170727341196
+                  ],
+                  "instance_count": 1
+                },
+                {
+                  "object_id": "obj-b-cube-2",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#c65ccd",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic",
+                  "scene_name": "demo-scene-object-obj-b-cube-2",
+                  "position": [
+                    -0.6383125922615303,
+                    0.3,
+                    2.787133534948752
+                  ],
+                  "instance_count": 1
+                }
+              ]
+            }
+          },
+          "dest_ring": null,
+          "ring_alignment": null,
+          "spatial_render_standard_conformance": false,
+          "entities": [
+            {
+              "object_id": "canonical-world-floor",
+              "world_position": [
+                0,
+                0,
+                0
+              ],
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": null
+            },
+            {
+              "object_id": "canonical-world-debug-grid",
+              "world_position": [
+                0,
+                0,
+                0
+              ],
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": null
+            },
+            {
+              "object_id": "canonical-world-wall-z",
+              "world_position": [
+                0,
+                2.5,
+                -6
+              ],
+              "culling_reason": "outside_portal_camera_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": null
+            },
+            {
+              "object_id": "canonical-world-wall-x",
+              "world_position": [
+                -6,
+                2.5,
+                0
+              ],
+              "culling_reason": "outside_awareness_radius",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": null
+            },
+            {
+              "object_id": "demo-scene-object-obj-b-cube-1",
+              "world_position": [
+                -2.212656091069498,
+                0.4,
+                -1.2948802391788712
+              ],
+              "culling_reason": "outside_awareness_radius",
+              "dynamic_bounds": true,
+              "hosted_scene_object": {
+                "object_id": "obj-b-cube-1",
+                "shape": "box",
+                "size_m": 0.8,
+                "color": "#ff8c42",
+                "version": 4566,
+                "projection_authority": "shared_hosted_scene_object_projection_v1",
+                "geometry_type": "BoxGeometry",
+                "material_type": "MeshStandardMaterial",
+                "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                "wow_status": "synthetic"
+              },
+              "camera_space": null
+            },
+            {
+              "object_id": "demo-scene-object-obj-b-sphere-1",
+              "world_position": [
+                1.3484069876429159,
+                0.35,
+                1.7214170727341196
+              ],
+              "culling_reason": "outside_portal_camera_frustum",
+              "dynamic_bounds": true,
+              "hosted_scene_object": {
+                "object_id": "obj-b-sphere-1",
+                "shape": "sphere",
+                "size_m": 0.7,
+                "color": "#ffd166",
+                "version": 4566,
+                "projection_authority": "shared_hosted_scene_object_projection_v1",
+                "geometry_type": "SphereGeometry",
+                "material_type": "MeshStandardMaterial",
+                "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                "wow_status": "synthetic"
+              },
+              "camera_space": null
+            },
+            {
+              "object_id": "demo-scene-object-obj-b-cube-2",
+              "world_position": [
+                -0.6383125922615303,
+                0.3,
+                2.787133534948752
+              ],
+              "culling_reason": "outside_awareness_radius",
+              "dynamic_bounds": true,
+              "hosted_scene_object": {
+                "object_id": "obj-b-cube-2",
+                "shape": "box",
+                "size_m": 0.6,
+                "color": "#c65ccd",
+                "version": 4566,
+                "projection_authority": "shared_hosted_scene_object_projection_v1",
+                "geometry_type": "BoxGeometry",
+                "material_type": "MeshStandardMaterial",
+                "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                "wow_status": "synthetic"
+              },
+              "camera_space": null
+            }
+          ],
+          "avatars": []
+        },
+        "location-a-portal-lobby": {
+          "portal_key": "location-a-portal-lobby",
+          "active": true,
+          "camera_mapped": true,
+          "shared_edge_identity": {
+            "available": false,
+            "reason": "region_portal_pending",
+            "portal_key": "location-a-portal-lobby",
+            "expected_edge_id": "edge--location-a--location-lobby"
+          },
+          "viewer_side": "front",
+          "clip_plane_side": "target_frame_forward",
+          "both_sides_render": "one proper 180deg isometry serves front AND back viewers; the awareness half-space remains target-frame-forward for both source viewer sides",
+          "perimeter_gate": {
+            "live": false,
+            "inside": false,
+            "distance_m": 4.252,
+            "radius_m": 3,
+            "exit_radius_m": 3.45,
+            "hysteresis_ratio": 1.15,
+            "rule": "region/presence subscription stays live only while the prefetch controller's zone.inside is true; runtime canonical portal rendering is independent",
+            "validation": {
+              "perimeter_gate_standard_conformance": false,
+              "application_level": true
+            },
+            "reason": "outside_portal_perimeter"
+          },
+          "projection": "screen_space_projective_window",
+          "camera_mapping": "portal-frame 180deg rotation glue (shared with the crossing remap)",
+          "glue_convention": "proper_rotation_180deg_about_up",
+          "destination_coordinates": "raw destination world space (no re-basing)",
+          "canonical_content_status": "ready",
+          "canonical_content_error": null,
+          "canonical_content_source": "shared_canonical_legacy_world_builder",
+          "canonical_content_revision": "location-lobby:demo-lobby:hosted-4566",
+          "canonical_inventory": [
+            "canonical-world-floor",
+            "canonical-world-debug-grid",
+            "canonical-world-wall-z",
+            "canonical-world-wall-x",
+            "demo-scene-object-obj-lobby-bench-1",
+            "demo-scene-object-obj-lobby-bench-2"
+          ],
+          "canonical_object_count": 6,
+          "entity_mesh_count": 6,
+          "avatar_proxy_count": 0,
+          "avatar_full_count": 0,
+          "avatar_representation_count": 0,
+          "avatar_fault": null,
+          "avatar_representations": [],
+          "controlled_identity_filter": {
+            "controlled_player_id": "player-1786581918334-87fbazp4o44",
+            "input_player_ids": [],
+            "suppressed_player_ids": [],
+            "rendered_player_ids": [],
+            "source": "snapshot_fallback",
+            "applied_at": "2026-08-13T00:45:31.920Z"
+          },
+          "last_avatar_reconcile": {
+            "at": "2026-08-13T00:45:31.920Z",
+            "at_ms": 1786581931920,
+            "previous_player_ids": [],
+            "next_player_ids": [],
+            "removed_player_ids": [],
+            "added_player_ids": []
+          },
+          "awareness_volume": {
+            "valid": true,
+            "center": [
+              -2.8,
+              1.35,
+              -2.8
+            ],
+            "forward": [
+              1,
+              0,
+              0
+            ],
+            "radius_m": 5,
+            "radius_source": "portal.zones.prefetch.matching_destination_circle.radius_m",
+            "half_space": "target_frame_forward",
+            "plane_setback_m": 0.1
+          },
+          "awareness_clip_plane_count": 21,
+          "radial_fragment_clip": true,
+          "object_culling": {
+            "eligible_count": 3,
+            "culled_count": 3,
+            "objects": [
+              {
+                "id": "canonical-world-floor",
+                "reason": "bounds_intersect_awareness_and_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    -1.3322676295501878e-15,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    1.3322676295501878e-15,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-debug-grid",
+                "reason": "bounds_intersect_awareness_and_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    0,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-wall-z",
+                "reason": "bounds_intersect_awareness_and_frustum",
+                "bounds": {
+                  "min": [
+                    -6,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    6,
+                    5,
+                    -6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "canonical-world-wall-x",
+                "reason": "outside_destination_half_space",
+                "bounds": {
+                  "min": [
+                    -6.000000000000002,
+                    0,
+                    -6
+                  ],
+                  "max": [
+                    -5.999999999999998,
+                    5,
+                    6
+                  ]
+                },
+                "dynamic_bounds": false,
+                "hosted_scene_object": null
+              },
+              {
+                "id": "demo-scene-object-obj-lobby-bench-1",
+                "reason": "outside_destination_half_space",
+                "bounds": {
+                  "min": [
+                    -4.5126561029904275,
+                    -1.1920928966180355e-8,
+                    1.2051197489002
+                  ],
+                  "max": [
+                    -3.9126560791485696,
+                    0.600000011920929,
+                    1.8051197727420578
+                  ]
+                },
+                "dynamic_bounds": true,
+                "hosted_scene_object": {
+                  "object_id": "obj-lobby-bench-1",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#9fb0d0",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic"
+                }
+              },
+              {
+                "id": "demo-scene-object-obj-lobby-bench-2",
+                "reason": "outside_awareness_radius",
+                "bounds": {
+                  "min": [
+                    3.8484069757219874,
+                    -1.1920928966180355e-8,
+                    1.2214170608131907
+                  ],
+                  "max": [
+                    4.448406999563845,
+                    0.600000011920929,
+                    1.8214170846550486
+                  ]
+                },
+                "dynamic_bounds": true,
+                "hosted_scene_object": {
+                  "object_id": "obj-lobby-bench-2",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#9fb0d0",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic"
+                }
+              }
+            ]
+          },
+          "avatar_culling": [],
+          "frames_rendered": 151,
+          "render_target": {
+            "width": 237,
+            "height": 408,
+            "sizing_rule": "projected aperture device-pixel crop at direct drawing-buffer density",
+            "fixed_low_resolution": false
+          },
+          "projected_aperture": {
+            "visible": true,
+            "reason": "projected_aperture_visible",
+            "x": 255,
+            "y": 360,
+            "width": 237,
+            "height": 408,
+            "area_device_px": 96696,
+            "threshold_device_px": 16,
+            "drawing_buffer": {
+              "width": 1024,
+              "height": 768
+            }
+          },
+          "last_camera": {
+            "position": [
+              -7.332851920060588,
+              1.8533064969857884,
+              0.7281403225221759
+            ],
+            "target": [
+              -4.000722119909119,
+              0.5950402545213178,
+              -1.0922104837832636
+            ],
+            "rotation_y": 2.0707963267948966,
+            "source_local": {
+              "x": 3.5281403225221757,
+              "y": 0.5033064969857883,
+              "z": 4.532851920060589
+            },
+            "viewer_side": "front"
+          },
+          "room_dressing": {
+            "source": "shared_canonical_legacy_world_builder",
+            "world_color": "#42d68a",
+            "floor_color": "#268554",
+            "wall_color": "#30a468",
+            "semantic_inventory": [
+              "canonical-world-floor",
+              "canonical-world-debug-grid",
+              "canonical-world-wall-z",
+              "canonical-world-wall-x"
+            ],
+            "presentation_policy": "shared_canonical_legacy_world_presentation_v1",
+            "product_grid_name": "canonical-world-debug-grid",
+            "debug_grid_included": true,
+            "hosted_objects": {
+              "attach_point_id": "um-attach-point-location-lobby",
+              "version": 4566,
+              "refresh_owner": "PortalRenderController existing bounded client pull",
+              "refresh_cadence_ms": 100,
+              "streaming": false,
+              "objects": [
+                {
+                  "object_id": "obj-lobby-bench-1",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#9fb0d0",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic",
+                  "scene_name": "demo-scene-object-obj-lobby-bench-1",
+                  "position": [
+                    -4.212656091069499,
+                    0.3,
+                    1.5051197608211289
+                  ],
+                  "instance_count": 1
+                },
+                {
+                  "object_id": "obj-lobby-bench-2",
+                  "shape": "box",
+                  "size_m": 0.6,
+                  "color": "#9fb0d0",
+                  "version": 4566,
+                  "projection_authority": "shared_hosted_scene_object_projection_v1",
+                  "geometry_type": "BoxGeometry",
+                  "material_type": "MeshStandardMaterial",
+                  "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                  "wow_status": "synthetic",
+                  "scene_name": "demo-scene-object-obj-lobby-bench-2",
+                  "position": [
+                    4.148406987642916,
+                    0.3,
+                    1.5214170727341196
+                  ],
+                  "instance_count": 1
+                }
+              ]
+            }
+          },
+          "dest_ring": null,
+          "ring_alignment": {
+            "convention": "dest_local_x_negated_180deg_rotation",
+            "points": [
+              {
+                "label": "center",
+                "source_ndc": [
+                  -0.26799,
+                  0.50542
+                ],
+                "dest_ndc": [
+                  -0.26799,
+                  0.50542
+                ],
+                "dest_crop_ndc": [
+                  0.01088,
+                  0.06902
+                ],
+                "ndc_delta": 0
+              },
+              {
+                "label": "right_rim",
+                "source_ndc": [
+                  -0.04177,
+                  0.48903
+                ],
+                "dest_ndc": [
+                  -0.04177,
+                  0.48903
+                ],
+                "dest_crop_ndc": [
+                  0.98829,
+                  0.03818
+                ],
+                "ndc_delta": 0
+              },
+              {
+                "label": "left_rim",
+                "source_ndc": [
+                  -0.46306,
+                  0.51955
+                ],
+                "dest_ndc": [
+                  -0.46306,
+                  0.51955
+                ],
+                "dest_crop_ndc": [
+                  -0.83195,
+                  0.09562
+                ],
+                "ndc_delta": 0
+              },
+              {
+                "label": "top_rim",
+                "source_ndc": [
+                  -0.29113,
+                  1.10792
+                ],
+                "dest_ndc": [
+                  -0.29113,
+                  1.10792
+                ],
+                "dest_crop_ndc": [
+                  -0.08911,
+                  1.20314
+                ],
+                "ndc_delta": 0
+              },
+              {
+                "label": "bottom_rim",
+                "source_ndc": [
+                  -0.24825,
+                  -0.00835
+                ],
+                "dest_ndc": [
+                  -0.24825,
+                  -0.00835
+                ],
+                "dest_crop_ndc": [
+                  0.09615,
+                  -0.89806
+                ],
+                "ndc_delta": 0
+              }
+            ],
+            "max_ndc_delta": 0
+          },
+          "spatial_render_standard_conformance": false,
+          "entities": [
+            {
+              "object_id": "canonical-world-floor",
+              "world_position": [
+                0,
+                0,
+                0
+              ],
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": [
+                2.8766,
+                0.3749,
+                -7.0229
+              ]
+            },
+            {
+              "object_id": "canonical-world-debug-grid",
+              "world_position": [
+                0,
+                0,
+                0
+              ],
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": [
+                2.8766,
+                0.3749,
+                -7.0229
+              ]
+            },
+            {
+              "object_id": "canonical-world-wall-z",
+              "world_position": [
+                0,
+                2.5,
+                -6
+              ],
+              "culling_reason": "bounds_intersect_awareness_and_frustum",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": [
+                -2.3889,
+                3.6528,
+                -8.967
+              ]
+            },
+            {
+              "object_id": "canonical-world-wall-x",
+              "world_position": [
+                -6,
+                2.5,
+                0
+              ],
+              "culling_reason": "outside_destination_half_space",
+              "dynamic_bounds": false,
+              "hosted_scene_object": null,
+              "camera_space": [
+                0,
+                1.0916,
+                -1.2382
+              ]
+            },
+            {
+              "object_id": "demo-scene-object-obj-lobby-bench-1",
+              "world_position": [
+                -4.212656091069499,
+                0.3,
+                1.5051197608211289
+              ],
+              "culling_reason": "outside_destination_half_space",
+              "dynamic_bounds": true,
+              "hosted_scene_object": {
+                "object_id": "obj-lobby-bench-1",
+                "shape": "box",
+                "size_m": 0.6,
+                "color": "#9fb0d0",
+                "version": 4566,
+                "projection_authority": "shared_hosted_scene_object_projection_v1",
+                "geometry_type": "BoxGeometry",
+                "material_type": "MeshStandardMaterial",
+                "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                "wow_status": "synthetic"
+              },
+              "camera_space": [
+                2.1778,
+                -0.7303,
+                -2.7342
+              ]
+            },
+            {
+              "object_id": "demo-scene-object-obj-lobby-bench-2",
+              "world_position": [
+                4.148406987642916,
+                0.3,
+                1.5214170727341196
+              ],
+              "culling_reason": "outside_awareness_radius",
+              "dynamic_bounds": true,
+              "hosted_scene_object": {
+                "object_id": "obj-lobby-bench-2",
+                "shape": "box",
+                "size_m": 0.6,
+                "color": "#9fb0d0",
+                "version": 4566,
+                "projection_authority": "shared_hosted_scene_object_projection_v1",
+                "geometry_type": "BoxGeometry",
+                "material_type": "MeshStandardMaterial",
+                "material_authority": "shared_hosted_scene_object_standard_material_v1",
+                "wow_status": "synthetic"
+              },
+              "camera_space": [
+                6.2006,
+                1.5754,
+                -9.6919
+              ]
+            }
+          ],
+          "avatars": []
+        }
+      },
+      "takeover": {
+        "engaged": false,
+        "portal_key": null,
+        "engaged_at": null,
+        "frames_rendered": 0,
+        "last_engaged": null,
+        "last_attempt": null
+      },
+      "last_surface_attempt": {
+        "portal_key": "location-a-portal-lobby",
+        "reason": "canonical_destination_visible",
+        "viewer_side": "front",
+        "perimeter": {
+          "live": false,
+          "inside": false,
+          "distance_m": 4.252,
+          "radius_m": 3,
+          "exit_radius_m": 3.45,
+          "hysteresis_ratio": 1.15,
+          "rule": "region/presence subscription stays live only while the prefetch controller's zone.inside is true; runtime canonical portal rendering is independent",
+          "validation": {
+            "perimeter_gate_standard_conformance": false,
+            "application_level": true
+          },
+          "reason": "outside_portal_perimeter"
+        }
+      },
+      "surface_gates": {
+        "location-a-portal": {
+          "portal_key": "location-a-portal",
+          "live": true,
+          "surface": "live_spatial_render",
+          "reason": "canonical_destination_visible",
+          "viewer_side": "front",
+          "perimeter": {
+            "live": false,
+            "inside": false,
+            "distance_m": 4.252,
+            "radius_m": 3,
+            "exit_radius_m": 3.45,
+            "hysteresis_ratio": 1.15,
+            "rule": "region/presence subscription stays live only while the prefetch controller's zone.inside is true; runtime canonical portal rendering is independent",
+            "validation": {
+              "perimeter_gate_standard_conformance": false,
+              "application_level": true
+            },
+            "reason": "outside_portal_perimeter"
+          },
+          "at_ms": 1786581931919
+        },
+        "location-a-portal-lobby": {
+          "portal_key": "location-a-portal-lobby",
+          "live": true,
+          "surface": "live_spatial_render",
+          "reason": "canonical_destination_visible",
+          "viewer_side": "front",
+          "perimeter": {
+            "live": false,
+            "inside": false,
+            "distance_m": 4.252,
+            "radius_m": 3,
+            "exit_radius_m": 3.45,
+            "hysteresis_ratio": 1.15,
+            "rule": "region/presence subscription stays live only while the prefetch controller's zone.inside is true; runtime canonical portal rendering is independent",
+            "validation": {
+              "perimeter_gate_standard_conformance": false,
+              "application_level": true
+            },
+            "reason": "outside_portal_perimeter"
+          },
+          "at_ms": 1786581931920
+        }
+      }
+    }
+  },
+  "x3dom": {
+    "renderer": "x3dom",
+    "errors": [],
+    "roleChip": {
+      "text": "SERVER A",
+      "appClassName": "role-source rail-collapsed"
+    },
+    "defaultFps": {
+      "frames": 12,
+      "elapsedMs": 3149.8999999999996,
+      "fps": 3.8096447506270046,
+      "maxGapMs": 1133.2000000000007
+    },
+    "defaultShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/x3dom-default.png",
+    "portalShot": "/mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-compare-out/x3dom-near-portal.png",
+    "nearPortalFps": {
+      "frames": 21,
+      "elapsedMs": 3074.3999999998123,
+      "fps": 6.8306010928965915,
+      "maxGapMs": 300
+    },
+    "previewDebug": [
+      {
+        "ready": true,
+        "capturedUrl": "data:image/png;base64,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",
+        "contentKind": "legacy_world",
+        "destCameraPosition": "10.041535333871725 3.2970917115432528 -2.207900815685779",
+        "captureAttempts": 57,
+        "eligible": true
+      },
+      {
+        "ready": true,
+        "capturedUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAFGklEQVR4AeyYv2oVQRyFL/cRVCxEIVgEVBAFkcQiCbEXH8DCgJWNjX2SUhDtrAUR8Q3scjsbrSxtfA4rswuRG9x/7u7MnJnzCRMv+2fmd77zqReXC35BICEBBEwIn6MXCwTEgqQEEDApfg5HQBxISgABk+LncF8B6V6CAAJK1OA7BAL6di+RHAElavAdAgF9u5dIjoASNfgOgYB+3UslXl7auLonNRHDWBFYbh08Otncv39klZqwMgTqf4I3d+8dIqFMJ1aD1AJWiSsJtw8er6rPLAjEIvBXwOrAixtXdisJ+V5Y0WDFIHBOwOrASsLqeyESVjRYoQn8I+DZgZWE1ffCja07e3Mt9vFkeeZU0++tAlYP7794cvjs86sTFgzGOnD9we3O/+brFLCSkAWBkAQQMCRd9u4lgIC9iHggJAEEDEmXvXsJIGAvojkeYI82AgjYRobrUQggYBTMHNJGAAHbyHA9CgEEjIKZQ9oIIGAbGa5HIYCAUTD7HtKXHAH7CHE/KAEEDIqXzfsIIGAfIe4HJYCAQfGyeR8BBOwjxP2gBBAwKF427yNQroB9ybkvQQABJWrwHQIBfbuXSI6AEjX4DoGAvt1LJEdAiRp8h0DA8rrPKhECZlVXecMiYHmdZpUIAbOqq7xhEbC8TrNKhIBZ1VXesAhYXqdZJZpVwKySM6wEAQSUqMF3CAT07V4iOQJK1OA7BAL6di+RHAElavAdAgFn6Z5NxhJAwLHkeG8WAgg4C0Y2GUsAAceS471ZCCDgLBjZZCwBBBxLjvdmIYCAs2D03WRqcgScSpD3JxFAwEn4eHkqAQScSpD3JxFAwEn4eHkqAQScSpD3JxFAwEn4eHkqgXwFnJqc9yUIIKBEDb5DIKBv9xLJEVCiBt8hENC3e4nkCChRg+8QCJhf90VNjIBF1ZlfGATMr7OiJl5u39hZtK1bF24urv2+zILBaAd27j7ce/r85VHbWv5cfTtuW98/fTk+efsx8/XhdP6cV978f339ser6K3v5/t3ro7LXm9N8Oa+y++E7YNcfT+4FJ/BfAgafhgPsCCCgXeVagRFQqw+7aRDQrnKtwAio1YfdNAhoV7lWYAQc1AcPhSKAgKHIsu8gAgg4CBMPhSKAgKHIsu8gAgg4CBMPhSKAgKHIsu8gAgg4CJPvQ6GTI2BowuzfSQABO/FwMzQBBAxNmP07CSBgJx5uhiaAgKEJs38nAQTsxMPN0AR0BQydnP0lCCCgRA2+QyCgb/cSyRFQogbfIRDQt3uJ5AgoUYPvEAio173VRAhoVbdeWATU68RqIgS0qlsvLALqdWI1EQJa1a0XFgH1OrGa6JyAVskJK0EAASVq8B0CAX27l0iOgBI1+A6BgL7dSyRHQIkafIdAwLp7fqQigICpyHNuTQABawz8SEUAAVOR59yaAALWGPiRigACpiLPuTUBBKwx+P5InRwBUzdgfj4CmguQOj4Cpm7A/HwENBcgdXwETN2A+fkIaC5A6vjpBEydnPMlCCCgRA2+QyCgb/cSyRFQogbfIRDQt3uJ5AgoUYPvEAgYv3tOXCOAgGsw+BifAALGZ86JawQQcA0GH+MTQMD4zDlxjQACrsHgY3wCCBifue+JDckRsAEKl+IRQMB4rDmpgQACNkDhUjwCCBiPNSc1EEDABihcikcAAeOx5qQGAiYCNiTnkgQBBJSowXcIBPTtXiI5AkrU4DsEAvp2L5EcASVq8B0CAQvvXj3eHwAAAP//TAzylQAAAAZJREFUAwAJ73WM35LxwQAAAABJRU5ErkJggg==",
+        "contentKind": "legacy_world",
+        "destCameraPosition": "-10.041535333871725 3.2970917115432528 2.207900815685779",
+        "captureAttempts": 57,
+        "eligible": true
+      }
+    ]
+  }
+}

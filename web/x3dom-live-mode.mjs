@@ -1,23 +1,29 @@
 import { X3DOMRenderAdapter } from "./vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
-import { mountCanonicalWorldContent } from "./vendor/scene-core/canonical-world-content.js";
 import { X3domGltfHumanoidProvider } from "./x3dom-gltf-humanoid-provider.mjs";
-import { createOrbitCameraController, ORBIT_CAMERA_DEFAULTS } from "./orbit-camera-controller.mjs";
+import { createX3domMovementCameraController } from "./x3dom-movement-camera-controller.mjs";
+import { createX3domPortalTraversalGlue } from "./x3dom-portal-traversal-glue.mjs";
+import { createX3domEquipmentGlue } from "./x3dom-equipment-glue.mjs";
+import { createX3domHudGlue } from "./x3dom-hud-glue.mjs";
+import { createX3domPeerAvatarsGlue } from "./x3dom-peer-avatars-glue.mjs";
+import { ORBIT_CAMERA_DEFAULTS } from "./orbit-camera-controller.mjs";
 import { LiveAdapter } from "./live-adapter.js";
 
-// Phase 7, scoped deliverable — a genuinely new, additive boot path, NOT a refactor of the
-// normal three.js path (app.js/scene.js/movement-camera-controller.mjs are untouched). Renders
-// the environment (mountCanonicalWorldContent — the same function the normal boot path calls,
-// just handed an X3DOMRenderAdapter instead of a ThreeRenderAdapter) plus a real, backend-synced
-// avatar via HumanoidProvider and a third-person orbit camera driven by real WASD input against
-// the SAME LiveAdapter session client the three.js path uses (LiveAdapter has zero THREE
-// dependency — confirmed by reading its source — so reusing it here is a straight import, not a
-// port). Deliberately excluded: portal traversal, equipment, peer avatars, first-person mode,
-// occlusion, and the full HUD — see the README's Render-engine adapter section for what each of
-// those would need.
+// Phase 7 (original boot-path scaffold) + Phases 1-4 + 3.5a/3.5b of the X3DOM parity plan — a
+// genuinely new, additive boot path, NOT a refactor of the normal three.js path (app.js/scene.js/
+// movement-camera-controller.mjs are untouched). Renders the environment via
+// x3dom-portal-traversal-glue.mjs (which itself calls mountCanonicalWorldContent — the same
+// function the normal boot path calls, just handed an X3DOMRenderAdapter instead of a
+// ThreeRenderAdapter) plus a real, backend-synced avatar via HumanoidProvider, named-anchor
+// equipment (x3dom-equipment-glue.mjs), HUD chrome (x3dom-hud-glue.mjs), peer/multiplayer avatars
+// (x3dom-peer-avatars-glue.mjs), and a movement/camera controller
+// (x3dom-movement-camera-controller.mjs) covering first-person, jump, camera-wall occlusion,
+// third-person orbit, and real portal traversal — all driven against the SAME LiveAdapter session
+// client the three.js path uses (LiveAdapter has zero THREE dependency — confirmed by reading its
+// source — so reusing it here is a straight import, not a port). Still deliberately excluded (see
+// the parity plan's later phases): the full inspector panel (see x3dom-hud-glue.mjs for why).
 const AVATAR_URL = "/assets/avatars/glb/rpm_female_character.glb";
-const CONTROL_KEY_MAP = Object.freeze({ KeyW: "forward", KeyS: "back", KeyA: "left", KeyD: "right" });
+const CONTROL_KEY_MAP = Object.freeze({ KeyW: "forward", KeyS: "back", KeyA: "left", KeyD: "right", Space: "jump" });
 const RUN_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
-const ORBIT_SPEED_RAD_PER_PX = 0.0052;
 
 function bannerEl() {
     const el = document.createElement("div");
@@ -25,8 +31,9 @@ function bannerEl() {
     el.style.cssText = "position:absolute; top:12px; left:50%; transform:translateX(-50%); " +
         "z-index:5; background:rgba(11,16,32,0.85); color:#d9e6ff; font:13px ui-monospace,Menlo,monospace; " +
         "padding:8px 14px; border-radius:6px; pointer-events:none; text-align:center; max-width:90%;";
-    el.textContent = "X3DOM preview — environment + avatar + camera + movement are real; " +
-        "equipment, portal traversal, first-person, and the HUD are not available in this mode.";
+    el.textContent = "X3DOM preview — environment, avatar, camera (1st/3rd person, C to toggle), " +
+        "movement, jump, portal traversal, equipment (buttons, top right), toast/HUD chrome, and " +
+        "peer avatars (same-browser tabs only) are real; the full inspector panel is not available in this mode.";
     return el;
 }
 
@@ -49,8 +56,6 @@ async function main() {
     adapter.attach(x3dEl);
     await adapter.ready();
 
-    mountCanonicalWorldContent(adapter, adapter.sceneRoot, {});
-
     const liveAdapter = new LiveAdapter(role, { active });
     try {
         await liveAdapter.init();
@@ -66,20 +71,63 @@ async function main() {
     const provider = new X3domGltfHumanoidProvider(adapter);
     const startPosition = Array.isArray(liveAdapter.state.avatar?.position) ? liveAdapter.state.avatar.position : [0, 0, 0];
     const { handle: avatarHandle, ready: avatarReady } = provider.spawnAvatar({ url: AVATAR_URL, position: startPosition });
+    let avatarPlaced = false;
 
-    const orbit = createOrbitCameraController({ adapter, camera: adapter.camera });
-    orbit.seed({ azimuth: 0, polar: ORBIT_CAMERA_DEFAULTS.polar_rad, distance: ORBIT_CAMERA_DEFAULTS.distance_m, focusPosition: startPosition });
+    const camera = createX3domMovementCameraController({
+        adapter,
+        camera: adapter.camera,
+        dragEl: x3dEl,
+        sceneMount: host,
+        onModeChange: (mode) => {
+            if (avatarPlaced)
+                provider.setVisible(avatarHandle, mode !== "first_person");
+        },
+    });
+    camera.seed({ azimuth: 0, polar: ORBIT_CAMERA_DEFAULTS.polar_rad, distance: ORBIT_CAMERA_DEFAULTS.distance_m, focusPosition: startPosition });
 
-    const controlState = { forward: false, back: false, left: false, right: false };
+    const portalGlue = createX3domPortalTraversalGlue({
+        adapter,
+        liveAdapter,
+        camera,
+        x3dom: window.x3dom,
+        log: (line) => console.log(line),
+    });
+    portalGlue.mountWorldContent();
+
+    // Anchors are built synchronously inside spawnAvatar() (a fixed offset on the always-present
+    // Inline wrapper transform), but equipDefaults() still waits for avatarReady before starting
+    // — not because it needs the avatar's content loaded, but to avoid overlapping this Inline
+    // URL-swap with the avatar's own in-flight one (see the comment in x3dom-equipment-glue.mjs).
+    const equipmentGlue = createX3domEquipmentGlue({
+        provider,
+        getAvatarHandle: () => avatarHandle,
+        avatarReady,
+        sceneMount: host,
+        log: (line) => console.log(line),
+    });
+    equipmentGlue.equipDefaults();
+
+    const hudGlue = createX3domHudGlue({ adapter, cameraEl: adapter.camera });
+    liveAdapter.addEventListener("crossing", (event) => {
+        const detail = event.detail || {};
+        if (detail.kind === "reset_demotion")
+            return;
+        hudGlue.showToast("PORTAL CROSSED", `now in ${liveAdapter.world ? liveAdapter.world.location_id : "?"}`, "toast-arrived");
+    });
+
+    // Broadcasting OUR OWN pose needs no extra wiring — LiveAdapter.stepAvatar() already calls
+    // this internally on every step, same as the three.js path. Receiving peers' broadcasts does
+    // need this explicit call (confirmed by how app.js boots — adapter.listenForCrossWindow()).
+    liveAdapter.listenForCrossWindow();
+    const peerAvatarsGlue = createX3domPeerAvatarsGlue({
+        adapter,
+        liveAdapter,
+        avatarUrl: AVATAR_URL,
+        log: (line) => console.log(line),
+    });
+
+    const controlState = { forward: false, back: false, left: false, right: false, jump: false };
     const runKeys = new Set();
-    function movementBasisYaw() {
-        let yaw = orbit.state.azimuth + Math.PI;
-        while (yaw > Math.PI)
-            yaw -= Math.PI * 2;
-        while (yaw < -Math.PI)
-            yaw += Math.PI * 2;
-        return yaw;
-    }
     window.addEventListener("keydown", (event) => {
         if (RUN_KEY_CODES.has(event.code)) {
             runKeys.add(event.code);
@@ -101,38 +149,39 @@ async function main() {
             controlState[control] = false;
     });
 
-    let dragging = false;
-    let lastX = 0;
-    let lastY = 0;
-    x3dEl.addEventListener("mousedown", (event) => { dragging = true; lastX = event.clientX; lastY = event.clientY; });
-    window.addEventListener("mouseup", () => { dragging = false; });
-    window.addEventListener("mousemove", (event) => {
-        if (!dragging)
-            return;
-        const dx = event.clientX - lastX;
-        const dy = event.clientY - lastY;
-        lastX = event.clientX;
-        lastY = event.clientY;
-        orbit.state.targetAzimuth -= dx * ORBIT_SPEED_RAD_PER_PX;
-        orbit.state.targetPolar = Math.min(ORBIT_CAMERA_DEFAULTS.max_polar_rad, Math.max(ORBIT_CAMERA_DEFAULTS.min_polar_rad, orbit.state.targetPolar + dy * ORBIT_SPEED_RAD_PER_PX));
-    });
-
     let lastFrameAt = performance.now();
-    let avatarPlaced = false;
     adapter.onEnterFrame(() => {
         const now = performance.now();
         const deltaSeconds = Math.min(0.05, Math.max(0, (now - lastFrameAt) / 1000));
         lastFrameAt = now;
-        const input = { ...controlState, run: runKeys.size > 0, camera_yaw: movementBasisYaw() };
+        const input = { ...controlState, run: runKeys.size > 0, camera_yaw: camera.movementBasisYaw() };
         liveAdapter.stepAvatar(input, deltaSeconds);
         const position = liveAdapter.state.avatar?.position;
         if (Array.isArray(position)) {
-            if (avatarPlaced)
+            if (avatarPlaced) {
                 provider.setPosition(avatarHandle, position[0], position[1], position[2]);
-            orbit.step(deltaSeconds, position);
+                // stepAvatar() already computes a backend-authoritative heading from movement
+                // direction (LiveAdapter.state.avatar.rotation_y) — the same field
+                // avatar-equipment-layer.js applies to avatarRig.rotation.y on the three.js path.
+                // Never wired up here: the avatar model stayed facing its spawn orientation
+                // regardless of WASD direction until this line existed.
+                provider.setRotation(avatarHandle, Number(liveAdapter.state.avatar?.rotation_y) || 0);
+            }
+            camera.step(deltaSeconds, position);
         }
+        // Portal crossing math (mapCameraAcrossCrossing) needs the camera's own last-known world
+        // transform, the same way the three.js path's movementCameraController.persistSession/
+        // sessionCameraSnapshot feeds LiveAdapter.updatePreviewProjection() every frame.
+        portalGlue.reportCameraTransform();
+        portalGlue.tick();
+        peerAvatarsGlue.sync();
     });
-    avatarReady.then(() => { avatarPlaced = true; }).catch((err) => console.error("[x3dom-live-mode] avatar load failed", err));
+    avatarReady.then(() => {
+        avatarPlaced = true;
+        // Reconcile visibility in case the camera mode was toggled before the avatar finished
+        // loading (onModeChange's own call above no-ops while avatarPlaced is still false).
+        provider.setVisible(avatarHandle, camera.mode() !== "first_person");
+    }).catch((err) => console.error("[x3dom-live-mode] avatar load failed", err));
 
     window.addEventListener("pagehide", () => {
         try {
@@ -143,7 +192,13 @@ async function main() {
         catch { /* best-effort teardown */ }
     });
 
-    window.__x3domLiveMode = { adapter, liveAdapter, provider, avatarHandle, orbit };
+    window.__x3domLiveMode = {
+        adapter, liveAdapter, provider, avatarHandle, camera, portalGlue, equipmentGlue, hudGlue, peerAvatarsGlue,
+        // Real-world glTF loads take well over a second under headless/software rendering — tests
+        // should await this rather than guess a fixed timeout before exercising avatar movement.
+        avatarReady,
+        avatarPlaced: () => avatarPlaced,
+    };
 }
 
 main().catch((err) => console.error("[x3dom-live-mode] fatal error", err));

@@ -43,4 +43,36 @@ That's a materially better-scoped Phase 1 than the one I sketched at the start o
 
 Next up per the todo list: Phase 0, the portal-rendering fallback spike (getScreenshot()-polling vs. CSS-composited overlay) — the one open feasibility question left before the X3DOM adapter itself gets built. 
 
+see also : 
+https://doc.x3dom.org/author/runtime.html
+https://doc.x3dom.org/author/Navigation/Viewpoint.html
+https://doc.x3dom.org/tutorials/lighting/mirror/index.html 
 
+https://doc.x3dom.org/tutorials/index.html
+https://doc.x3dom.org/tutorials/animationInteraction/picking/index.html
+
+https://doc.x3dom.org/author/configuration.html
+
+
+
+The X3DOM renderer has some serious limitations regarding:
+1] The orbital camera is not working with the mouse drag
+2] The crown (avatar inventory / manifest) is not at scale and does not travel with the avatar
+3] There are no portals visible in the scene, make sure that this functionality is working as expected
+
+4] the avatar model does not turn (rotate) when WASD nav is being used
+
+
+Make sure we are WoW API compatible (as in the /wow-spec folder) for both renderers
+https://webofworlds.github.io/WoWAPI/
+Open Spatial World API
+https://webofworlds.github.io/WoWAPI/specification/OpenSpatialWorld
+
+
+Open User Manifest API
+https://webofworlds.github.io/WoWAPI/specification/OpenUserManifest 
+
+Open Spatial Asset API
+https://webofworlds.github.io/WoWAPI/specification/OpenSpatialAsset/ 
+
+/mnt/c/git/open-spatial-lab

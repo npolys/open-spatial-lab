@@ -22,20 +22,25 @@ export class HumanoidProvider {
      */
     spawnAvatar({ url, position }) { throw new Error("not implemented"); }
     setPosition(handle, x, y, z) { throw new Error("not implemented"); }
+    /** Sets the avatar's heading (yaw, radians around the world Y axis). */
+    setRotation(handle, yawRadians) { throw new Error("not implemented"); }
     setVisible(handle, visible) { throw new Error("not implemented"); }
     /** Releases the avatar and any resources/pool slot it holds. */
     dispose(handle) { throw new Error("not implemented"); }
     /**
-     * Attaches a piece of equipment to the avatar's root — the mechanical operation
+     * Attaches a piece of equipment to the avatar — the mechanical operation
      * avatar-equipment-layer.js's `target.node.add(object)` + local-transform-apply performs,
-     * generalized across engines via RenderAdapter.add()/setLocalMatrix(). Deliberately root-level
-     * only: real bone-specific attachment (VRM humanoid bones on three.js) needs H-Anim on the
-     * X3DOM side to have an equivalent target, which is out of scope here (see the README's
-     * Render-engine adapter section) — this covers the load+parent+position mechanics, not
-     * equipment-layer feature parity. Returns { itemHandle, ready } — itemHandle available
-     * immediately, ready resolves once the item's own asset has actually loaded.
+     * generalized across engines via RenderAdapter.add()/setLocalMatrix(). Real bone-specific
+     * attachment (VRM humanoid bones on three.js) needs H-Anim on the X3DOM side to have an
+     * equivalent target, which is out of scope here (see the README's Render-engine adapter
+     * section) — this covers the load+parent+position mechanics, not equipment-layer feature
+     * parity. `attachmentPoint` is optional: a provider MAY use it to route to a named
+     * approximate anchor (X3domGltfHumanoidProvider does, mirroring avatar-equipment-layer.js's
+     * own non-bone fallback-rig anchors); a provider that ignores it falls back to root-level
+     * attachment. Returns { itemHandle, ready } — itemHandle available immediately, ready
+     * resolves once the item's own asset has actually loaded.
      */
-    attachItem(avatarHandle, { url, localTransform } = {}) { throw new Error("not implemented"); }
+    attachItem(avatarHandle, { url, localTransform, attachmentPoint } = {}) { throw new Error("not implemented"); }
     /** Detaches and releases a previously attached item (and any pool slot it holds). */
     detachItem(itemHandle) { throw new Error("not implemented"); }
 }

@@ -119,9 +119,9 @@ export function mappedExitOffsetForApproach(approachSignedDistanceM, targetFrame
         return minimum;
     return clamp(approach + PORTAL_EXIT_CLEARANCE_M, minimum, maximum);
 }
-export function portalFrameForLocation({ portalId, locationId, triggerPosition, triggerRadius, targetLocationId, }) {
+export function portalFrameForLocation({ portalId, locationId, triggerPosition, triggerRadius, targetLocationId, forwardOverride = null, }) {
     const preset = PORTAL_FRAME_PRESETS[locationId] || {};
-    const forward = normalizeVec3(preset.forward || [0, 0, 1], [0, 0, 1]);
+    const forward = normalizeVec3(forwardOverride || preset.forward || [0, 0, 1], [0, 0, 1]);
     const baseUp = normalizeVec3(preset.up || [0, 1, 0], [0, 1, 0]);
     const right = normalizeVec3(preset.right || cross3(baseUp, forward), [1, 0, 0]);
     const up = normalizeVec3(cross3(forward, right), baseUp);
@@ -157,12 +157,30 @@ export function buildPortalFrameSet({ portalId, locationId, triggerPosition, tri
         triggerRadius,
         targetLocationId,
     });
+    // target_frame here is always a placeholder (see pose_source below), built from the SAME
+    // triggerPosition as activeFrame since the destination hasn't registered its own real portal
+    // pose yet. If the destination's PORTAL_FRAME_PRESETS entry also happens to share the source's
+    // forward direction (same position AND orientation), glueCameraThroughFrames degenerates into
+    // an identity transform — the destination camera ends up at the player's raw, arbitrary live
+    // position in the SOURCE room, which is almost always outside the destination's small
+    // fixed-size canonical room. Found via a live-QA report ("portal screenshot looks wrong"):
+    // location-lobby's preset coincidentally equals location-a's own ([0,0,1]), producing a
+    // destination camera at Z=-9.4 in a room whose walls sit at Z=±6. Force a 90° yaw rotation
+    // whenever this degenerate case is detected, breaking it without touching what
+    // PORTAL_FRAME_PRESETS means for a location's own REAL active portal (only this placeholder
+    // path is affected — a location's own tested active-frame geometry, used when a player is
+    // really standing there, is untouched).
+    const targetPresetForward = normalizeVec3((PORTAL_FRAME_PRESETS[targetLocationId] || {}).forward || [0, 0, 1], [0, 0, 1]);
+    const forwardOverride = dot3(targetPresetForward, activeFrame.forward) > 1 - 1e-6
+        ? [activeFrame.forward[2], activeFrame.forward[1], -activeFrame.forward[0]]
+        : null;
     const targetFrame = portalFrameForLocation({
         portalId: portalIdForLocation(targetLocationId),
         locationId: targetLocationId,
         triggerPosition,
         triggerRadius,
         targetLocationId: locationId,
+        forwardOverride,
     });
     return {
         active_frame: {

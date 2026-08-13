@@ -187,18 +187,33 @@ function createServer(role, extraOpts) {
     }
     function readBody(req, cb) {
         let data = '';
-        req.on('data', chunk => { data += chunk; if (data.length > 1e6)
-            req.destroy(); });
-        req.on('end', () => {
-            if (!data)
-                return cb(null, {});
-            try {
-                cb(null, JSON.parse(data));
-            }
-            catch (err) {
-                cb(err, null);
+        let settled = false;
+        const finish = (err, value) => {
+            if (settled)
+                return;
+            settled = true;
+            cb(err, value);
+        };
+        req.on('data', chunk => {
+            if (settled)
+                return;
+            data += chunk;
+            if (data.length > 1e6) {
+                req.destroy();
+                finish(Object.assign(new Error('payload_too_large'), { status: 413 }), null);
             }
         });
+        req.on('end', () => {
+            if (!data)
+                return finish(null, {});
+            try {
+                finish(null, JSON.parse(data));
+            }
+            catch (err) {
+                finish(err, null);
+            }
+        });
+        req.on('error', (err) => finish(err, null));
     }
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://127.0.0.1:' + cfg.http_port);
@@ -312,49 +327,59 @@ function createServer(role, extraOpts) {
             if (method === 'POST') {
                 return readBody(req, (err, body) => {
                     if (err)
-                        return sendJson(res, 400, { ok: false, error: 'bad_json' });
-                    if (!Array.isArray(body))
-                        return sendJson(res, 400, { ok: false, error: 'expected_node_array' });
-                    const reqSchema = wantsCanonicalIn ? 'Node[]' : 'OSLFlatNode[]';
-                    const vr = wowValidateNodeRequest(reqSchema, body);
-                    if (vr && !vr.valid) {
+                        return sendJson(res, err.status || 400, { ok: false, error: err.status === 413 ? 'payload_too_large' : 'bad_json' });
+                    try {
+                        if (!Array.isArray(body))
+                            return sendJson(res, 400, { ok: false, error: 'expected_node_array' });
+                        const reqSchema = wantsCanonicalIn ? 'Node[]' : 'OSLFlatNode[]';
+                        const vr = wowValidateNodeRequest(reqSchema, body);
+                        if (vr && !vr.valid) {
+                            try {
+                                res.setHeader('X-OSL-WoW-Validation', 'fail:' + vr.schema);
+                            }
+                            catch (e) { }
+                            return sendJson(res, 422, { ok: false, error: 'node_validation_failed', details: vr.errorsText });
+                        }
+                        const r = runtime.createSpatialNodes(spatialID, nodeId, body, { flattenEmbedded: wantsCanonicalIn });
+                        if (!r.ok)
+                            return sendJson(res, r.status, Object.assign({ ok: false, error: r.error, spatialID, nodeId }, r.detail || {}));
                         try {
-                            res.setHeader('X-OSL-WoW-Validation', 'fail:' + vr.schema);
+                            res.setHeader('X-OSL-WoW-Node-Form', r.flattened ? 'flattened-from-canonical' : 'osl-flat');
+                            res.setHeader('X-OSL-WoW-Nodes-Stored', String(r.stored) + '/' + String(r.requested));
+                            if (r.flattened)
+                                res.setHeader('X-OSL-WoW-Children-Flattened', String(r.flattened));
                         }
                         catch (e) { }
-                        return sendJson(res, 422, { ok: false, error: 'node_validation_failed', details: vr.errorsText });
+                        return sendJson(res, 200, wowValidateNodeResponse(res, r.value, true));
                     }
-                    const r = runtime.createSpatialNodes(spatialID, nodeId, body, { flattenEmbedded: wantsCanonicalIn });
-                    if (!r.ok)
-                        return sendJson(res, r.status, Object.assign({ ok: false, error: r.error, spatialID, nodeId }, r.detail || {}));
-                    try {
-                        res.setHeader('X-OSL-WoW-Node-Form', r.flattened ? 'flattened-from-canonical' : 'osl-flat');
-                        res.setHeader('X-OSL-WoW-Nodes-Stored', String(r.stored) + '/' + String(r.requested));
-                        if (r.flattened)
-                            res.setHeader('X-OSL-WoW-Children-Flattened', String(r.flattened));
+                    catch (e) {
+                        return sendJson(res, 400, { ok: false, error: 'node_create_rejected', message: e.message });
                     }
-                    catch (e) { }
-                    return sendJson(res, 200, wowValidateNodeResponse(res, r.value, true));
                 });
             }
             if (method === 'PUT') {
                 return readBody(req, (err, body) => {
                     if (err)
-                        return sendJson(res, 400, { ok: false, error: 'bad_json' });
-                    if (!body || typeof body !== 'object' || Array.isArray(body))
-                        return sendJson(res, 400, { ok: false, error: 'expected_node_object' });
-                    const vr = wowValidateNodeRequest('OSLFlatNode', body);
-                    if (vr && !vr.valid) {
-                        try {
-                            res.setHeader('X-OSL-WoW-Validation', 'fail:' + vr.schema);
+                        return sendJson(res, err.status || 400, { ok: false, error: err.status === 413 ? 'payload_too_large' : 'bad_json' });
+                    try {
+                        if (!body || typeof body !== 'object' || Array.isArray(body))
+                            return sendJson(res, 400, { ok: false, error: 'expected_node_object' });
+                        const vr = wowValidateNodeRequest('OSLFlatNode', body);
+                        if (vr && !vr.valid) {
+                            try {
+                                res.setHeader('X-OSL-WoW-Validation', 'fail:' + vr.schema);
+                            }
+                            catch (e) { }
+                            return sendJson(res, 422, { ok: false, error: 'node_validation_failed', details: vr.errorsText });
                         }
-                        catch (e) { }
-                        return sendJson(res, 422, { ok: false, error: 'node_validation_failed', details: vr.errorsText });
+                        const r = runtime.updateSpatialNode(spatialID, nodeId, body);
+                        if (!r.ok)
+                            return sendJson(res, r.status, Object.assign({ ok: false, error: r.error, spatialID, nodeId }, r.detail || {}));
+                        return sendJson(res, 200, wowValidateNodeResponse(res, r.value, false));
                     }
-                    const r = runtime.updateSpatialNode(spatialID, nodeId, body);
-                    if (!r.ok)
-                        return sendJson(res, r.status, Object.assign({ ok: false, error: r.error, spatialID, nodeId }, r.detail || {}));
-                    return sendJson(res, 200, wowValidateNodeResponse(res, r.value, false));
+                    catch (e) {
+                        return sendJson(res, 400, { ok: false, error: 'node_update_rejected', message: e.message });
+                    }
                 });
             }
             if (method === 'DELETE') {

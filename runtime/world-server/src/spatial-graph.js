@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT_ID = 0;
 const CANONICAL_CHILD_FORM = 'canonical';
+const MAX_NODE_TREE_DEPTH = 64;
 function classifyChildren(rawChildren) {
     const out = { refs: [], embedded: [], invalid: [], present: false, count: 0 };
     if (!Array.isArray(rawChildren))
@@ -26,8 +27,17 @@ function inspectIncomingForest(forest, opts) {
     const idRefPaths = [];
     const embeddedPaths = [];
     const invalidPaths = [];
-    (function walk(nodes, prefix) {
+    let depthExceededPath = null;
+    (function walk(nodes, prefix, depth) {
+        if (depthExceededPath)
+            return;
+        if (depth > MAX_NODE_TREE_DEPTH) {
+            depthExceededPath = prefix;
+            return;
+        }
         nodes.forEach((raw, i) => {
+            if (depthExceededPath)
+                return;
             const at = prefix + '[' + i + ']';
             const r = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
             const c = classifyChildren(r.children);
@@ -39,10 +49,18 @@ function inspectIncomingForest(forest, opts) {
                 idRefPaths.push({ path: at + '.children', refs: c.refs.slice() });
             if (c.embedded.length) {
                 embeddedPaths.push({ path: at + '.children', count: c.embedded.length });
-                walk(c.embedded, at + '.children');
+                walk(c.embedded, at + '.children', depth + 1);
             }
         });
-    })(Array.isArray(forest) ? forest : [], base);
+    })(Array.isArray(forest) ? forest : [], base, 1);
+    if (depthExceededPath)
+        return {
+            ok: false, status: 422, error: 'node_tree_too_deep',
+            detail: {
+                message: 'children[] nesting exceeds the maximum supported depth of ' + MAX_NODE_TREE_DEPTH + '.',
+                path: depthExceededPath,
+            },
+        };
     if (invalidPaths.length)
         return {
             ok: false, status: 400, error: 'invalid_child_entry',

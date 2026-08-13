@@ -35,6 +35,21 @@ const REGRESSION_SPIKES = [
     "spike-run-three-portal-renderer.mjs",
     "spike-run-asset-negotiation.mjs", // no browser needed, but still requires the server running
     "spike-run-x3dom-live-mode.mjs", // exercises the real live app's ?renderer=x3dom entry point, not a spike page
+    "spike-run-x3dom-movement-camera.mjs", // Phase 1 parity: jump, first/third-person toggle, camera-wall occlusion approximation
+    "spike-run-x3dom-portal-traversal.mjs", // Phase 2 parity: portal apertures render, real backend crossing, scene recomposition, camera remap
+    "spike-run-x3dom-equipment-anchors.mjs", // Phase 3 parity: default equipment loads at correct named anchors, cycling detaches/attaches correctly
+    "spike-run-x3dom-inline-load-queue.mjs", // Phase 3.5a hardening: concurrent createInlineAsset() calls never throw inside X3DOM's addNameSpace internals
+    "spike-run-x3dom-hud.mjs", // Phase 4 parity: toast chrome fires, airport HUD overlay projection mechanism tracks the camera
+    "spike-run-x3dom-peer-avatars.mjs", // Phase 3.5b parity: bidirectional peer avatar detection + spawn + mirrored equipment
+    "spike-run-x3dom-renderer-selector.mjs", // Phase 5 parity: renderer-selector toggle, localStorage persistence, explicit query-param override
+    "spike-run-x3dom-wall-solid.mjs", // Phase 6: plane/`solid` bridging fix — double-sided material requests now produce solid="false" on the geometry element
+    "spike-run-x3dom-portal-preview.mjs", // Phase 6: live portal-aperture preview via the previously-unwired X3DOMPortalRenderer screenshot-polling mechanism
+    "spike-run-x3dom-phase7-combined-load.mjs", // Phase 7: cross-phase consolidation — co-present peers + portal preview + a real crossing all running together, including peer eviction on departure
+    "spike-run-x3dom-portal-hosted-objects.mjs", // Portal-preview real-content Stage 0: syncHostedSceneObjectMeshesX3dom create/update/dispose lifecycle
+    "spike-run-x3dom-portal-preview-real-content.mjs", // Portal-preview real-content Stage 1: real destination color + live hosted-object sync (legacy_world) and real authored-graph topology (airport, minus terminal set-dressing)
+    "spike-run-x3dom-portal-preview-camera-glue.mjs", // Portal-preview real-content Stage 2: destination camera tracks the main camera's real pose every tick (parallax), via glueCameraThroughFrames
+    "spike-run-x3dom-portal-preview-gating.mjs", // Portal-preview real-content Stage 3: proximity/visibility gating skips capture+glue when the aperture isn't on-screen, via canvas-clipped worldToScreen projection
+    "spike-run-x3dom-hosted-objects-wow-fetch.mjs", // WoW API compliance: real negotiated /wow/asset/primitive-<id> representations for active-world hosted objects (X3D XML via Inline), with fallback-to-synthetic on the demo's own restricted/hidden 403/404 objects and fixture-object exclusion
 ];
 
 function run(script, args = []) {

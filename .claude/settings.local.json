@@ -80,7 +80,35 @@
       "WebFetch(domain:webofworlds.github.io)",
       "PowerShell(wsl -d Ubuntu bash -lc \"cd /mnt/c/git/open-spatial-lab-main/open-spatial-lab-main && node tools/_tmp_crud_probe.mjs\")",
       "PowerShell(wsl -d Ubuntu bash -lc \"curl -sS -X DELETE http://127.0.0.1:18151/wow/spatial/demo-room-a/node/6\")",
-      "PowerShell(wsl -d Ubuntu bash -lc \"cd /mnt/c/git/open-spatial-lab-main/open-spatial-lab-main && node tools/_tmp_delete_user_probe.mjs\")"
+      "PowerShell(wsl -d Ubuntu bash -lc \"cd /mnt/c/git/open-spatial-lab-main/open-spatial-lab-main && node tools/_tmp_delete_user_probe.mjs\")",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'readlink -f /proc/$\\(pgrep -f \"src/serve.js\" | head -1\\)/cwd' 2>&1)",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c web/x3dom-portal-traversal-glue.mjs && echo SYNTAX_OK')",
+      "PowerShell(node \"c:\\\\git\\\\open-spatial-lab\\\\tools\\\\x3dom-spikes\\\\_scratch-decode-previews.mjs\")",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c web/live-adapter-portal-geometry.mjs && echo SYNTAX_OK')",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\NPolys\\\\.claude\\\\projects\\\\c--git-open-spatial-lab\\\\memory\\\\project_osl_x3dom_parity.md\" -Raw\\).Length)",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c web/x3dom-portal-hosted-objects.mjs && echo SYNTAX_OK')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c web/portal-render-controller.mjs && node -c web/scene-runtime-controller.mjs && echo SYNTAX_OK')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c web/portal-render-controller.mjs && echo SYNTAX_OK')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'readlink -f /proc/68487/cwd')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && node -c tools/x3dom-spikes/spike-run-x3dom-hosted-objects-wow-fetch.mjs && echo SYNTAX_OK')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -c 'cd /mnt/c/git/open-spatial-lab && for f in tools/x3dom-spikes/spike-run-x3dom-live-mode.mjs tools/x3dom-spikes/spike-run-x3dom-movement-camera.mjs tools/x3dom-spikes/spike-run-x3dom-portal-traversal.mjs tools/x3dom-spikes/spike-run-x3dom-equipment-anchors.mjs tools/x3dom-spikes/spike-run-x3dom-inline-load-queue.mjs tools/x3dom-spikes/spike-run-x3dom-hud.mjs tools/x3dom-spikes/spike-run-x3dom-peer-avatars.mjs tools/x3dom-spikes/spike-run-x3dom-portal-preview.mjs tools/x3dom-spikes/spike-run-x3dom-phase7-combined-load.mjs tools/x3dom-spikes/spike-run-x3dom-portal-preview-real-content.mjs tools/x3dom-spikes/spike-run-x3dom-portal-preview-camera-glue.mjs tools/x3dom-spikes/spike-run-x3dom-portal-preview-gating.mjs; do node -c \"$f\" || echo \"FAIL: $f\"; done; echo DONE')",
+      "PowerShell(wsl.exe -d Ubuntu -e bash /mnt/c/git/open-spatial-lab/tools/x3dom-spikes/_scratch-syntax-check.sh)",
+      "PowerShell(node --check \"c:\\\\git\\\\open-spatial-lab\\\\web\\\\app.js\")",
+      "PowerShell(node --check \"c:\\\\git\\\\open-spatial-lab\\\\web\\\\portal-render-controller.mjs\")",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"cd /mnt/c/git/open-spatial-lab && export PUPPETEER_EXECUTABLE_PATH=/snap/bin/chromium && npm run render-adapter-check\")",
+      "PowerShell(Invoke-WebRequest -Uri \"http://127.0.0.1:8143/index.html\" -UseBasicParsing -TimeoutSec 5)",
+      "PowerShell(node --check \"c:\\\\git\\\\open-spatial-lab\\\\runtime\\\\scene-core\\\\public\\\\render-adapter\\\\x3dom-render-adapter.mjs\"; echo \"EXIT:$LASTEXITCODE\")",
+      "Read(//c/git/open-spatial-lab/tools/x3dom-spikes/**)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8143 -ErrorAction SilentlyContinue | Select-Object -First 5 OwningProcess, State | ForEach-Object { $_; try { $p = Get-Process -Id $_.OwningProcess -ErrorAction Stop; \"  -> $\\($p.ProcessName\\)\" } catch {} })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://127.0.0.1:8143/index.html\" -UseBasicParsing -TimeoutSec 3; \"STATUS: $\\($r.StatusCode\\)\" } catch { \"NOT RUNNING: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"cd /mnt/c/git/open-spatial-lab && bash launchOpenSpatialLab.sh\" 2>&1)",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"readlink -f /proc/895/cwd\")",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"cd /mnt/c/git/open-spatial-lab && PUPPETEER_EXECUTABLE_PATH=/snap/bin/chromium node tools/x3dom-spikes/_scratch-compare-renderer-parity.mjs\" 2>&1)",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"cd /mnt/c/git/open-spatial-lab && git status --short tools/x3dom-spikes/ | head -20\")",
+      "PowerShell(wsl.exe -d Ubuntu -e bash -lc \"cd /mnt/c/git/open-spatial-lab && git status\")"
+    ],
+    "additionalDirectories": [
+      "c:\\git\\open-spatial-lab\\tools\\x3dom-spikes"
     ]
   }
 }
