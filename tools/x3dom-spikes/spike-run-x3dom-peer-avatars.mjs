@@ -43,6 +43,29 @@ const KNOWN_BENIGN_ERROR_PATTERNS = [
 function isBenign(text) {
   return KNOWN_BENIGN_ERROR_PATTERNS.some((pattern) => pattern.test(text));
 }
+
+// Coordinates BOTH sides of a peer-detection check every poll tick, not just the receiving side:
+// live-adapter-peer-presence-reducer.mjs prunes a peer's pose as stale after PEER_PLAYER_POSE_
+// STALE_MS (4000ms) with no fresh broadcast — a single upfront nudge to the sender is only "seen"
+// for a 4s window, and if the receiver's own sync() doesn't happen to observe it inside that
+// window (dependent on real BroadcastChannel message delivery + rAF timing under whatever
+// resource contention this run happens to be under), the peer goes stale again and the check has
+// to wait for a broadcast that never comes again. Re-nudging the sender every tick keeps it
+// perpetually fresh for as long as this loop runs, removing that race entirely.
+async function waitForPeerDetection(senderPage, receiverPage, { timeoutMs = 15000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let count = 0;
+  while (Date.now() < deadline) {
+    await senderPage.evaluate(() => window.__x3domLiveMode.liveAdapter.stepAvatar({ forward: false, camera_yaw: 0 }, 0.05));
+    count = await receiverPage.evaluate(() => {
+      window.__x3domLiveMode.adapter.requestRender();
+      return window.__x3domLiveMode.peerAvatarsGlue.peerCount();
+    });
+    if (count === 1)
+      return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
 try {
   const errors1 = [];
   const errors2 = [];
@@ -76,18 +99,24 @@ try {
   await page2.evaluate(() => window.__x3domLiveMode.avatarReady);
 
   // page2 is front-most now (created last) — give it real frame time to detect page1.
-  await page2.evaluate(() => window.__x3domLiveMode.liveAdapter.stepAvatar({ forward: true, camera_yaw: 0 }, 0.05));
-  await new Promise((r) => setTimeout(r, 3000));
+  //
+  // Was a fixed 3000ms sleep + single read. sync() (which processes the BroadcastChannel message
+  // into peerCount()) only runs from onEnterFrame(), which only fires while X3DOM's own render
+  // loop actually ticks (see x3dom-peer-avatars-glue.mjs's own header comment) — a fixed sleep
+  // assumes real rAF delivery resumes promptly and at a normal rate, which isn't reliable under
+  // the resource contention of a full ~30-spike sequential suite run. waitForPeerDetection() polls
+  // instead, re-nudging BOTH sides every tick (see its own comment for why the sender side needs
+  // continuous re-nudging too, not just the receiver).
+  await waitForPeerDetection(page1, page2);
   const p2SeesP1 = await page2.evaluate(() => {
     const glue = window.__x3domLiveMode.peerAvatarsGlue;
     return { count: glue.peerCount(), clientIds: glue.peerClientIds() };
   });
 
   // Bring page1 to front so ITS onEnterFrame loop (and therefore its own sync()) actually runs,
-  // then give it real frame time to detect page2.
+  // then give it real frame time to detect page2 — same coordinated-poll approach as above.
   await page1.bringToFront();
-  await page1.evaluate(() => window.__x3domLiveMode.liveAdapter.stepAvatar({ forward: true, camera_yaw: 0 }, 0.05));
-  await new Promise((r) => setTimeout(r, 3000));
+  await waitForPeerDetection(page2, page1);
   const p1SeesP2 = await page1.evaluate(() => {
     const glue = window.__x3domLiveMode.peerAvatarsGlue;
     return { count: glue.peerCount(), clientIds: glue.peerClientIds() };

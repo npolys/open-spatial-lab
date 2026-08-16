@@ -83,10 +83,18 @@ https://webofworlds.github.io/WoWAPI/specification/OpenSpatialAsset/
 
 
 
-torus mesh used in the x3dom portals is rendered with just backfaces
 
 Now you need to fix the problem that 
 the airport location in the x3dom renderer is not the same scene (objects and avatars) as it is in the three renderer; please update the x3dom airport scene for parity.
 
 Now use all you know about three and x3dom to think about how RenderTexture would improve visual performance. 
 Then  plan the steps to acheive this.
+
+
+portal-preview destinations still don't fetch real WoW-negotiated assets (stay on synthetic geometry) — no longer a hard technical constraint since the rewrite (destination content now shares the Inline pool with the active world), just not wired up.
+Pixel-perfect on-screen crop for the aperture is still unsolved — RenderedTexture has no viewport-offset equivalent to crop against.
+A minor, unresolved residual: location-a logs 4 harmless GL_INVALID_OPERATION warnings during the brief pre-binding window at boot (location-b logs zero) — cosmetic console noise only, not root-caused.
+
+
+
+Clean up and think through all the items in the README - make sure they are accurate and up to date.

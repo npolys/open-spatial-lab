@@ -53,7 +53,7 @@ function walk(current = ROOT) {
 
 // Classification for NEW files only — existing entries keep whatever they already had.
 function classify(path) {
-    if (path === "smoke_tests.md")
+    if (path === "smoke_tests.md" || path === "README_X3DOM.md")
         return { classification: "documentation", license: "Apache-2.0" };
     if (path === "bash.cmd" || path === "run-bash.ps1")
         return { classification: "launcher", license: "Apache-2.0" };

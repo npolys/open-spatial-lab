@@ -35,6 +35,7 @@ const REGRESSION_SPIKES = [
     "spike-run-asset-negotiation.mjs", // no browser needed, but still requires the server running
     "spike-run-x3dom-live-mode.mjs", // exercises the real live app's ?renderer=x3dom entry point, not a spike page
     "spike-run-x3dom-movement-camera.mjs", // Phase 1 parity: jump, first/third-person toggle, camera-wall occlusion approximation
+    "spike-run-x3dom-orbit-drag-render.mjs", // orbit-camera drag smoothness fix: requestRender() actually sets doc.needRender
     "spike-run-x3dom-portal-traversal.mjs", // Phase 2 parity: portal apertures render, real backend crossing, scene recomposition, camera remap
     "spike-run-x3dom-equipment-anchors.mjs", // Phase 3 parity: default equipment loads at correct named anchors, cycling detaches/attaches correctly
     "spike-run-x3dom-inline-load-queue.mjs", // Phase 3.5a hardening: concurrent createInlineAsset() calls never throw inside X3DOM's addNameSpace internals

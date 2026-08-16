@@ -3,7 +3,7 @@
   "project": "Open Spatial Lab",
   "release_slug": "grigb/open-spatial-lab",
   "release_scope": "complete-local-web-of-worlds-demo",
-  "complete_tree_sha256": "aac9bad200de343b6ae6eb7d6c3d7c0af8d655998655e806c053b779b5d0cb27",
+  "complete_tree_sha256": "7f82f74d2ccd50d4d95bac5fafd5e9ba7748db8707d5ac6c270b4e62de1a8195",
   "files": [
     {
       "path": ".gitignore",
@@ -190,10 +190,18 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "README_X3DOM.md",
+      "mode": "100644",
+      "size": 12762,
+      "sha256": "ad8ad523e2144a877be247c937a93b944a2afa1d1b83ddabdb1e57d3291b5beb",
+      "classification": "documentation",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "README.md",
       "mode": "100644",
-      "size": 60382,
-      "sha256": "6a924d9d91ea7ea1eabb9ebad563e867a99f5bc8bfeb244e087c3a6c5af0672b",
+      "size": 67477,
+      "sha256": "a068161cd02d696634ed27cd468f2b6c40cc0461085c589efd4c2f977cd16844",
       "classification": "documentation",
       "license": "Apache-2.0"
     },
@@ -256,8 +264,8 @@
     {
       "path": "runtime/scene-core/public/render-adapter/x3dom-render-adapter.mjs",
       "mode": "100644",
-      "size": 53995,
-      "sha256": "5ab0a6198e14944bf8c5ac50582f53bd1c729d89788c7b6387de47ac5e892833",
+      "size": 55361,
+      "sha256": "b834fb12cc08aceb9545dffe1f59e9f8d4d8d80c72a20cca0bade959337562eb",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -432,8 +440,8 @@
     {
       "path": "tools/generate-release-manifest.mjs",
       "mode": "100644",
-      "size": 5909,
-      "sha256": "fdf2c3882679157a2b0fee3501ccf52f214cbc758792e85db77273489cf4f2b7",
+      "size": 5939,
+      "sha256": "32cd0ce7a686724075d3c7ac094a5488062eb175f43108358771f18c02bc4c2b",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -528,8 +536,8 @@
     {
       "path": "tools/verify-render-adapters.mjs",
       "mode": "100644",
-      "size": 10301,
-      "sha256": "7912720062544132bb7e1894167702fc34345c13b20b04b60b8ebff5c4c61302",
+      "size": 10428,
+      "sha256": "6b175144dc60f060deed1279e04775997f05e7151e41245e3e9378c551d310ca",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -568,96 +576,8 @@
     {
       "path": "tools/x3dom-spikes/_scratch-compare-out/airport-active.png",
       "mode": "100644",
-      "size": 172092,
-      "sha256": "7ef13d3d3c5fd0767ba025269b90cf9bf0d532318fda1015e89bf4bad9602333",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/airport-wide.png",
-      "mode": "100644",
-      "size": 101987,
-      "sha256": "1daaea12321501194ebaba0ea4ffe5d72d414873d26d03b10f716c95996f53a4",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/ring-orientation-check.png",
-      "mode": "100644",
-      "size": 112343,
-      "sha256": "1fc00d35856de54da2bf771f2c692da2c6b003eaeafc6b5d761c864aa8448092",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-after.png",
-      "mode": "100644",
-      "size": 112554,
-      "sha256": "e0c84396718c82190df16084741c4735a2136c34d48412c3acf1941b50b439b5",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-before.png",
-      "mode": "100644",
-      "size": 51942,
-      "sha256": "0650e43eed67d9b9b11af25e5f190ab49f82f9aac8b4a97572e6a35527b390bf",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.json",
-      "mode": "100644",
-      "size": 294,
-      "sha256": "72d1158769913be1c76f7f66ba211a794af3000ed41318dd91caa91ff9e3ce42",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v2.png",
-      "mode": "100644",
-      "size": 144052,
-      "sha256": "0f7b7e5fd979d9f3e7450ea50f4b0300ee30ab4aeb965822c1a5e6b18ddda259",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v3.json",
-      "mode": "100644",
-      "size": 456,
-      "sha256": "4880c4aa16d1a022e3a921c23a2c04debaaccde2089608129cc14c9eecefbf4e",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v3.png",
-      "mode": "100644",
-      "size": 144343,
-      "sha256": "2d3008d2c1f378a71d502399bf8e4a6bef6edfdb2040297cdfd48e30169cc496",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4-sample1.png",
-      "mode": "100644",
-      "size": 138685,
-      "sha256": "f892951c14158101a262ac38bd473d58c00fc305ca81d9882a884fd6cad97e06",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4-sample3.png",
-      "mode": "100644",
-      "size": 137431,
-      "sha256": "0a6d5545135f7a6400fba2314b726957eafe281a772f2d0e96050002dc81b8c6",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility-v4.json",
-      "mode": "100644",
-      "size": 456,
-      "sha256": "4880c4aa16d1a022e3a921c23a2c04debaaccde2089608129cc14c9eecefbf4e",
+      "size": 172323,
+      "sha256": "4f2b1bfc9e8af84bfeae63bd19de37ef403c5cc000fbed6053de8f18c2a70e6f",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -670,98 +590,10 @@
       "license": "Apache-2.0"
     },
     {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-feasibility.json",
-      "mode": "100644",
-      "size": 145,
-      "sha256": "e0a14978503b1f56f4420cedbb1c6d4e6b512cddfa0574ed5b172dd6006e545e",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
       "path": "tools/x3dom-spikes/_scratch-compare-out/rt-orientation-check.png",
       "mode": "100644",
       "size": 7611,
       "sha256": "0b2c1e4c22a652d11234791557a07fb9d3cd96bd191d99f394cc47c91da26a17",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-aperture-closeup.png",
-      "mode": "100644",
-      "size": 19883,
-      "sha256": "9bda7b9b4186b60725a6b0be5e322f53888c1fcb9b04ec911d5564f394ffba33",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-aperture-pointblank.png",
-      "mode": "100644",
-      "size": 70734,
-      "sha256": "de5cd457f9e7bdda94195c979a20f346a4471e975548594c30f076e521902d6c",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-default-pose.png",
-      "mode": "100644",
-      "size": 126808,
-      "sha256": "42c1e5a2021ae7abc032c18728f5d3b392acb3a4e1b25855eed6349581bbea07",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-fps.json",
-      "mode": "100644",
-      "size": 281,
-      "sha256": "7c2ebfec618bb5d018b69b4dad14648096517e0242351608d8e03d49d07f4b7a",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/rt-rewrite-near-portal.png",
-      "mode": "100644",
-      "size": 89524,
-      "sha256": "d4bf1ef92bc0438f7615fc111aa970f3cfb5ad9839d199b8537f682211172297",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/summary.json",
-      "mode": "100644",
-      "size": 46425,
-      "sha256": "6511a031941ab831251ddce2e51901643e1fa324875812e7831cf7181fd9203b",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/three-default.png",
-      "mode": "100644",
-      "size": 108099,
-      "sha256": "427d1352fba70a584feb1e6adbfc950d646d9a6e515a85ff1bd7881d4472e490",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/three-near-portal.png",
-      "mode": "100644",
-      "size": 139386,
-      "sha256": "50684417bf70d8f6e3d7cbfeca1ebb12df3f2d5d11bf2ea5ca01c7f029441129",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/x3dom-default.png",
-      "mode": "100644",
-      "size": 134058,
-      "sha256": "9304c501809957e8d82ab58ba0fa1a59dd76e567e294f27459026bb6c66302ea",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-compare-out/x3dom-near-portal.png",
-      "mode": "100644",
-      "size": 111804,
-      "sha256": "0e694ee565a9ff56549ff52a1a6dc8585a8710ad2213ae74440198134de602f9",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -794,14 +626,6 @@
       "mode": "100644",
       "size": 1772,
       "sha256": "30b9f1a2670bccc202c5e8b1144bfec471891b659c82f08de5fdc0727a6aa395",
-      "classification": "public-test",
-      "license": "Apache-2.0"
-    },
-    {
-      "path": "tools/x3dom-spikes/_scratch-diag-feedback-loop-source.mjs",
-      "mode": "100644",
-      "size": 1347,
-      "sha256": "8b4d5f14f9fbf3865166e8f0624c0b03cfb63564053580c8eef6c4c6496e54c0",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -994,6 +818,14 @@
       "mode": "100644",
       "size": 1367,
       "sha256": "613d7e764662f844de33a471dbb3fa96d6eb08d6039d6cdab26d76e89887cf38",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "tools/x3dom-spikes/spike-run-avatar-animation-check.mjs",
+      "mode": "100644",
+      "size": 1478,
+      "sha256": "e8506422b9d439c7248f8034a595362b4578a7804336efa2d8be018089eb98f0",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1200,8 +1032,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-hosted-objects-wow-fetch.mjs",
       "mode": "100644",
-      "size": 6996,
-      "sha256": "43e7ad9e585f95fe67fdd2110770c97b47a6cc9e908f1dfcc8bac7cb4e0bfcc2",
+      "size": 7375,
+      "sha256": "5b1d9e02da77a72bc68d2d180090a695b71cd1bf2ee134212c41b5c9c34b977b",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1238,10 +1070,18 @@
       "license": "Apache-2.0"
     },
     {
+      "path": "tools/x3dom-spikes/spike-run-x3dom-orbit-drag-render.mjs",
+      "mode": "100644",
+      "size": 1195,
+      "sha256": "167e7296c03fffc8636c5af05354f079cd9ea5136621b2beb0157d2d8033a21b",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
       "path": "tools/x3dom-spikes/spike-run-x3dom-peer-avatars.mjs",
       "mode": "100644",
-      "size": 7136,
-      "sha256": "1dff847f72d16baecc2077b2bfa5e61bd417a0ccde445325d3afc34e075d31b7",
+      "size": 8939,
+      "sha256": "a922dd90e3222d625154ccb14c1f0c6173ea588c6b1c74793bf1e6b7311fd48b",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1272,8 +1112,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-portal-preview-gating.mjs",
       "mode": "100644",
-      "size": 6589,
-      "sha256": "6eab0d156f90941276b7a0991fdc69cc84502bf2167d938864490324fe5b7b54",
+      "size": 7081,
+      "sha256": "f785927ec53c6c611548fb4d1e7c68d207c93e7303eda9317228102165ce718c",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -1304,8 +1144,8 @@
     {
       "path": "tools/x3dom-spikes/spike-run-x3dom-renderer-selector.mjs",
       "mode": "100644",
-      "size": 6064,
-      "sha256": "f083183e800c38cd59614b5cff01212784e68de1ddfa901be31ddc2fa69b0949",
+      "size": 7014,
+      "sha256": "2cb9037c7d00527573c4b4da499718b6e8b3ba9aa24b693997622385985062e8",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -2504,8 +2344,8 @@
     {
       "path": "web/x3dom-movement-camera-controller.mjs",
       "mode": "100644",
-      "size": 12080,
-      "sha256": "66be1c14e683388b6c6f651526ffe7aa7aff60f7d96585ca649f5f2e28913daa",
+      "size": 13554,
+      "sha256": "e820328b61ef43058e26fd4802bbb507f99af5345f8aeca35a23bbd633c0cfff",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -2528,8 +2368,8 @@
     {
       "path": "web/x3dom-portal-traversal-glue.mjs",
       "mode": "100644",
-      "size": 46391,
-      "sha256": "c1c634735baffb9365653594ed6c4053504b2999fa7b66a9e4affd05e83572f2",
+      "size": 49762,
+      "sha256": "da5251df38dbe5b242b72e4181fccc73ae134fbc1d867c835b4850622120cc77",
       "classification": "browser-runtime",
       "license": "Apache-2.0"
     },
@@ -2546,6 +2386,14 @@
       "mode": "100644",
       "size": 4369,
       "sha256": "c7801703002ca84dfe7dae48bd6d628f2900262591618282fe0111fc7b27e041",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-avatar-animation-check.html",
+      "mode": "100644",
+      "size": 7225,
+      "sha256": "29190b92a5f3e42286c15ddc310b8e071808820434203412a664f71069375830",
       "classification": "public-test",
       "license": "Apache-2.0"
     },
@@ -2634,6 +2482,14 @@
       "mode": "100644",
       "size": 5393,
       "sha256": "7fcbdf909436a96935bfc2b4006f0b05c91bb75a1980822fea37d12c09d04f25",
+      "classification": "public-test",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "web/x3dom-spikes/spike-x3dom-orbit-drag-render.html",
+      "mode": "100644",
+      "size": 5563,
+      "sha256": "94bf4e627851157a81a0b77be41d552a71ae703a4776390e0222815d30cb89dd",
       "classification": "public-test",
       "license": "Apache-2.0"
     },

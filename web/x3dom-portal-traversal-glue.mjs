@@ -343,6 +343,17 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
         const hostedGroup = adapter.createGroup("x3dom-portal-preview-hosted-objects");
         adapter.add(record.stagingGroup, hostedGroup);
         let hostedPointVersion = null;
+        // Real WoW-negotiated asset representations, matching what mountActiveHostedObjects()
+        // already does for the ACTIVE world (applyActiveHostedPoint below). Originally left
+        // synthetic-only because the destination host was a fully separate document with no
+        // pre-seeded Inline pool of its own; since the RenderedTexture rewrite (see this file's own
+        // header comment), staged destination content shares the SAME document — and therefore the
+        // SAME pool — as the active world, so that constraint no longer applies. Density-fixture
+        // objects still get excluded unconditionally by syncHostedSceneObjectMeshesX3dom itself
+        // (pool-exhaustion guard, unrelated to this change). `wowAssetBaseUrl` must be the
+        // DESTINATION world's own proxy base, not the active world's — `liveAdapter.demoProxyBase()`
+        // already takes an explicit endpoint key for exactly this (used elsewhere for the identical
+        // per-endpoint-base need).
         const applyHostedPoint = (attachPoint) => {
             if (!attachPoint || attachPoint.version === hostedPointVersion)
                 return;
@@ -353,6 +364,8 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
                 parent: hostedGroup,
                 objects: attachPoint.value?.objects || [],
                 version: attachPoint.version,
+                fetchWowRepresentation: true,
+                wowAssetBaseUrl: liveAdapter.demoProxyBase(content.endpoint_key),
             });
         };
         applyHostedPoint(content.hosted_point);
@@ -443,7 +456,10 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
         // to rendering the MAIN scene (including the consuming aperture itself) — a real,
         // confirmed-live `GL_INVALID_OPERATION: Feedback loop formed between Framebuffer and active
         // Texture` during that window when this defaulted to "always". Flipped to "always" only
-        // once binding actually succeeds.
+        // once binding actually succeeds — and tick()'s own eligibility-based toggle is gated on
+        // record.sceneBound for the same reason: that loop sees this record from the moment it's
+        // pushed below, well before this function's own bind below resolves, and was found to be
+        // an independent source of the same early-flip race.
         const rt = adapter.createRenderedTexture({
             dimensions: [PORTAL_PREVIEW_SIZE_PX, PORTAL_PREVIEW_SIZE_PX, 4],
             update: "none",
@@ -451,7 +467,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
         material.appearanceEl.appendChild(rt.el);
 
         const record = {
-            stagingGroup, stagingOffset, stagingDefName, rt, updateMode: "none",
+            stagingGroup, stagingOffset, stagingDefName, rt, updateMode: "none", sceneBound: false,
             material, portal, disposed: false, disposeContent: null, contentKind: null, hostedGroup: null,
         };
         previewRecords.push(record);
@@ -463,6 +479,7 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
                 await adapter.bindRenderedTextureScene(rt, stagingGroup);
                 if (record.disposed)
                     return;
+                record.sceneBound = true;
                 rt.el.setAttribute("update", "always");
                 record.updateMode = "always";
             }
@@ -537,10 +554,23 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
     // engine coupling, the same function the three.js path uses for its own camera gluing), offset
     // into the staging area. Gives real walk-past parallax through the aperture. Deliberately does
     // NOT attempt three.js's pixel-perfect on-screen crop (THREE.Camera.setViewOffset + a custom
-    // crop shader sampling a live render-target texture) — RenderedTexture has no equivalent
-    // viewport-offset field to reach for the same trick with. The aperture shows the destination
-    // viewpoint's whole view mapped onto the texture, correctly parallaxing as the player moves,
-    // not a pixel-accurate window.
+    // crop shader sampling a live render-target texture) — RenderedTexture has no built-in
+    // viewport-offset field for the same trick. The aperture shows the destination viewpoint's
+    // whole view mapped onto the texture, correctly parallaxing as the player moves, not a
+    // pixel-accurate window.
+    //
+    // Investigated (not integrated): X3DOM's Viewpoint node does expose a public
+    // setProjectionMatrix() escape hatch, and a hand-built off-axis (Kooima-style asymmetric
+    // frustum) matrix injected through it DOES persist in the node's own internal state — but a
+    // dedicated feasibility spike (since removed; results captured in project memory) found the
+    // actual rendered crop unreliable: it required manually forcing X3DOM's needRender dirty flag
+    // to be visible at all (a genuine X3DOM render-loop gotcha, though likely moot in the real app
+    // since the player camera is essentially always moving), and even then the cropped output
+    // consistently missed the intended sub-rectangle, landing on empty space rather than the
+    // targeted content. Root cause not isolated (candidates: an aspect-ratio mismatch between the
+    // RT's own square dimensions and the crop-fraction source, or an X3DOM-side Y-axis convention
+    // difference — this project already found a real, separate Y-flip quirk in RenderedTexture
+    // output during the orientation-check work). Not safe to build on without further isolation.
     function updateCameraGlue(record) {
         if (!record.portal?.frame || !record.portal?.target_frame)
             return;
@@ -577,7 +607,14 @@ export function createX3domPortalTraversalGlue({ adapter, liveAdapter, camera, l
             if (record.disposed || !record.rt)
                 continue;
             const eligible = isPreviewEligible(record);
-            const desiredUpdateMode = eligible ? "always" : "none";
+            // Gated on record.sceneBound, not just `eligible`: this loop runs every frame and the
+            // record is visible to it from the moment setupPortalPreview() creates it — well before
+            // that function's own bindRenderedTextureScene() await resolves. Without the gate, an
+            // early-eligible portal could flip `update` to "always" here while `scene` is still
+            // unset, independently of (and racing) setupPortalPreview()'s own bind-then-flip
+            // sequence — this was a real, confirmed source of the RenderedTexture-defaults-to-
+            // main-scene feedback loop (see the comment above setupPortalPreview()'s own flip).
+            const desiredUpdateMode = eligible && record.sceneBound ? "always" : "none";
             if (record.updateMode !== desiredUpdateMode) {
                 record.rt.el.setAttribute("update", desiredUpdateMode);
                 record.updateMode = desiredUpdateMode;

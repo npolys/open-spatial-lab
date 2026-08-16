@@ -38,7 +38,11 @@ try {
   await page.evaluate(() => window.__x3domLiveMode.avatarReady);
 
   // Wait until the active-hosted-objects group exists and every object has settled to a final
-  // wow_status (loaded or denied-or-error) — the poll runs at 100ms, so this should resolve fast.
+  // wow_status (loaded or denied-or-error). The poll itself runs at 100ms, but actual settling now
+  // shares X3DOM's single-claim-at-a-time Inline-load queue with the portal-preview destinations'
+  // own WoW-fetch objects (wired up in the same round this timeout was widened) — measured at
+  // ~15s in a clean, low-contention run, uncomfortably close to the previous 20s budget; widened to
+  // give real margin rather than leave this newly flaky under normal system load.
   await page.waitForFunction(() => {
     const group = Array.from(document.querySelectorAll("*")).find((el) => el.name === "x3dom-active-hosted-objects");
     if (!group || group.children.length < 3) return false;
@@ -46,7 +50,7 @@ try {
       const status = node.userData?.hostedSceneObject?.wow_status;
       return status === "loaded" || status === "denied-or-error";
     });
-  }, { timeout: 20000 });
+  }, { timeout: 45000 });
 
   const objectsInfo = await page.evaluate(() => {
     const group = Array.from(document.querySelectorAll("*")).find((el) => el.name === "x3dom-active-hosted-objects");

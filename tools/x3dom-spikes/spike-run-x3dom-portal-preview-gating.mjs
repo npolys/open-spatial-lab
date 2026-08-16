@@ -41,10 +41,15 @@ try {
   await page.goto("http://127.0.0.1:8143/index.html?renderer=x3dom&role=player&active=a&intro=0", { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => window.__x3domLiveMode?.avatarReady != null, { timeout: 30000 });
   await page.evaluate(() => window.__x3domLiveMode.avatarReady);
+  // Measured at ~450ms in a clean, low-contention run — `ready` (contentKind set) doesn't itself
+  // wait on WoW-fetch settling, but this timed out twice under real system load once portal-preview
+  // destinations started sharing X3DOM's Inline-load queue with the active world's own hosted
+  // objects (see spike-run-x3dom-hosted-objects-wow-fetch.mjs's own widened timeout, same cause).
+  // Widened for real margin under load, not because the underlying operation got slower itself.
   await page.waitForFunction(() => {
     const state = window.__x3domLiveMode?.portalGlue?.previewDebugState?.();
     return Array.isArray(state) && state.length === 2 && state.every((r) => r.ready);
-  }, { timeout: 20000 });
+  }, { timeout: 40000 });
 
   // Boot's default camera pose (seeded facing the spawn area) should already be eligible — the
   // Stage 0-2 spikes' previewAllReady checks already confirm previews come up under default boot

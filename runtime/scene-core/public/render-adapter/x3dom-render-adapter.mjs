@@ -139,6 +139,25 @@ export class X3DOMRenderAdapter extends RenderAdapter {
         const height = this._x3dEl.clientHeight || parseInt(this._x3dEl.getAttribute("height"), 10) || 0;
         return { width, height };
     }
+    /**
+     * Wakes X3DOM's main render loop for the next frame (X3DOM-only — three.js's default render
+     * loop is unconditional, so it has no equivalent need). Confirmed directly in the vendored
+     * source (X3DCanvas.prototype.tick): `mainloop` runs every requestAnimationFrame regardless,
+     * but everything inside tick() — including onEnterFrame() callback dispatch, not just the
+     * actual WebGL draw — is gated behind `doc.needRender`, which X3DOM only sets itself in
+     * response to its OWN DOM-attribute/field-change tracking. Any caller that mutates plain JS
+     * state (not an X3D DOM attribute) and needs onEnterFrame() to keep firing every frame while
+     * that state is actively changing (e.g. a mouse-drag handler updating a camera controller's
+     * target angles) must call this explicitly, or onEnterFrame() silently stops running and the
+     * change only shows up whenever something unrelated happens to wake the loop again — this was
+     * the root cause of a real, reported "orbital camera skips frames while dragging" bug.
+     * `x3dElem.render` is X3DOM's own public wake-up hook (assigned during X3DCanvas.load); this
+     * is a no-op if the runtime isn't attached yet.
+     */
+    requestRender() {
+        if (this._x3dEl && typeof this._x3dEl.render === "function")
+            this._x3dEl.render();
+    }
     mount(containerEl, options = {}) {
         const width = options.width || containerEl.clientWidth || 640;
         const height = options.height || containerEl.clientHeight || 420;

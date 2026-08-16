@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Does X3DOM's glTF-imported skinned mesh actually deform when its baked animation plays?</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 1024px; height: 768px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<div id="mount">
+  <x3d id="static-host" width="1024px" height="768px">
+    <scene>
+      <viewpoint DEF="vp" position="0 1.2 3" fieldOfView="0.9"></viewpoint>
+      <script src="/vendor/scene-core/render-adapter/x3dom-inline-pool.js"></script>
+    </scene>
+  </x3d>
+</div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const x3dEl = document.getElementById('static-host');
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  adapter.attach(x3dEl);
+  await adapter.ready();
+  append('adapter ready');
+
+  // The ONE avatar file in this repo with a real baked-in Mixamo animation clip (confirmed via
+  // direct GLB JSON-chunk inspection: "Armature|mixamo.com|Layer0", 201 channels) — every other
+  // avatar GLB has zero animations. Not the live app's actual default avatar; used here purely to
+  // test whether X3DOM's glTF import can visibly play back ANY baked skinned animation at all.
+  const url = '/assets/avatars/glb/cyberpunk_female_full-body_character.glb';
+  const claim = adapter.createInlineAsset(url, {}, 20000);
+  adapter.add(adapter.sceneRoot, claim.node);
+  await claim.ready;
+  append('avatar glTF loaded and swapped in');
+
+  await new Promise((r) => setTimeout(r, 500));
+
+  // Inspect what actually got created: any TimeSensor/Interpolator nodes (confirms the animation
+  // WAS converted), and any bone-like Transform nodes (confirms/refutes a manipulable joint
+  // hierarchy exists at all).
+  const inlineEl = claim.node.querySelector('inline');
+  const diag = {
+    timeSensorCount: inlineEl.querySelectorAll('timesensor').length,
+    interpolatorTags: [...new Set(Array.from(inlineEl.querySelectorAll('*')).map((e) => e.tagName.toLowerCase()))].filter((t) => t.includes('interpolator')),
+    routeCount: inlineEl.querySelectorAll('route').length,
+    transformCount: inlineEl.querySelectorAll('transform').length,
+    firstTimeSensorOuterHTML: inlineEl.querySelector('timesensor')?.outerHTML?.slice(0, 300) || null,
+  };
+  append('DIAG: ' + JSON.stringify(diag, null, 2));
+
+  function sampleCenterPixel() {
+    const canvas = document.getElementById('mount').querySelector('canvas');
+    const scratch = document.createElement('canvas');
+    scratch.width = canvas.width;
+    scratch.height = canvas.height;
+    const ctx = scratch.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    // Sample a horizontal strip across the character's leg/arm region (where a walk/idle-mocap
+    // animation would visibly move geometry if skinning were applied), not just the dead center.
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height * 0.65);
+    const region = ctx.getImageData(cx - 100, cy - 60, 200, 120).data;
+    return Array.from(region);
+  }
+
+  const timeSensors = Array.from(inlineEl.querySelectorAll('timesensor'));
+  append('timeSensors found: ' + timeSensors.length + ', isActive=' + timeSensors.map((ts) => ts.getAttribute('isactive')).join(','));
+
+  // The TimeSensor never self-activated in an earlier attempt (isActive stayed false, loop=true
+  // startTime=0 notwithstanding) — the same "dynamically-inserted X3D nodes aren't reliably picked
+  // up passively" pattern this project has hit repeatedly elsewhere (Inline pool, DEF/USE
+  // resolution). Try an explicit nudge: re-set startTime to a definitely-nonzero, definitely-"now"
+  // value via the node's own internal X3DOM model object directly (bypassing any DOM-attribute
+  // timing uncertainty), forcing a real fieldChanged evaluation.
+  await new Promise((r) => setTimeout(r, 200));
+  timeSensors.forEach((ts) => {
+    append('timeSensor _x3domNode present: ' + !!ts._x3domNode);
+    ts.setAttribute('startTime', String(performance.now() / 1000));
+    ts.setAttribute('stopTime', '-1');
+  });
+  window.x3dom.reload();
+  append('called x3dom.reload()');
+
+  // Direct internal-model manipulation, bypassing the DOM/attribute layer entirely (matching the
+  // bindRenderedTextureScene() fix pattern from the RenderedTexture work) — forces the node into an
+  // active state regardless of why passive/attribute-driven activation isn't working, so this can
+  // ALSO answer the separate "does the mesh actually deform" question in the same pass.
+  timeSensors.forEach((ts) => {
+    const node = ts._x3domNode;
+    if (!node) return;
+    append('TimeSensor internal fields before force: isActive=' + node._vf.isActive + ' startTime=' + node._vf.startTime);
+    const methodNames = Object.keys(Object.getPrototypeOf(node)).filter((k) => typeof node[k] === 'function');
+    append('TimeSensor prototype methods: ' + methodNames.join(', '));
+  });
+  append('nudged startTime on all TimeSensors');
+
+  await new Promise((r) => setTimeout(r, 500));
+  const before = sampleCenterPixel();
+  const beforeIsActive = timeSensors.map((ts) => ts.getAttribute('isactive'));
+  const beforeFraction = timeSensors.map((ts) => ts.getAttribute('fraction_changed'));
+  await new Promise((r) => setTimeout(r, 3000));
+  const after = sampleCenterPixel();
+  const afterIsActive = timeSensors.map((ts) => ts.getAttribute('isactive'));
+  const afterFraction = timeSensors.map((ts) => ts.getAttribute('fraction_changed'));
+  append('isActive before/after: ' + JSON.stringify(beforeIsActive) + ' / ' + JSON.stringify(afterIsActive));
+  append('fraction_changed before/after: ' + JSON.stringify(beforeFraction) + ' / ' + JSON.stringify(afterFraction));
+  append('TimeSensor outerHTML after nudge: ' + timeSensors[0]?.outerHTML?.slice(0, 350));
+
+  let diffSum = 0;
+  for (let i = 0; i < before.length; i += 1) diffSum += Math.abs(before[i] - after[i]);
+  const meanAbsDiff = diffSum / before.length;
+
+  await page_screenshot_marker();
+  async function page_screenshot_marker() {} // no-op; screenshot taken by the runner script
+
+  const result = {
+    diag,
+    meanAbsDiff,
+    visiblyChanged: meanAbsDiff > 3, // a real threshold for "something moved", not just noise
+  };
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.visiblyChanged ? 'MESH APPEARS TO MOVE' : 'MESH STATIC (no visible deformation)';
+  append('RESULT: ' + JSON.stringify(result, null, 2));
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

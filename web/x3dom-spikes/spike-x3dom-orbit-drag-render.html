@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Orbital camera drag: does onEnterFrame keep firing (and the pose keep updating) during a drag with no other DOM churn?</title>
+<link rel="stylesheet" href="/vendor/scene-core/vendor/x3dom/x3dom.css">
+<script src="/vendor/scene-core/vendor/x3dom/x3dom-full.js"></script>
+<style>
+  body { font: 13px ui-monospace, Menlo, monospace; background: #0b1020; color: #d9e6ff; margin: 0; padding: 12px; }
+  #mount { width: 800px; height: 600px; }
+  #log { white-space: pre-wrap; margin-top: 12px; background: #11162a; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="status">loading...</div>
+<!-- Reproduces the reported bug's exact conditions: a scene with nothing else animating/mutating
+     X3D DOM attributes (no avatar movement, no periodic polling) -- isolating whether dragging the
+     orbit camera alone keeps onEnterFrame()/step() firing every frame, or whether the render loop
+     goes idle between synthetic "mousemove" events the way the real drag handler's own listener
+     would receive them, purely from X3DOM's own needRender gating. -->
+<div id="mount"></div>
+<pre id="log"></pre>
+<script type="module">
+import { X3DOMRenderAdapter } from "/vendor/scene-core/render-adapter/x3dom-render-adapter.mjs";
+import { createX3domMovementCameraController } from "/x3dom-movement-camera-controller.mjs";
+
+const log = document.getElementById('log');
+function append(line) { log.textContent += line + "\n"; console.log(line); }
+
+async function run() {
+  const adapter = new X3DOMRenderAdapter(window.x3dom);
+  const mountEl = document.getElementById('mount');
+  adapter.mount(mountEl, { width: 800, height: 600 });
+  await adapter.ready();
+  append('adapter ready');
+
+  const sceneRoot = adapter.sceneRoot;
+  const marker = adapter.createMesh(
+    adapter.createGeometry({ type: 'box', width: 2, height: 2, depth: 2 }),
+    adapter.createMaterial({ type: 'standard', color: '#4488ff' })
+  );
+  adapter.add(sceneRoot, marker);
+  adapter.add(sceneRoot, adapter.createAmbientLight({ intensity: 0.9 }));
+
+  const camera = createX3domMovementCameraController({
+    adapter,
+    camera: adapter.camera,
+    dragEl: mountEl,
+    sceneMount: mountEl,
+  });
+  camera.seed({ azimuth: 0, polar: 0.2, distance: 5, focusPosition: [0, 0, 0] });
+
+  let enterFrameCount = 0;
+  adapter.onEnterFrame(() => {
+    enterFrameCount += 1;
+    camera.step(1 / 60, [0, 0, 0]);
+  });
+
+  await new Promise((r) => setTimeout(r, 400));
+
+  // --- Test 1: idle baseline. With nothing dragging and no other DOM churn, confirm the loop
+  // genuinely goes idle (not continuously rendering) -- this establishes that the bug's precondition
+  // (an idle loop before a drag starts) is real, not a strawman.
+  const idleCountBefore = enterFrameCount;
+  await new Promise((r) => setTimeout(r, 500));
+  const idleCountAfter = enterFrameCount;
+  const idleFrameGrowth = idleCountAfter - idleCountBefore;
+  append(`Idle baseline: onEnterFrame fired ${idleFrameGrowth} times over 500ms with nothing happening (expect near-zero, confirming the loop genuinely idles)`);
+
+  // --- Test 2: simulated drag, dispatching real mousemove events at ~60Hz for 500ms (matching a
+  // real mouse's typical event rate), WITHOUT touching mousedown/pointer state directly -- calls
+  // the controller's own internal drag path via genuine DOM events on window, same as production.
+  mountEl.dispatchEvent(new MouseEvent('mousedown', { clientX: 400, clientY: 300, bubbles: true }));
+  const dragCountBefore = enterFrameCount;
+  const azimuthBefore = camera.orbit ? camera.orbit.state.azimuth : null;
+  let dx = 0;
+  const dragTicks = 30; // ~500ms at 60Hz
+  for (let i = 0; i < dragTicks; i++) {
+    dx += 4;
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 400 + dx, clientY: 300, bubbles: true }));
+    await new Promise((r) => setTimeout(r, 1000 / 60));
+  }
+  window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  const dragCountAfter = enterFrameCount;
+  const dragFrameGrowth = dragCountAfter - dragCountBefore;
+  append(`During simulated drag (${dragTicks} mousemove events over ~500ms): onEnterFrame fired ${dragFrameGrowth} times (expect close to ${dragTicks}, one render roughly per input event -- a large shortfall means frames are being dropped/coalesced)`);
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  // --- Test 3: direct, unconfounded unit check of requestRender() itself -- not end-to-end frame
+  // cadence (test 1 found this isolated scene never idles regardless, so that comparison can't
+  // discriminate before/after here), just: does calling it actually set doc.needRender, the exact
+  // flag X3DCanvas.prototype.tick gates onEnterFrame() dispatch on (confirmed directly from the
+  // vendored source)?
+  const doc = adapter.camera._x3domNode._nameSpace.doc;
+  doc.needRender = false;
+  adapter.requestRender();
+  const requestRenderWorks = doc.needRender === true;
+  append(`requestRender() sets doc.needRender: ${requestRenderWorks}`);
+
+  const result = {
+    idleFrameGrowth,
+    dragFrameGrowth,
+    dragTicks,
+    requestRenderWorks,
+    ok: requestRenderWorks,
+  };
+  window.__testResult = result;
+  document.getElementById('status').textContent = result.ok ? 'PASS' : 'FAIL';
+  append('RESULT: ' + JSON.stringify(result, null, 2));
+}
+run().catch((err) => {
+  append('ERROR: ' + (err && err.stack || err));
+  window.__testResult = { ok: false, error: String(err && err.stack || err) };
+  document.getElementById('status').textContent = 'error';
+});
+</script>
+</body>
+</html>

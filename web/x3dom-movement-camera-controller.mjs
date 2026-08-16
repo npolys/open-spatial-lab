@@ -180,6 +180,17 @@ export function createX3domMovementCameraController({ adapter, camera, dragEl, s
         lastAppliedPose = pose;
         const focusDistance = Math.hypot(pose.position[0] - pose.lookAt[0], pose.position[1] - pose.lookAt[1], pose.position[2] - pose.lookAt[2]);
         applyOcclusion(focusDistance);
+        // Keeps the render loop alive through the damped ease-out after the user releases the
+        // drag (same needRender-gating issue the mousemove handler's own requestRender() call
+        // fixes for the active-drag case) — without this, easing would freeze on whatever pose
+        // happened to be current at the exact frame dragging stopped, rather than gliding the
+        // rest of the way to the released target.
+        const { azimuth, targetAzimuth, polar, targetPolar, distance, targetDistance } = orbit.state;
+        const settled = Math.abs(targetAzimuth - azimuth) < 1e-4
+            && Math.abs(targetPolar - polar) < 1e-4
+            && Math.abs(targetDistance - distance) < 1e-4;
+        if (!settled)
+            adapter.requestRender();
     }
 
     function toggleMode() {
@@ -243,6 +254,14 @@ export function createX3domMovementCameraController({ adapter, camera, dragEl, s
                 orbit.state.targetAzimuth -= dx * ORBIT_SPEED_RAD_PER_PX;
                 orbit.state.targetPolar = clampRange(orbit.state.targetPolar + dy * ORBIT_SPEED_RAD_PER_PX, ORBIT_CAMERA_DEFAULTS.min_polar_rad, ORBIT_CAMERA_DEFAULTS.max_polar_rad);
             }
+            // This only updates plain JS state (pointerYaw/pointerPitch or orbit.state's target*
+            // fields) — no X3D DOM attribute changes, so nothing here trips X3DOM's own
+            // needRender tracking on its own. Without an explicit wake, onEnterFrame() (which
+            // drives step()'s actual setCameraPose() calls) stops firing once the render loop
+            // goes idle, and drag input piles up invisibly until something unrelated happens to
+            // wake it again — the real cause of "camera skips frames while dragging". See
+            // requestRender()'s own comment in x3dom-render-adapter.mjs for the full mechanism.
+            adapter.requestRender();
         }, true);
     }
 
